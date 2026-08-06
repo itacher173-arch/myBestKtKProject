@@ -1,4 +1,5 @@
 import type { EquipmentNode } from '../../scheme/types'
+import { isZoneBanner } from '../../scheme/zones'
 import { isControllableEquip } from '../../sim/controllable'
 import type { ProcessState } from '../../sim/types'
 import { EquipmentSymbol } from './symbols/EquipmentSymbols'
@@ -35,11 +36,16 @@ function overlayText(nodeId: string, p: ProcessState): string | null {
   if (nodeId === 'L-3') return `${p.valveL3.toFixed(0)}%`
   if (nodeId === 'PR_351') return p.pressureN1.toFixed(1)
   if (nodeId === 'TR_41_2') return p.tempElouIn.toFixed(0)
-  if (nodeId === 'Q_ELOU') return p.saltMgL.toFixed(0)
+  if (nodeId === 'Q_ELOU') {
+    return p.saltMgL < 10 ? p.saltMgL.toFixed(1) : p.saltMgL.toFixed(0)
+  }
   if (nodeId === 'PRA_312') return p.pressureAfterElou.toFixed(1)
   if (nodeId === 'LRCA_602') return `${p.levelK1.toFixed(0)}%`
   if (nodeId === 'LRCA_604') return `${p.levelK2.toFixed(0)}%`
   if (nodeId === 'TR_55_1') return p.tempFurnaceOut.toFixed(0)
+  if (nodeId === 'TR1K_21') return p.tempK1In.toFixed(0)
+  if (nodeId === 'PRSA_204') return p.pressureK1.toFixed(2)
+  if (nodeId === 'PRSA_213') return p.pressureK2.toFixed(2)
   return null
 }
 
@@ -53,21 +59,29 @@ export function EquipmentNodeView({
 }: Props) {
   const lines = node.label.split('\n')
   const isBackground = node.type === 'group'
-  const fontSize =
-    node.type === 'label' || node.type === 'signal'
+  const fill = statusFill(node.id, process)
+  const overlay = overlayText(node.id, process)
+  const controllable = isControllableEquip(node.id)
+  const zoneBanner = isZoneBanner(node.id)
+  const pad = 3
+  const fontSize = zoneBanner
+    ? 12
+    : node.type === 'label' || node.type === 'signal'
       ? 10
       : node.type === 'column'
         ? 13
         : 11
-  const fill = statusFill(node.id, process)
-  const overlay = overlayText(node.id, process)
-  const controllable = isControllableEquip(node.id)
-  const pad = 3
 
   return (
     <g
       transform={`translate(${node.x}, ${node.y})`}
-      className={controllable ? 'equip-controllable' : undefined}
+      className={
+        zoneBanner
+          ? 'equip-zone-banner'
+          : controllable
+            ? 'equip-controllable'
+            : undefined
+      }
       style={{ cursor: 'pointer' }}
       onClick={(e) => {
         e.stopPropagation()
@@ -110,9 +124,10 @@ export function EquipmentNodeView({
         selected={selected}
         hovered={hovered}
         controllable={controllable}
+        zoneBanner={zoneBanner}
       />
       <text
-        x={node.w / 2}
+        x={zoneBanner ? node.w / 2 + 2 : node.w / 2}
         y={
           overlay && node.type === 'signal'
             ? node.h / 2 - 6
@@ -120,14 +135,26 @@ export function EquipmentNodeView({
         }
         textAnchor="middle"
         dominantBaseline="middle"
-        fill={selected ? '#fff6d6' : '#e8eef4'}
+        fill={
+          zoneBanner
+            ? selected
+              ? '#f0f7fc'
+              : '#d5e6f2'
+            : selected
+              ? '#fff6d6'
+              : '#e8eef4'
+        }
         fontSize={fontSize}
         fontFamily="IBM Plex Sans, Segoe UI, sans-serif"
-        fontWeight={selected ? 700 : 600}
+        fontWeight={selected || zoneBanner ? 700 : 600}
         pointerEvents="none"
       >
         {lines.map((line, i) => (
-          <tspan key={i} x={node.w / 2} dy={i === 0 ? 0 : fontSize + 2}>
+          <tspan
+            key={i}
+            x={zoneBanner ? node.w / 2 + 2 : node.w / 2}
+            dy={i === 0 ? 0 : fontSize + 2}
+          >
             {line}
           </tspan>
         ))}

@@ -12,6 +12,12 @@ import {
   pipes,
   type PipeKind,
 } from '../../scheme'
+import {
+  SCHEME_ZONES,
+  getZoneBounds,
+  isZoneBanner,
+  zoneById,
+} from '../../scheme/zones'
 import { useTrainer } from '../../sim/TrainerContext'
 import { EquipmentNodeView } from './EquipmentNodeView'
 
@@ -22,11 +28,14 @@ const PIPE_COLORS: Record<PipeKind, string> = {
   utility: '#7a8f7a',
 }
 
+const ZONE_SEPARATORS = [300, 620, 1040, 1500, 1940, 2460, 2980]
+
 export function SchemeViewer() {
   const { state, selectEquip, openPanelForEquip, closePanel } = useTrainer()
   const selectedId = state.selectedEquipId
   const containerRef = useRef<HTMLDivElement>(null)
   const [hoveredId, setHoveredId] = useState<string | null>(null)
+  const [activeZoneId, setActiveZoneId] = useState<string | null>(null)
   const [scale, setScale] = useState(0.48)
   const [pan, setPan] = useState({ x: 20, y: 10 })
   const dragRef = useRef<{
@@ -46,23 +55,56 @@ export function SchemeViewer() {
     [],
   )
 
+  const focusZone = useCallback((zoneId: string) => {
+    const zone = zoneById[zoneId]
+    const bounds = zone ? getZoneBounds(zone.key) : null
+    const el = containerRef.current
+    if (!bounds || !el) return
+
+    const rect = el.getBoundingClientRect()
+    const nextScale = Math.min(
+      0.85,
+      Math.max(
+        0.42,
+        Math.min(
+          (rect.width * 0.85) / Math.max(bounds.maxX - bounds.minX, 280),
+          (rect.height * 0.75) / Math.max(bounds.maxY - bounds.minY, 280),
+        ),
+      ),
+    )
+    setScale(nextScale)
+    setPan({
+      x: rect.width / 2 - bounds.cx * nextScale,
+      y: Math.max(12, rect.height * 0.42 - bounds.cy * nextScale),
+    })
+    setActiveZoneId(zoneId)
+  }, [])
+
+  const handleNodeSelect = useCallback(
+    (id: string) => {
+      if (isZoneBanner(id)) {
+        selectEquip(id)
+        closePanel()
+        focusZone(id)
+        return
+      }
+      setActiveZoneId(null)
+      openPanelForEquip(id)
+    },
+    [closePanel, focusZone, openPanelForEquip, selectEquip],
+  )
+
   const onSelect = useCallback(
     (id: string | null) => {
       if (!id) {
         selectEquip(null)
         closePanel()
+        setActiveZoneId(null)
         return
       }
-      openPanelForEquip(id)
+      handleNodeSelect(id)
     },
-    [openPanelForEquip, selectEquip, closePanel],
-  )
-
-  const handleNodeSelect = useCallback(
-    (id: string) => {
-      openPanelForEquip(id)
-    },
-    [openPanelForEquip],
+    [closePanel, handleNodeSelect, selectEquip],
   )
 
   const onWheel = useCallback((e: ReactWheelEvent) => {
@@ -75,7 +117,6 @@ export function SchemeViewer() {
     (e: ReactPointerEvent) => {
       if (e.button !== 0) return
       const target = e.target as Element
-      // allow drag on background only
       if (target.closest('[data-equip]')) return
       dragRef.current = {
         active: true,
@@ -101,6 +142,18 @@ export function SchemeViewer() {
   const onPointerUp = useCallback(() => {
     if (dragRef.current) dragRef.current.active = false
   }, [])
+
+  const activeZone = activeZoneId ? zoneById[activeZoneId] : null
+  const activeBand = useMemo(() => {
+    if (!activeZone) return null
+    const idx = SCHEME_ZONES.findIndex((z) => z.id === activeZone.id)
+    const left = activeZone.separatorX
+    const right =
+      idx >= 0 && idx < SCHEME_ZONES.length - 1
+        ? SCHEME_ZONES[idx + 1].separatorX
+        : VIEWBOX.width
+    return { left, width: right - left }
+  }, [activeZone])
 
   return (
     <div
@@ -171,19 +224,27 @@ export function SchemeViewer() {
             </pattern>
           </defs>
 
-          <rect
-            width={VIEWBOX.width}
-            height={VIEWBOX.height}
-            fill="#141c24"
-          />
+          <rect width={VIEWBOX.width} height={VIEWBOX.height} fill="#141c24" />
           <rect
             width={VIEWBOX.width}
             height={VIEWBOX.height}
             fill="url(#grid)"
           />
 
-          {/* zone separators */}
-          {[300, 620, 1040, 1500, 1940, 2460, 2980].map((x) => (
+          {activeBand && (
+            <rect
+              x={activeBand.left}
+              y={70}
+              width={activeBand.width}
+              height={VIEWBOX.height - 110}
+              fill="rgba(62, 148, 200, 0.06)"
+              stroke="rgba(126, 200, 240, 0.22)"
+              strokeWidth={1}
+              pointerEvents="none"
+            />
+          )}
+
+          {ZONE_SEPARATORS.map((x) => (
             <line
               key={x}
               x1={x}
@@ -256,7 +317,9 @@ export function SchemeViewer() {
               <g key={node.id} data-equip={node.id}>
                 <EquipmentNodeView
                   node={node}
-                  selected={selectedId === node.id}
+                  selected={
+                    selectedId === node.id || activeZoneId === node.id
+                  }
                   hovered={hoveredId === node.id}
                   process={state.process}
                   onSelect={handleNodeSelect}
@@ -270,15 +333,21 @@ export function SchemeViewer() {
 
       <div className="scheme-hint">
         <span className="scheme-hint-ctrl" aria-hidden />
-        Зелёный контур — управление в сценарии · Колёсико — масштаб · ЛКМ по
-        фону — перетаскивание
+        Зелёный контур — управление · Клик по зоне сверху — переход к участку ·
+        Колёсико — масштаб
       </div>
       <div className="scheme-zoom">
-        <button type="button" onClick={() => setScale((s) => Math.min(2.2, s * 1.15))}>
+        <button
+          type="button"
+          onClick={() => setScale((s) => Math.min(2.2, s * 1.15))}
+        >
           +
         </button>
         <span>{Math.round(scale * 100)}%</span>
-        <button type="button" onClick={() => setScale((s) => Math.max(0.25, s / 1.15))}>
+        <button
+          type="button"
+          onClick={() => setScale((s) => Math.max(0.25, s / 1.15))}
+        >
           −
         </button>
         <button
@@ -286,6 +355,9 @@ export function SchemeViewer() {
           onClick={() => {
             setScale(0.48)
             setPan({ x: 20, y: 10 })
+            setActiveZoneId(null)
+            selectEquip(null)
+            closePanel()
           }}
         >
           Сброс

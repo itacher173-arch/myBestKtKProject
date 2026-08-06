@@ -6,3 +6,10 @@ export {
 } from './types'
 export { equipment, equipmentById } from './equipment'
 export { pipes } from './pipes'
+export {
+  SCHEME_ZONES,
+  getZoneBounds,
+  isZoneBanner,
+  zoneById,
+} from './zones'
+export type { SchemeZone } from './zones'

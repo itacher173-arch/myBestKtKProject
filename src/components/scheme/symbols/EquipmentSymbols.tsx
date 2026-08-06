@@ -261,7 +261,44 @@ export function GroupSymbol({ w, h, selected, hovered, controllable }: SymbolPro
   )
 }
 
-export function LabelSymbol({ w, h, selected, hovered, controllable }: SymbolProps) {
+export function LabelSymbol({
+  w,
+  h,
+  selected,
+  hovered,
+  controllable,
+  zoneBanner,
+}: SymbolProps & { zoneBanner?: boolean }) {
+  if (zoneBanner) {
+    const fill = selected
+      ? 'rgba(45, 90, 120, 0.95)'
+      : hovered
+        ? 'rgba(36, 70, 96, 0.92)'
+        : 'rgba(24, 38, 52, 0.92)'
+    const stroke = selected ? '#7ec8f0' : hovered ? '#5aa3c9' : '#4a6780'
+    return (
+      <g>
+        <rect
+          x={0}
+          y={0}
+          width={w}
+          height={h}
+          rx={6}
+          fill={fill}
+          stroke={stroke}
+          strokeWidth={selected ? 1.8 : 1.2}
+        />
+        <rect
+          x={0}
+          y={0}
+          width={4}
+          height={h}
+          rx={2}
+          fill={selected ? '#7ec8f0' : '#3d8ebd'}
+        />
+      </g>
+    )
+  }
   const s = strokeColor(selected, hovered, controllable)
   return (
     <g>
@@ -328,7 +365,8 @@ export function EquipmentSymbol({
   selected,
   hovered,
   controllable,
-}: SymbolProps & { type: EquipmentType }) {
+  zoneBanner,
+}: SymbolProps & { type: EquipmentType; zoneBanner?: boolean }) {
   const props = { w, h, selected, hovered, controllable }
   switch (type) {
     case 'column':
@@ -346,7 +384,7 @@ export function EquipmentSymbol({
     case 'group':
       return <GroupSymbol {...props} />
     case 'label':
-      return <LabelSymbol {...props} />
+      return <LabelSymbol {...props} zoneBanner={zoneBanner} />
     case 'valve':
       return <ValveSymbol {...props} />
     case 'signal':

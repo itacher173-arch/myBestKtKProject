@@ -11,10 +11,10 @@ export const CONTROLLABLE_EQUIP_IDS = new Set([
   'E-4',
   'E-5',
   'E-6',
+  // Атмосферные печи (общий контур топливного газа). П-4 — рибойлинг К-9/К-10, вне модели.
   'P-1',
   'P-2',
   'P-3',
-  'P-4',
 ])
 
 export function isControllableEquip(id: string): boolean {

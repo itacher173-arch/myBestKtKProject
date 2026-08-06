@@ -318,6 +318,32 @@ export const equipment: EquipmentNode[] = [
     meta: { zone: '3. ЭЛОУ', description: 'Давление обессоленной нефти' },
   },
   {
+    id: 'TR1K_21',
+    type: 'signal',
+    label: 'TR1K-21',
+    x: 1160,
+    y: 200,
+    w: 72,
+    h: 36,
+    meta: {
+      zone: '4. Атмосферный',
+      description: 'Температура питания колонны К-1',
+    },
+  },
+  {
+    id: 'PRSA_204',
+    type: 'signal',
+    label: 'PRSA204',
+    x: 1180,
+    y: 160,
+    w: 72,
+    h: 36,
+    meta: {
+      zone: '4. Атмосферный',
+      description: 'Давление верха К-1 (норма 1–4,5 кгс/см²)',
+    },
+  },
+  {
     id: 'N-20',
     type: 'pump',
     label: 'Н-20',
@@ -393,7 +419,10 @@ export const equipment: EquipmentNode[] = [
     y: 840,
     w: 70,
     h: 36,
-    meta: { zone: '4. Атмосферный', description: 'Температура выхода печи' },
+    meta: {
+      zone: '4. Атмосферный',
+      description: 'Температура выхода печей П-1…П-3 (норма ≤365 °C)',
+    },
   },
   {
     id: 'E-1-vessel',
@@ -788,6 +817,19 @@ export const equipment: EquipmentNode[] = [
     w: 70,
     h: 36,
     meta: { zone: '5. К-2 / стриппинги', description: 'Уровень в К-2' },
+  },
+  {
+    id: 'PRSA_213',
+    type: 'signal',
+    label: 'PRSA213',
+    x: 1900,
+    y: 300,
+    w: 72,
+    h: 36,
+    meta: {
+      zone: '5. К-2 / стриппинги',
+      description: 'Давление верха К-2 (норма 0,2–1 кгс/см²)',
+    },
   },
   {
     id: 'E-2-vessel',
@@ -1439,7 +1481,8 @@ export const equipment: EquipmentNode[] = [
     h: 90,
     meta: {
       zone: '7. Вторичная',
-      description: 'Печь рибойлинга К-9 / К-10',
+      description:
+        'Печь рибойлинга К-9 / К-10. Вне атмосферного тракта сценария — управление топливом здесь не моделируется.',
     },
   },
   {

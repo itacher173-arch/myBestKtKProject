@@ -47,10 +47,10 @@ export function ControlPanel() {
     panel.type === 'valve' &&
     (panel.id === 'L-1' || panel.id === 'L-2' || panel.id === 'L-3')
   const controllablePump = panel.type === 'pump' && panel.id === 'N-1'
-  const controllableFurnace =
+  const atmFurnace =
     panel.type === 'furnace' &&
-    (panel.id === 'P-1' || panel.id === 'P-2' || panel.id === 'P-3' || panel.id === 'P-4')
-
+    (panel.id === 'P-1' || panel.id === 'P-2' || panel.id === 'P-3')
+  const secondaryFurnace = panel.type === 'furnace' && panel.id === 'P-4'
   const valvePercent =
     panel.id === 'L-1'
       ? p.valveL1
@@ -189,8 +189,21 @@ export function ControlPanel() {
 
           {panel.type === 'desalter' && (
             <>
-              <p>Соли на выходе: {p.saltMgL.toFixed(0)} мг/л</p>
-              <p>Температура входа: {p.tempElouIn.toFixed(0)} °C</p>
+              <p>
+                Соли на выходе:{' '}
+                <strong>
+                  {p.saltMgL < 10
+                    ? p.saltMgL.toFixed(1)
+                    : p.saltMgL.toFixed(0)}{' '}
+                  мг/л
+                </strong>
+                {p.saltMgL > 5 ? ' · тревога (>5)' : ' · норма ≤5'}
+              </p>
+              <p>Температура входа: {p.tempElouIn.toFixed(0)} °C (норма ≤140)</p>
+              <p>
+                Давление после ЭЛОУ: {p.pressureAfterElou.toFixed(1)} кгс/см²
+                (рабочее 4,5–10)
+              </p>
               <div className="ctrl-actions">
                 <button
                   type="button"
@@ -212,41 +225,58 @@ export function ControlPanel() {
             </>
           )}
 
-          {panel.type === 'furnace' && (
+          {panel.type === 'furnace' && atmFurnace && (
             <>
+              <p>
+                Контур топливного газа печей <strong>П-1…П-3</strong> (нагрев к
+                К-2)
+              </p>
               <p>Подача топливного газа: {p.fuelGasPercent}%</p>
-              <p>Температура выхода: {p.tempFurnaceOut.toFixed(0)} °C</p>
-              {controllableFurnace ? (
-                <>
-                  <input
-                    type="range"
-                    min={0}
-                    max={100}
-                    value={p.fuelGasPercent}
-                    disabled={!canControl}
-                    onChange={(e) => setFuelGas(Number(e.target.value))}
-                  />
-                  <div className="ctrl-actions">
-                    <button
-                      type="button"
-                      disabled={!canControl}
-                      onClick={() => setFuelGas(60)}
-                    >
-                      60%
-                    </button>
-                    <button
-                      type="button"
-                      disabled={!canControl}
-                      onClick={() => setFuelGas(0)}
-                    >
-                      0%
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <p className="hint">Панель печи (общий контур топлива в модели).</p>
-              )}
+              <p>
+                Температура выхода (TR55-1): {p.tempFurnaceOut.toFixed(0)} °C
+                (норма ≤365)
+              </p>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={p.fuelGasPercent}
+                disabled={!canControl}
+                onChange={(e) => setFuelGas(Number(e.target.value))}
+              />
+              <div className="ctrl-actions">
+                <button
+                  type="button"
+                  disabled={!canControl}
+                  onClick={() => setFuelGas(60)}
+                >
+                  60%
+                </button>
+                <button
+                  type="button"
+                  disabled={!canControl}
+                  onClick={() => setFuelGas(0)}
+                >
+                  0%
+                </button>
+              </div>
             </>
+          )}
+
+          {panel.type === 'furnace' && secondaryFurnace && (
+            <>
+              <p>
+                П-4 — печь рибойлинга вторичного блока (К-9 / К-10), зона 7.
+              </p>
+              <p className="hint">
+                Не входит в атмосферный тракт упражнений. Топливный газ П-1…П-3
+                здесь не регулируется.
+              </p>
+            </>
+          )}
+
+          {panel.type === 'furnace' && !atmFurnace && !secondaryFurnace && (
+            <p className="hint">Панель печи вне модели текущего сценария.</p>
           )}
 
           {panel.type === 'column' && (
@@ -260,14 +290,25 @@ export function ControlPanel() {
                     </strong>
                   </p>
                   <p>
-                    Давление:{' '}
-                    {(panel.id === 'K-1' ? p.pressureK1 : p.pressureK2).toFixed(
-                      2,
-                    )}{' '}
-                    кгс/см²
+                    Давление верха (
+                    {panel.id === 'K-1' ? 'PRSA204' : 'PRSA213'}):{' '}
+                    <strong>
+                      {(panel.id === 'K-1' ? p.pressureK1 : p.pressureK2).toFixed(
+                        2,
+                      )}{' '}
+                      кгс/см²
+                    </strong>
+                  </p>
+                  <p className="hint">
+                    {panel.id === 'K-1'
+                      ? 'Норма верха К-1: 1–4,5 кгс/см²; t низа ≤280 °C; t верха ≤150 °C'
+                      : 'Норма верха К-2: 0,2–1 кгс/см²; t низа ≤350 °C; t верха ≤148 °C'}
                   </p>
                   {panel.id === 'K-1' && (
-                    <p>Температура низа: {p.tempK1Bottom.toFixed(0)} °C</p>
+                    <>
+                      <p>Питание (TR1K-21): {p.tempK1In.toFixed(0)} °C</p>
+                      <p>Температура низа: {p.tempK1Bottom.toFixed(0)} °C</p>
+                    </>
                   )}
                 </>
               ) : (
@@ -288,7 +329,6 @@ export function ControlPanel() {
               )}
             </>
           )}
-
           {panel.type === 'signal' && (
             <>
               {analogs

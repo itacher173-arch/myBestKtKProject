@@ -36,7 +36,7 @@ export interface ProcessState {
   demulsifierOn: boolean
   electricFieldOn: boolean
 
-  /** Подача топливного газа к печам 0–100% */
+  /** Подача топливного газа к печам П-1…П-3 (атмосферный тракт), 0–100% */
   fuelGasPercent: number
 
   /** Уровни кубов % */
@@ -48,9 +48,14 @@ export interface ProcessState {
   tempElouIn: number
   saltMgL: number
   pressureAfterElou: number
+  /** Питание К-1 (TR1K-21) */
+  tempK1In: number
   tempK1Bottom: number
+  /** Верх К-1 (PRSA204), кгс/см² */
   pressureK1: number
+  /** Выход печей П-1…П-3 (TR55-1) */
   tempFurnaceOut: number
+  /** Верх К-2 (PRSA213), кгс/см² */
   pressureK2: number
 
   feedFlow: number
@@ -123,10 +128,11 @@ export function createInitialProcess(): ProcessState {
     tempElouIn: 25,
     saltMgL: 50,
     pressureAfterElou: 0,
+    tempK1In: 25,
     tempK1Bottom: 25,
-    pressureK1: 0.5,
+    pressureK1: 0.6,
     tempFurnaceOut: 25,
-    pressureK2: 0.2,
+    pressureK2: 0.25,
     feedFlow: 0,
     running: false,
     simTimeSec: 0,

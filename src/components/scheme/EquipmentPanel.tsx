@@ -18,23 +18,37 @@ export function EquipmentPanel() {
   if (selectedId === 'L-1') liveBits.push(`Открытие: ${p.valveL1.toFixed(0)}%`)
   if (selectedId === 'L-2') liveBits.push(`Открытие: ${p.valveL2.toFixed(0)}%`)
   if (selectedId === 'L-3') liveBits.push(`Открытие: ${p.valveL3.toFixed(0)}%`)
-  if (selectedId === 'K-1') liveBits.push(`Уровень: ${p.levelK1.toFixed(0)}%`)
-  if (selectedId === 'K-2') liveBits.push(`Уровень: ${p.levelK2.toFixed(0)}%`)
+  if (selectedId === 'K-1') {
+    liveBits.push(
+      `Уровень: ${p.levelK1.toFixed(0)}%`,
+      `P верха: ${p.pressureK1.toFixed(2)} кгс/см²`,
+      `T пит.: ${p.tempK1In.toFixed(0)} °C`,
+    )
+  }
+  if (selectedId === 'K-2') {
+    liveBits.push(
+      `Уровень: ${p.levelK2.toFixed(0)}%`,
+      `P верха: ${p.pressureK2.toFixed(2)} кгс/см²`,
+    )
+  }
   if (
     selectedId === 'ELOU-block' ||
-    selectedId?.startsWith('E-')
+    (selectedId != null && /^E-[1-6]$/.test(selectedId))
   ) {
     liveBits.push(
       `Деэмульг.: ${p.demulsifierOn ? 'вкл' : 'выкл'}`,
       `Эл.поле: ${p.electricFieldOn ? 'вкл' : 'выкл'}`,
-      `Соли: ${p.saltMgL.toFixed(0)} мг/л`,
+      `Соли: ${p.saltMgL < 10 ? p.saltMgL.toFixed(1) : p.saltMgL.toFixed(0)} мг/л`,
     )
   }
   if (selectedId === 'P-1' || selectedId === 'P-2' || selectedId === 'P-3') {
     liveBits.push(
-      `Топливо: ${p.fuelGasPercent}%`,
+      `Топливо П-1…П-3: ${p.fuelGasPercent}%`,
       `T выхода: ${p.tempFurnaceOut.toFixed(0)} °C`,
     )
+  }
+  if (selectedId === 'P-4') {
+    liveBits.push('Рибойлинг К-9/К-10 · вне сценария')
   }
 
   const analog = analogs.find((a) => a.id === selectedId)

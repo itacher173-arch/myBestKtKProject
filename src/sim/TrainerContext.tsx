@@ -246,6 +246,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
   stateRef.current = state
   const pumpStartTimer = useRef<number | null>(null)
   const recoveryLogged = useRef(false)
+  const saltAlarmLogged = useRef(false)
 
   const pushAction = useCallback((description: string) => {
     dispatch({
@@ -275,6 +276,26 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(id)
   }, [state.session.view, state.session.started, state.session.completed])
 
+  // Salt alarm (норма обучения ≤5 мг/л)
+  useEffect(() => {
+    if (state.session.view !== 'exercise' || !state.session.started) return
+    if (state.process.feedFlow > 5 && state.process.saltMgL > 5) {
+      if (saltAlarmLogged.current) return
+      saltAlarmLogged.current = true
+      pushSystem(
+        `ТРЕВОГА: превышено содержание солей после ЭЛОУ (${state.process.saltMgL.toFixed(0)} мг/л > 5), риск коррозии по тракту.`,
+      )
+    } else if (state.process.saltMgL <= 5) {
+      saltAlarmLogged.current = false
+    }
+  }, [
+    state.session.view,
+    state.session.started,
+    state.process.feedFlow,
+    state.process.saltMgL,
+    pushSystem,
+  ])
+
   // Fault trigger by exercise delay
   useEffect(() => {
     if (state.session.view !== 'exercise') return
@@ -299,7 +320,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
       } else if (exercise.faultType === 'fuelGas') {
         dispatch({ type: 'SET_PROCESS', patch: { fuelGasPercent: 0 } })
         pushSystem(
-          'ОТКАЗ: прекращена подача топливного газа к печам. Температура на выходе (TR55-1) будет падать.',
+          'ОТКАЗ: прекращена подача топливного газа к печам П-1…П-3. Температура на выходе (TR55-1) будет падать.',
         )
       } else if (exercise.faultType === 'pumpTrip') {
         dispatch({
@@ -502,6 +523,11 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
       dispatch({ type: 'CLOSE_PANEL' })
       return
     }
+    // Баннеры зон — только навигация по схеме, без панели сведений
+    if (equipId.startsWith('zone-')) {
+      dispatch({ type: 'CLOSE_PANEL' })
+      return
+    }
 
     let panel: PanelKind = null
     switch (node.type) {
@@ -585,6 +611,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
 
   const startSession = useCallback(() => {
     recoveryLogged.current = false
+    saltAlarmLogged.current = false
     if (pumpStartTimer.current) {
       clearTimeout(pumpStartTimer.current)
       pumpStartTimer.current = null
@@ -594,6 +621,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
 
   const resetToStart = useCallback(() => {
     recoveryLogged.current = false
+    saltAlarmLogged.current = false
     if (pumpStartTimer.current) {
       clearTimeout(pumpStartTimer.current)
       pumpStartTimer.current = null
