@@ -99,10 +99,26 @@ export function ControlPanel() {
               </p>
               <p>Давление нагнетания: {p.pressureN1.toFixed(1)} кгс/см²</p>
               <div className="ctrl-actions">
-                <button type="button" disabled={!canControl} onClick={startPumpN1}>
+                <button
+                  type="button"
+                  disabled={
+                    !canControl ||
+                    p.pumpN1 === 'running' ||
+                    p.pumpN1 === 'starting'
+                  }
+                  onClick={startPumpN1}
+                >
                   Пуск
                 </button>
-                <button type="button" disabled={!canControl} onClick={stopPumpN1}>
+                <button
+                  type="button"
+                  disabled={
+                    !canControl ||
+                    p.pumpN1 === 'stopped' ||
+                    p.pumpN1 === 'tripped'
+                  }
+                  onClick={stopPumpN1}
+                >
                   Стоп
                 </button>
               </div>
@@ -133,21 +149,29 @@ export function ControlPanel() {
               <div className="ctrl-actions">
                 <button
                   type="button"
-                  disabled={!canControl}
+                  disabled={
+                    !canControl ||
+                    valveMotion === 'opening' ||
+                    (valvePercent ?? 0) >= 99.5
+                  }
                   onClick={() => openValve(panel.id as 'L-1' | 'L-2' | 'L-3')}
                 >
                   Открыть
                 </button>
                 <button
                   type="button"
-                  disabled={!canControl}
+                  disabled={
+                    !canControl ||
+                    valveMotion === 'closing' ||
+                    (valvePercent ?? 0) <= 0.5
+                  }
                   onClick={() => closeValve(panel.id as 'L-1' | 'L-2' | 'L-3')}
                 >
                   Закрыть
                 </button>
                 <button
                   type="button"
-                  disabled={!canControl}
+                  disabled={!canControl || valveMotion === 'idle'}
                   onClick={() => stopValve(panel.id as 'L-1' | 'L-2' | 'L-3')}
                 >
                   Стоп

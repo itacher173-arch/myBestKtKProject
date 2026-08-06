@@ -269,8 +269,9 @@ export function SchemeViewer() {
       </div>
 
       <div className="scheme-hint">
-        Колёсико — масштаб · ЛКМ по фону — перетаскивание · Клик по элементу —
-        сведения
+        <span className="scheme-hint-ctrl" aria-hidden />
+        Зелёный контур — управление в сценарии · Колёсико — масштаб · ЛКМ по
+        фону — перетаскивание
       </div>
       <div className="scheme-zoom">
         <button type="button" onClick={() => setScale((s) => Math.min(2.2, s * 1.15))}>

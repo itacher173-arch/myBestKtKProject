@@ -179,6 +179,9 @@
   position: absolute;
   left: 12px;
   bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 6px 10px;
   font-size: 11px;
   color: #9db4c7;
@@ -186,6 +189,30 @@
   border: 1px solid #2c3f50;
   border-radius: 6px;
   pointer-events: none;
+  max-width: min(420px, calc(100% - 140px));
+}
+
+.scheme-hint-ctrl {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  border: 1.5px dashed #3ecf9a;
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px rgba(62, 207, 154, 0.15);
+}
+
+@keyframes equip-control-pulse {
+  0%,
+  100% {
+    stroke-opacity: 0.55;
+  }
+  50% {
+    stroke-opacity: 1;
+  }
+}
+
+.equip-control-ring {
+  animation: equip-control-pulse 2.4s ease-in-out infinite;
 }
 
 .scheme-zoom {

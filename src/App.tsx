@@ -1,4 +1,5 @@
 import { ControlPanel } from './components/ControlPanel'
+import { ReportsPage } from './components/ReportsPage'
 import { StartScreen } from './components/StartScreen'
 import { EquipmentPanel } from './components/scheme/EquipmentPanel'
 import { SchemeViewer } from './components/scheme/SchemeViewer'
@@ -10,13 +11,15 @@ function TrainerApp() {
   const { state, completeExercise, resetToStart } = useTrainer()
   const { session } = state
 
-  if (!session.started) {
+  if (session.view === 'start') {
     return <StartScreen />
   }
 
+  if (session.view === 'reports') {
+    return <ReportsPage />
+  }
+
   const exercise = getExercise(session.exerciseId)
-  const roleLabel =
-    session.role === 'instructor' ? 'Инструктор' : 'Обучаемый'
 
   return (
     <div className="app">
@@ -24,7 +27,7 @@ function TrainerApp() {
         <div className="app-brand">
           <span className="app-title">КТК ЭЛОУ-АВТ</span>
           <span className="app-subtitle">
-            {exercise?.name ?? 'Мнемосхема'} · {roleLabel}: {session.userName}
+            {exercise?.name ?? 'Мнемосхема'} · Обучаемый: {session.userName}
           </span>
         </div>
         <div className="app-header-actions">
@@ -41,8 +44,8 @@ function TrainerApp() {
 
       {session.completed && (
         <div className="result-banner">
-          Результат: {session.scorePercent}% эталонных шагов · лишних действий:{' '}
-          {session.penalty}
+          Результат сохранён для инструктора. Выполнение:{' '}
+          {session.scorePercent}% · лишних действий: {session.penalty}
           {session.responseSeconds != null && (
             <>
               {' '}

@@ -83,6 +83,8 @@ export interface SessionState {
   role: Role | null
   userName: string
   exerciseId: string | null
+  /** start = экран входа, exercise = мнемосхема, reports = отчёты инструктора */
+  view: 'start' | 'exercise' | 'reports'
   started: boolean
   completed: boolean
   scorePercent: number
@@ -136,6 +138,7 @@ export function createInitialSession(): SessionState {
     role: null,
     userName: '',
     exerciseId: null,
+    view: 'start',
     started: false,
     completed: false,
     scorePercent: 0,

@@ -1,4 +1,5 @@
 import type { EquipmentNode } from '../../scheme/types'
+import { isControllableEquip } from '../../sim/controllable'
 import type { ProcessState } from '../../sim/types'
 import { EquipmentSymbol } from './symbols/EquipmentSymbols'
 
@@ -60,10 +61,13 @@ export function EquipmentNodeView({
         : 11
   const fill = statusFill(node.id, process)
   const overlay = overlayText(node.id, process)
+  const controllable = isControllableEquip(node.id)
+  const pad = 3
 
   return (
     <g
       transform={`translate(${node.x}, ${node.y})`}
+      className={controllable ? 'equip-controllable' : undefined}
       style={{ cursor: 'pointer' }}
       onClick={(e) => {
         e.stopPropagation()
@@ -73,6 +77,21 @@ export function EquipmentNodeView({
       onMouseLeave={() => onHover(null)}
       opacity={isBackground && !selected && !hovered ? 0.85 : 1}
     >
+      {controllable && (
+        <rect
+          className="equip-control-ring"
+          x={-pad}
+          y={-pad}
+          width={node.w + pad * 2}
+          height={node.h + pad * 2}
+          rx={node.type === 'pump' || node.type === 'valve' ? 22 : 6}
+          fill="none"
+          stroke="#3ecf9a"
+          strokeWidth={1.6}
+          strokeDasharray="5 3"
+          pointerEvents="none"
+        />
+      )}
       {fill && (
         <rect
           x={2}
@@ -90,6 +109,7 @@ export function EquipmentNodeView({
         h={node.h}
         selected={selected}
         hovered={hovered}
+        controllable={controllable}
       />
       <text
         x={node.w / 2}

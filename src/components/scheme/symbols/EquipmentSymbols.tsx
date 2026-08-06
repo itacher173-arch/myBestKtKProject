@@ -12,16 +12,22 @@ interface SymbolProps {
   h: number
   selected?: boolean
   hovered?: boolean
+  controllable?: boolean
 }
 
-function strokeColor(selected?: boolean, hovered?: boolean) {
+function strokeColor(
+  selected?: boolean,
+  hovered?: boolean,
+  controllable?: boolean,
+) {
   if (selected) return '#f0c14b'
   if (hovered) return '#6ec1ff'
+  if (controllable) return '#4ecf9e'
   return fill.stroke
 }
 
-export function ColumnSymbol({ w, h, selected, hovered }: SymbolProps) {
-  const s = strokeColor(selected, hovered)
+export function ColumnSymbol({ w, h, selected, hovered, controllable }: SymbolProps) {
+  const s = strokeColor(selected, hovered, controllable)
   const trays = Math.max(4, Math.min(12, Math.floor(h / 28)))
   return (
     <g>
@@ -63,8 +69,8 @@ export function ColumnSymbol({ w, h, selected, hovered }: SymbolProps) {
   )
 }
 
-export function PumpSymbol({ w, h, selected, hovered }: SymbolProps) {
-  const s = strokeColor(selected, hovered)
+export function PumpSymbol({ w, h, selected, hovered, controllable }: SymbolProps) {
+  const s = strokeColor(selected, hovered, controllable)
   const cx = w / 2
   const cy = h / 2
   const r = Math.min(w, h) / 2 - 4
@@ -87,8 +93,8 @@ export function PumpSymbol({ w, h, selected, hovered }: SymbolProps) {
   )
 }
 
-export function FurnaceSymbol({ w, h, selected, hovered }: SymbolProps) {
-  const s = strokeColor(selected, hovered)
+export function FurnaceSymbol({ w, h, selected, hovered, controllable }: SymbolProps) {
+  const s = strokeColor(selected, hovered, controllable)
   const roof = 16
   return (
     <g>
@@ -124,8 +130,8 @@ export function FurnaceSymbol({ w, h, selected, hovered }: SymbolProps) {
   )
 }
 
-export function HeatExchangerSymbol({ w, h, selected, hovered }: SymbolProps) {
-  const s = strokeColor(selected, hovered)
+export function HeatExchangerSymbol({ w, h, selected, hovered, controllable }: SymbolProps) {
+  const s = strokeColor(selected, hovered, controllable)
   return (
     <g>
       <rect
@@ -166,8 +172,8 @@ export function HeatExchangerSymbol({ w, h, selected, hovered }: SymbolProps) {
   )
 }
 
-export function VesselSymbol({ w, h, selected, hovered }: SymbolProps) {
-  const s = strokeColor(selected, hovered)
+export function VesselSymbol({ w, h, selected, hovered, controllable }: SymbolProps) {
+  const s = strokeColor(selected, hovered, controllable)
   return (
     <g>
       <rect
@@ -202,8 +208,8 @@ export function VesselSymbol({ w, h, selected, hovered }: SymbolProps) {
   )
 }
 
-export function DesalterSymbol({ w, h, selected, hovered }: SymbolProps) {
-  const s = strokeColor(selected, hovered)
+export function DesalterSymbol({ w, h, selected, hovered, controllable }: SymbolProps) {
+  const s = strokeColor(selected, hovered, controllable)
   return (
     <g>
       <rect
@@ -236,8 +242,8 @@ export function DesalterSymbol({ w, h, selected, hovered }: SymbolProps) {
   )
 }
 
-export function GroupSymbol({ w, h, selected, hovered }: SymbolProps) {
-  const s = strokeColor(selected, hovered)
+export function GroupSymbol({ w, h, selected, hovered, controllable }: SymbolProps) {
+  const s = strokeColor(selected, hovered, controllable)
   return (
     <g>
       <rect
@@ -255,8 +261,8 @@ export function GroupSymbol({ w, h, selected, hovered }: SymbolProps) {
   )
 }
 
-export function LabelSymbol({ w, h, selected, hovered }: SymbolProps) {
-  const s = strokeColor(selected, hovered)
+export function LabelSymbol({ w, h, selected, hovered, controllable }: SymbolProps) {
+  const s = strokeColor(selected, hovered, controllable)
   return (
     <g>
       <rect
@@ -273,8 +279,8 @@ export function LabelSymbol({ w, h, selected, hovered }: SymbolProps) {
   )
 }
 
-export function ValveSymbol({ w, h, selected, hovered }: SymbolProps) {
-  const s = strokeColor(selected, hovered)
+export function ValveSymbol({ w, h, selected, hovered, controllable }: SymbolProps) {
+  const s = strokeColor(selected, hovered, controllable)
   const cx = w / 2
   const cy = h / 2
   return (
@@ -297,8 +303,8 @@ export function ValveSymbol({ w, h, selected, hovered }: SymbolProps) {
   )
 }
 
-export function SignalSymbol({ w, h, selected, hovered }: SymbolProps) {
-  const s = strokeColor(selected, hovered)
+export function SignalSymbol({ w, h, selected, hovered, controllable }: SymbolProps) {
+  const s = strokeColor(selected, hovered, controllable)
   return (
     <g>
       <rect
@@ -321,29 +327,29 @@ export function EquipmentSymbol({
   h,
   selected,
   hovered,
+  controllable,
 }: SymbolProps & { type: EquipmentType }) {
+  const props = { w, h, selected, hovered, controllable }
   switch (type) {
     case 'column':
-      return <ColumnSymbol w={w} h={h} selected={selected} hovered={hovered} />
+      return <ColumnSymbol {...props} />
     case 'pump':
-      return <PumpSymbol w={w} h={h} selected={selected} hovered={hovered} />
+      return <PumpSymbol {...props} />
     case 'furnace':
-      return <FurnaceSymbol w={w} h={h} selected={selected} hovered={hovered} />
+      return <FurnaceSymbol {...props} />
     case 'heatExchanger':
-      return (
-        <HeatExchangerSymbol w={w} h={h} selected={selected} hovered={hovered} />
-      )
+      return <HeatExchangerSymbol {...props} />
     case 'vessel':
-      return <VesselSymbol w={w} h={h} selected={selected} hovered={hovered} />
+      return <VesselSymbol {...props} />
     case 'desalter':
-      return <DesalterSymbol w={w} h={h} selected={selected} hovered={hovered} />
+      return <DesalterSymbol {...props} />
     case 'group':
-      return <GroupSymbol w={w} h={h} selected={selected} hovered={hovered} />
+      return <GroupSymbol {...props} />
     case 'label':
-      return <LabelSymbol w={w} h={h} selected={selected} hovered={hovered} />
+      return <LabelSymbol {...props} />
     case 'valve':
-      return <ValveSymbol w={w} h={h} selected={selected} hovered={hovered} />
+      return <ValveSymbol {...props} />
     case 'signal':
-      return <SignalSymbol w={w} h={h} selected={selected} hovered={hovered} />
+      return <SignalSymbol {...props} />
   }
 }

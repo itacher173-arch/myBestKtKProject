@@ -8,27 +8,34 @@ import {
   useRef,
   type ReactNode,
 } from 'react'
+import { equipmentById } from '../scheme'
 import { getAnalogs, tickProcess } from './processModel'
+import { saveReport } from './reportsStorage'
 import { exercises, getExercise } from './scenarios'
 import type { AnalogTag, PanelKind, ProcessState, Role, TrainerState } from './types'
 import { createInitialProcess, createInitialSession } from './types'
-import { equipmentById } from '../scheme'
 
 type Action =
   | { type: 'SET_ROLE'; role: Role }
   | { type: 'SET_NAME'; name: string }
   | { type: 'SET_EXERCISE'; id: string }
+  | { type: 'OPEN_REPORTS' }
   | { type: 'START_SESSION' }
   | { type: 'SELECT_EQUIP'; id: string | null }
   | { type: 'OPEN_PANEL'; panel: PanelKind }
   | { type: 'CLOSE_PANEL' }
-  | { type: 'LOG_ACTION'; description: string }
-  | { type: 'LOG_SYSTEM'; description: string }
+  | { type: 'LOG_ACTION'; id: string; at: number; description: string }
+  | { type: 'LOG_SYSTEM'; id: string; at: number; description: string }
   | { type: 'TICK'; dt: number }
   | { type: 'SET_PROCESS'; patch: Partial<ProcessState> }
   | { type: 'FAULT_TRIGGERED' }
   | { type: 'FAULT_RESPONDED'; seconds: number; inTime: boolean }
-  | { type: 'COMPLETE' }
+  | {
+      type: 'COMPLETE'
+      scorePercent: number
+      penalty: number
+      finishEvent: { id: string; at: number; description: string }
+    }
   | { type: 'RESET_TO_START' }
 
 function uid() {
@@ -52,11 +59,28 @@ function reducer(state: TrainerState, action: Action): TrainerState {
         ...state,
         session: { ...state.session, exerciseId: action.id },
       }
-    case 'START_SESSION':
+    case 'OPEN_REPORTS':
       return {
         ...state,
         session: {
           ...state.session,
+          role: 'instructor',
+          view: 'reports',
+          started: false,
+          completed: false,
+        },
+        process: createInitialProcess(),
+        activePanel: null,
+        selectedEquipId: null,
+      }
+    case 'START_SESSION': {
+      const startedAt = Date.now()
+      return {
+        ...state,
+        session: {
+          ...state.session,
+          role: 'trainee',
+          view: 'exercise',
           started: true,
           completed: false,
           scorePercent: 0,
@@ -68,8 +92,8 @@ function reducer(state: TrainerState, action: Action): TrainerState {
         actionsLog: [],
         systemEvents: [
           {
-            id: uid(),
-            at: Date.now(),
+            id: `start-${startedAt}`,
+            at: startedAt,
             description: `Упражнение начато: ${getExercise(state.session.exerciseId)?.name ?? '—'}`,
           },
         ],
@@ -79,28 +103,57 @@ function reducer(state: TrainerState, action: Action): TrainerState {
         activePanel: null,
         selectedEquipId: null,
       }
+    }
     case 'SELECT_EQUIP':
       return { ...state, selectedEquipId: action.id }
     case 'OPEN_PANEL':
       return { ...state, activePanel: action.panel }
     case 'CLOSE_PANEL':
       return { ...state, activePanel: null }
-    case 'LOG_ACTION':
+    case 'LOG_ACTION': {
+      const recent = state.actionsLog.slice(-5)
+      if (
+        recent.some(
+          (e) =>
+            e.description === action.description && action.at - e.at < 800,
+        )
+      ) {
+        return state
+      }
       return {
         ...state,
         actionsLog: [
           ...state.actionsLog,
-          { id: uid(), at: Date.now(), description: action.description },
+          {
+            id: action.id,
+            at: action.at,
+            description: action.description,
+          },
         ],
       }
-    case 'LOG_SYSTEM':
+    }
+    case 'LOG_SYSTEM': {
+      const recent = state.systemEvents.slice(-5)
+      if (
+        recent.some(
+          (e) =>
+            e.description === action.description && action.at - e.at < 800,
+        )
+      ) {
+        return state
+      }
       return {
         ...state,
         systemEvents: [
           ...state.systemEvents,
-          { id: uid(), at: Date.now(), description: action.description },
+          {
+            id: action.id,
+            at: action.at,
+            description: action.description,
+          },
         ],
       }
+    }
     case 'TICK':
       return { ...state, process: tickProcess(state.process, action.dt) }
     case 'SET_PROCESS':
@@ -118,32 +171,17 @@ function reducer(state: TrainerState, action: Action): TrainerState {
         },
       }
     case 'COMPLETE': {
-      const ex = getExercise(state.session.exerciseId)
-      const needed = ex?.scenarioSteps ?? []
-      const done = new Set(state.actionsLog.map((a) => a.description))
-      const countDone = needed.filter((s) => done.has(s)).length
-      const score =
-        needed.length === 0 ? 0 : (countDone / needed.length) * 100
-      const penalty = state.actionsLog.filter(
-        (a) => !needed.includes(a.description),
-      ).length
+      if (state.session.completed) return state
       return {
         ...state,
         session: {
           ...state.session,
           completed: true,
-          scorePercent: Math.round(score * 10) / 10,
-          penalty,
+          scorePercent: action.scorePercent,
+          penalty: action.penalty,
         },
         process: { ...state.process, running: false },
-        systemEvents: [
-          ...state.systemEvents,
-          {
-            id: uid(),
-            at: Date.now(),
-            description: `Упражнение завершено. Выполнение: ${score.toFixed(0)}%, лишних действий: ${penalty}`,
-          },
-        ],
+        systemEvents: [...state.systemEvents, action.finishEvent],
       }
     }
     case 'RESET_TO_START':
@@ -170,6 +208,7 @@ interface TrainerApi {
   setRole: (role: Role) => void
   setName: (name: string) => void
   setExercise: (id: string) => void
+  openReports: () => void
   startSession: () => void
   selectEquip: (id: string | null) => void
   openPanelForEquip: (equipId: string) => void
@@ -206,18 +245,39 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
   const stateRef = useRef(state)
   stateRef.current = state
   const pumpStartTimer = useRef<number | null>(null)
+  const recoveryLogged = useRef(false)
+
+  const pushAction = useCallback((description: string) => {
+    dispatch({
+      type: 'LOG_ACTION',
+      id: uid(),
+      at: Date.now(),
+      description,
+    })
+  }, [])
+
+  const pushSystem = useCallback((description: string) => {
+    dispatch({
+      type: 'LOG_SYSTEM',
+      id: uid(),
+      at: Date.now(),
+      description,
+    })
+  }, [])
 
   // Simulation tick
   useEffect(() => {
+    if (state.session.view !== 'exercise') return
     if (!state.session.started || state.session.completed) return
     const id = window.setInterval(() => {
       dispatch({ type: 'TICK', dt: 1 })
     }, 1000)
     return () => clearInterval(id)
-  }, [state.session.started, state.session.completed])
+  }, [state.session.view, state.session.started, state.session.completed])
 
   // Fault trigger by exercise delay
   useEffect(() => {
+    if (state.session.view !== 'exercise') return
     if (!state.session.started || state.session.completed) return
     const ex = getExercise(state.session.exerciseId)
     if (!ex?.faultType || !ex.triggerDelaySeconds) return
@@ -226,67 +286,61 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     const t = window.setTimeout(() => {
       const cur = stateRef.current
       const exercise = getExercise(cur.session.exerciseId)
-      if (!exercise?.faultType) return
+      if (!exercise?.faultType || cur.faultTriggered) return
 
       if (exercise.faultType === 'demulsifier') {
         dispatch({
           type: 'SET_PROCESS',
           patch: { demulsifierOn: false },
         })
-        dispatch({
-          type: 'LOG_SYSTEM',
-          description:
-            'ОТКАЗ: остановлен насос-дозатор деэмульгатора на ЭЛОУ. Ожидается рост солей (Q-ELOU).',
-        })
+        pushSystem(
+          'ОТКАЗ: остановлен насос-дозатор деэмульгатора на ЭЛОУ. Ожидается рост солей (Q-ELOU).',
+        )
       } else if (exercise.faultType === 'fuelGas') {
         dispatch({ type: 'SET_PROCESS', patch: { fuelGasPercent: 0 } })
-        dispatch({
-          type: 'LOG_SYSTEM',
-          description:
-            'ОТКАЗ: прекращена подача топливного газа к печам. Температура на выходе (TR55-1) будет падать.',
-        })
+        pushSystem(
+          'ОТКАЗ: прекращена подача топливного газа к печам. Температура на выходе (TR55-1) будет падать.',
+        )
       } else if (exercise.faultType === 'pumpTrip') {
         dispatch({
           type: 'SET_PROCESS',
           patch: { pumpN1: 'tripped', pressureN1: 0 },
         })
-        dispatch({
-          type: 'LOG_SYSTEM',
-          description:
-            'ОТКАЗ: аварийная остановка Н-1 (защита электродвигателя). Давление PRA351 падает.',
-        })
+        pushSystem(
+          'ОТКАЗ: аварийная остановка Н-1 (защита электродвигателя). Давление PRA351 падает.',
+        )
       }
       dispatch({ type: 'FAULT_TRIGGERED' })
-      dispatch({
-        type: 'LOG_SYSTEM',
-        description: `--- Запущена нештатная ситуация: «${exercise.name}» ---`,
-      })
+      pushSystem(`--- Запущена нештатная ситуация: «${exercise.name}» ---`)
     }, ex.triggerDelaySeconds * 1000)
 
     return () => clearTimeout(t)
   }, [
+    state.session.view,
     state.session.started,
     state.session.completed,
     state.session.exerciseId,
     state.faultTriggered,
+    pushSystem,
   ])
 
   // Fuel gas recovery detection (flexible)
   useEffect(() => {
     if (!state.faultTriggered || state.faultResponded || !state.faultAt) return
+    if (recoveryLogged.current) return
     const ex = getExercise(state.session.exerciseId)
     if (ex?.faultType !== 'fuelGas') return
     if (state.process.fuelGasPercent >= 40) {
+      recoveryLogged.current = true
       const sec = (Date.now() - state.faultAt) / 1000
       const inTime =
         ex.normResponseSeconds != null ? sec <= ex.normResponseSeconds : true
       dispatch({ type: 'FAULT_RESPONDED', seconds: sec, inTime })
-      dispatch({
-        type: 'LOG_SYSTEM',
-        description: inTime
+      pushSystem(
+        inTime
           ? `Нештатная ситуация устранена за ${sec.toFixed(1)} с (норма ${ex.normResponseSeconds} с).`
           : `Реакция ${sec.toFixed(1)} с — сверх нормы ${ex.normResponseSeconds} с.`,
-      })
+      )
     }
   }, [
     state.faultTriggered,
@@ -294,32 +348,37 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     state.faultAt,
     state.process.fuelGasPercent,
     state.session.exerciseId,
+    pushSystem,
   ])
 
-  const logAction = useCallback((description: string) => {
-    dispatch({ type: 'LOG_ACTION', description })
+  const logAction = useCallback(
+    (description: string) => {
+      pushAction(description)
 
-    const cur = stateRef.current
-    if (!cur.faultTriggered || cur.faultResponded || !cur.faultAt) return
-    const ex = getExercise(cur.session.exerciseId)
-    if (!ex?.expectedResponseActions?.includes(description)) return
+      const cur = stateRef.current
+      if (!cur.faultTriggered || cur.faultResponded || !cur.faultAt) return
+      if (recoveryLogged.current) return
+      const ex = getExercise(cur.session.exerciseId)
+      if (!ex?.expectedResponseActions?.includes(description)) return
 
-    const sec = (Date.now() - cur.faultAt) / 1000
-    const inTime =
-      ex.normResponseSeconds != null ? sec <= ex.normResponseSeconds : true
-    dispatch({ type: 'FAULT_RESPONDED', seconds: sec, inTime })
-    dispatch({
-      type: 'LOG_SYSTEM',
-      description: inTime
-        ? `Нештатная ситуация устранена за ${sec.toFixed(1)} с (норма ${ex.normResponseSeconds} с).`
-        : `Реакция ${sec.toFixed(1)} с — сверх нормы ${ex.normResponseSeconds} с.`,
-    })
-  }, [])
-
+      recoveryLogged.current = true
+      const sec = (Date.now() - cur.faultAt) / 1000
+      const inTime =
+        ex.normResponseSeconds != null ? sec <= ex.normResponseSeconds : true
+      dispatch({ type: 'FAULT_RESPONDED', seconds: sec, inTime })
+      pushSystem(
+        inTime
+          ? `Нештатная ситуация устранена за ${sec.toFixed(1)} с (норма ${ex.normResponseSeconds} с).`
+          : `Реакция ${sec.toFixed(1)} с — сверх нормы ${ex.normResponseSeconds} с.`,
+      )
+    },
+    [pushAction, pushSystem],
+  )
   const canControl =
+    state.session.view === 'exercise' &&
     state.session.started &&
     !state.session.completed &&
-    (state.session.role === 'trainee' || state.session.role === 'instructor')
+    state.session.role === 'trainee'
 
   const startPumpN1 = useCallback(() => {
     if (!canControl) return
@@ -331,13 +390,10 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     pumpStartTimer.current = window.setTimeout(() => {
       if (stateRef.current.process.pumpN1 === 'starting') {
         dispatch({ type: 'SET_PROCESS', patch: { pumpN1: 'running' } })
-        dispatch({
-          type: 'LOG_SYSTEM',
-          description: 'Н-1 вышел на режим (Running).',
-        })
+        pushSystem('Н-1 вышел на режим (Running).')
       }
     }, 1500)
-  }, [canControl, logAction])
+  }, [canControl, logAction, pushSystem])
 
   const stopPumpN1 = useCallback(() => {
     if (!canControl) return
@@ -481,6 +537,70 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'OPEN_PANEL', panel })
   }, [])
 
+  const completeExercise = useCallback(() => {
+    const cur = stateRef.current
+    if (cur.session.view !== 'exercise' || cur.session.completed) return
+
+    const ex = getExercise(cur.session.exerciseId)
+    const needed = ex?.scenarioSteps ?? []
+    const done = new Set(cur.actionsLog.map((a) => a.description))
+    const countDone = needed.filter((s) => done.has(s)).length
+    const score = needed.length === 0 ? 0 : (countDone / needed.length) * 100
+    const scorePercent = Math.round(score * 10) / 10
+    const penalty = cur.actionsLog.filter(
+      (a) => !needed.includes(a.description),
+    ).length
+    const finishEvent = {
+      id: uid(),
+      at: Date.now(),
+      description: `Упражнение завершено. Выполнение: ${score.toFixed(0)}%, лишних действий: ${penalty}`,
+    }
+    const systemEvents = [...cur.systemEvents, finishEvent]
+
+    if (cur.session.role === 'trainee' && cur.session.userName.trim()) {
+      saveReport({
+        id: uid(),
+        userName: cur.session.userName.trim(),
+        exerciseId: cur.session.exerciseId ?? '',
+        exerciseName: ex?.name ?? '—',
+        completedAt: finishEvent.at,
+        scorePercent,
+        penalty,
+        responseSeconds: cur.session.responseSeconds,
+        respondedInTime: cur.session.respondedInTime,
+        simTimeSec: cur.process.simTimeSec,
+        actionsLog: cur.actionsLog.map(({ at, description }) => ({
+          at,
+          description,
+        })),
+        systemEvents: systemEvents.map(({ at, description }) => ({
+          at,
+          description,
+        })),
+      })
+    }
+
+    dispatch({ type: 'COMPLETE', scorePercent, penalty, finishEvent })
+  }, [])
+
+  const startSession = useCallback(() => {
+    recoveryLogged.current = false
+    if (pumpStartTimer.current) {
+      clearTimeout(pumpStartTimer.current)
+      pumpStartTimer.current = null
+    }
+    dispatch({ type: 'START_SESSION' })
+  }, [])
+
+  const resetToStart = useCallback(() => {
+    recoveryLogged.current = false
+    if (pumpStartTimer.current) {
+      clearTimeout(pumpStartTimer.current)
+      pumpStartTimer.current = null
+    }
+    dispatch({ type: 'RESET_TO_START' })
+  }, [])
+
   const analogs = useMemo(() => getAnalogs(state.process), [state.process])
 
   const api: TrainerApi = {
@@ -490,7 +610,8 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     setRole: (role) => dispatch({ type: 'SET_ROLE', role }),
     setName: (name) => dispatch({ type: 'SET_NAME', name }),
     setExercise: (id) => dispatch({ type: 'SET_EXERCISE', id }),
-    startSession: () => dispatch({ type: 'START_SESSION' }),
+    openReports: () => dispatch({ type: 'OPEN_REPORTS' }),
+    startSession,
     selectEquip: (id) => dispatch({ type: 'SELECT_EQUIP', id }),
     openPanelForEquip,
     closePanel: () => dispatch({ type: 'CLOSE_PANEL' }),
@@ -502,8 +623,8 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     setDemulsifier,
     setElectricField,
     setFuelGas,
-    completeExercise: () => dispatch({ type: 'COMPLETE' }),
-    resetToStart: () => dispatch({ type: 'RESET_TO_START' }),
+    completeExercise,
+    resetToStart,
     canControl,
   }
 
