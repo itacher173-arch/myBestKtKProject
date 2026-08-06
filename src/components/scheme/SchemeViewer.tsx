@@ -12,6 +12,7 @@ import {
   pipes,
   type PipeKind,
 } from '../../scheme'
+import { useTrainer } from '../../sim/TrainerContext'
 import { EquipmentNodeView } from './EquipmentNodeView'
 
 const PIPE_COLORS: Record<PipeKind, string> = {
@@ -21,16 +22,13 @@ const PIPE_COLORS: Record<PipeKind, string> = {
   utility: '#7a8f7a',
 }
 
-interface Props {
-  selectedId: string | null
-  onSelect: (id: string | null) => void
-}
-
-export function SchemeViewer({ selectedId, onSelect }: Props) {
+export function SchemeViewer() {
+  const { state, selectEquip, openPanelForEquip, closePanel } = useTrainer()
+  const selectedId = state.selectedEquipId
   const containerRef = useRef<HTMLDivElement>(null)
   const [hoveredId, setHoveredId] = useState<string | null>(null)
-  const [scale, setScale] = useState(0.55)
-  const [pan, setPan] = useState({ x: 40, y: 20 })
+  const [scale, setScale] = useState(0.48)
+  const [pan, setPan] = useState({ x: 20, y: 10 })
   const dragRef = useRef<{
     active: boolean
     startX: number
@@ -46,6 +44,25 @@ export function SchemeViewer({ selectedId, onSelect }: Props) {
   const nodes = useMemo(
     () => equipment.filter((e) => e.type !== 'group'),
     [],
+  )
+
+  const onSelect = useCallback(
+    (id: string | null) => {
+      if (!id) {
+        selectEquip(null)
+        closePanel()
+        return
+      }
+      openPanelForEquip(id)
+    },
+    [openPanelForEquip, selectEquip, closePanel],
+  )
+
+  const handleNodeSelect = useCallback(
+    (id: string) => {
+      openPanelForEquip(id)
+    },
+    [openPanelForEquip],
   )
 
   const onWheel = useCallback((e: ReactWheelEvent) => {
@@ -166,7 +183,7 @@ export function SchemeViewer({ selectedId, onSelect }: Props) {
           />
 
           {/* zone separators */}
-          {[300, 620, 1040, 1560, 2060, 2440].map((x) => (
+          {[300, 620, 1040, 1500, 1940, 2460, 2980].map((x) => (
             <line
               key={x}
               x1={x}
@@ -226,7 +243,8 @@ export function SchemeViewer({ selectedId, onSelect }: Props) {
                   node={node}
                   selected={selectedId === node.id}
                   hovered={hoveredId === node.id}
-                  onSelect={onSelect}
+                  process={state.process}
+                  onSelect={handleNodeSelect}
                   onHover={setHoveredId}
                 />
               </g>
@@ -240,7 +258,8 @@ export function SchemeViewer({ selectedId, onSelect }: Props) {
                   node={node}
                   selected={selectedId === node.id}
                   hovered={hoveredId === node.id}
-                  onSelect={onSelect}
+                  process={state.process}
+                  onSelect={handleNodeSelect}
                   onHover={setHoveredId}
                 />
               </g>
@@ -264,8 +283,8 @@ export function SchemeViewer({ selectedId, onSelect }: Props) {
         <button
           type="button"
           onClick={() => {
-            setScale(0.55)
-            setPan({ x: 40, y: 20 })
+            setScale(0.48)
+            setPan({ x: 20, y: 10 })
           }}
         >
           Сброс

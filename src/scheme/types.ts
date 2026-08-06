@@ -7,6 +7,8 @@ export type EquipmentType =
   | 'desalter'
   | 'group'
   | 'label'
+  | 'valve'
+  | 'signal'
 
 export type PipeKind = 'oil' | 'product' | 'steam' | 'utility'
 
@@ -40,7 +42,7 @@ export interface PipeEdge {
   label?: string
 }
 
-export const VIEWBOX = { width: 3200, height: 1200 } as const
+export const VIEWBOX = { width: 3400, height: 1400 } as const
 
 export const EQUIPMENT_TYPE_LABELS: Record<EquipmentType, string> = {
   column: 'Колонна',
@@ -51,6 +53,8 @@ export const EQUIPMENT_TYPE_LABELS: Record<EquipmentType, string> = {
   desalter: 'Электродегидратор',
   group: 'Блок оборудования',
   label: 'Подпись',
+  valve: 'Электрозадвижка',
+  signal: 'Показывающий прибор',
 }
 
 export const PIPE_KIND_LABELS: Record<PipeKind, string> = {

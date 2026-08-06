@@ -1,0 +1,108 @@
+.ctrl-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: grid;
+  place-items: center;
+  z-index: 40;
+}
+
+.ctrl-window {
+  width: min(380px, calc(100vw - 24px));
+  background: #1a2430;
+  border: 1px solid #4a6780;
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+
+.ctrl-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: #243d52;
+  border-radius: 10px 10px 0 0;
+}
+
+.ctrl-header h3 {
+  margin: 0;
+  font-size: 14px;
+  color: #f4f7fa;
+}
+
+.ctrl-close {
+  border: none;
+  background: transparent;
+  color: #c5d4e0;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.ctrl-body {
+  padding: 14px 16px 16px;
+  color: #c5d4e0;
+  font-size: 13px;
+}
+
+.ctrl-desc {
+  margin: 0 0 12px;
+  color: #9db4c7;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+
+.ctrl-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.ctrl-actions button {
+  border: 1px solid #3a556c;
+  background: #243040;
+  color: #e8eef4;
+  border-radius: 6px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.ctrl-actions button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.ctrl-actions button.on {
+  border-color: #3d8ebd;
+  background: #1e3a4a;
+  color: #6ec1ff;
+}
+
+.ctrl-body input[type='range'] {
+  width: 100%;
+  margin: 8px 0;
+}
+
+.signal-tag {
+  font-family: 'IBM Plex Mono', monospace;
+  color: #f0c14b;
+  font-weight: 600;
+}
+
+.signal-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: #e8eef4;
+}
+
+.signal-value.alarm {
+  color: #e07070;
+}
+
+.hint {
+  font-size: 11px;
+  color: #7f97ab;
+}

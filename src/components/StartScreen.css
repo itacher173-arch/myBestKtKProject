@@ -1,0 +1,104 @@
+.start-screen {
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(ellipse at 20% 0%, #1a3044 0%, transparent 55%),
+    radial-gradient(ellipse at 80% 100%, #243018 0%, transparent 50%),
+    #0d1318;
+}
+
+.start-card {
+  width: min(520px, 100%);
+  background: #152028;
+  border: 1px solid #3a556c;
+  border-radius: 12px;
+  padding: 28px 28px 24px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+}
+
+.start-card h1 {
+  margin: 0;
+  font-size: 24px;
+  color: #f0c14b;
+}
+
+.start-lead {
+  margin: 6px 0 20px;
+  color: #9db4c7;
+  font-size: 13px;
+}
+
+.start-card section {
+  margin-bottom: 18px;
+}
+
+.start-card h2 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #7f97ab;
+}
+
+.role-row {
+  display: flex;
+  gap: 8px;
+}
+
+.role-row button,
+.start-btn {
+  border: 1px solid #3a556c;
+  background: #1e2a36;
+  color: #e8eef4;
+  border-radius: 8px;
+  padding: 10px 14px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.role-row button {
+  flex: 1;
+}
+
+.role-row button.active {
+  border-color: #f0c14b;
+  background: #2a3a28;
+  color: #f0c14b;
+}
+
+.start-card input,
+.start-card select {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #3a556c;
+  background: #0f171e;
+  color: #e8eef4;
+  font: inherit;
+}
+
+.hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #9db4c7;
+}
+
+.start-btn {
+  width: 100%;
+  margin-top: 8px;
+  background: #2d5a3d;
+  border-color: #3d7a52;
+  font-weight: 600;
+}
+
+.start-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.start-btn:not(:disabled):hover {
+  background: #367049;
+}

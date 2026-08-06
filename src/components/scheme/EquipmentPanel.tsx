@@ -1,95 +1,149 @@
-import {
-  EQUIPMENT_TYPE_LABELS,
-  equipmentById,
-} from '../../scheme'
+import { useTrainer } from '../../sim/TrainerContext'
+import { EQUIPMENT_TYPE_LABELS, equipmentById } from '../../scheme'
+import { isAnalogAlarm } from '../../sim/processModel'
 
-interface Props {
-  selectedId: string | null
-}
-
-export function EquipmentPanel({ selectedId }: Props) {
+export function EquipmentPanel() {
+  const { state, analogs, openPanelForEquip } = useTrainer()
+  const selectedId = state.selectedEquipId
   const node = selectedId ? equipmentById[selectedId] : null
+  const p = state.process
 
-  if (!node) {
-    return (
-      <aside className="equip-panel">
-        <h2>Оборудование</h2>
-        <p className="equip-panel-empty">
-          Выберите элемент на мнемосхеме, чтобы увидеть сведения. Управление
-          (пуск/стоп, задвижки) будет добавлено на следующем этапе.
-        </p>
-        <div className="legend">
-          <h3>Легенда</h3>
-          <ul>
-            <li>
-              <span className="swatch oil" /> Нефть / сырьё
-            </li>
-            <li>
-              <span className="swatch product" /> Продукт / фракция
-            </li>
-            <li>
-              <span className="swatch steam" /> Пар
-            </li>
-          </ul>
-        </div>
-      </aside>
+  const liveBits: string[] = []
+  if (selectedId === 'N-1') {
+    liveBits.push(
+      `Состояние: ${p.pumpN1}`,
+      `P: ${p.pressureN1.toFixed(1)} кгс/см²`,
+    )
+  }
+  if (selectedId === 'L-1') liveBits.push(`Открытие: ${p.valveL1.toFixed(0)}%`)
+  if (selectedId === 'L-2') liveBits.push(`Открытие: ${p.valveL2.toFixed(0)}%`)
+  if (selectedId === 'L-3') liveBits.push(`Открытие: ${p.valveL3.toFixed(0)}%`)
+  if (selectedId === 'K-1') liveBits.push(`Уровень: ${p.levelK1.toFixed(0)}%`)
+  if (selectedId === 'K-2') liveBits.push(`Уровень: ${p.levelK2.toFixed(0)}%`)
+  if (
+    selectedId === 'ELOU-block' ||
+    selectedId?.startsWith('E-')
+  ) {
+    liveBits.push(
+      `Деэмульг.: ${p.demulsifierOn ? 'вкл' : 'выкл'}`,
+      `Эл.поле: ${p.electricFieldOn ? 'вкл' : 'выкл'}`,
+      `Соли: ${p.saltMgL.toFixed(0)} мг/л`,
+    )
+  }
+  if (selectedId === 'P-1' || selectedId === 'P-2' || selectedId === 'P-3') {
+    liveBits.push(
+      `Топливо: ${p.fuelGasPercent}%`,
+      `T выхода: ${p.tempFurnaceOut.toFixed(0)} °C`,
     )
   }
 
-  const meta = node.meta
+  const analog = analogs.find((a) => a.id === selectedId)
 
   return (
     <aside className="equip-panel">
-      <h2>{node.label.replace(/\n/g, ' ')}</h2>
-      <dl className="equip-meta">
-        <div>
-          <dt>Тип</dt>
-          <dd>{EQUIPMENT_TYPE_LABELS[node.type]}</dd>
-        </div>
-        <div>
-          <dt>Позиция</dt>
-          <dd>{node.id}</dd>
-        </div>
-        {meta?.zone && (
-          <div>
-            <dt>Зона</dt>
-            <dd>{meta.zone}</dd>
+      <h2>{node ? node.label.replace(/\n/g, ' ') : 'Оборудование'}</h2>
+
+      {!node && (
+        <>
+          <p className="equip-panel-empty">
+            Выберите элемент на мнемосхеме. Интерактивные: Н-1, Л-1/Л-2/Л-3,
+            ЭЛОУ, печи, К-1/К-2, приборы КИП.
+          </p>
+          <div className="live-strip">
+            <h3>Живые параметры</h3>
+            <ul>
+              {analogs.map((a) => (
+                <li key={a.id} className={isAnalogAlarm(a) ? 'alarm' : ''}>
+                  <button type="button" onClick={() => openPanelForEquip(a.id)}>
+                    {a.tag}: {a.value.toFixed(1)} {a.unit}
+                  </button>
+                </li>
+              ))}
+            </ul>
           </div>
-        )}
-        {meta?.description && (
-          <div>
-            <dt>Описание</dt>
-            <dd>{meta.description}</dd>
-          </div>
-        )}
-        {meta?.trays != null && (
-          <div>
-            <dt>Тарелки</dt>
-            <dd>{meta.trays}</dd>
-          </div>
-        )}
-        {meta?.reserves && meta.reserves.length > 0 && (
-          <div>
-            <dt>Резерв</dt>
-            <dd>{meta.reserves.join(', ')}</dd>
-          </div>
-        )}
-        {meta?.designPressure && (
-          <div>
-            <dt>Расч. давление</dt>
-            <dd>{meta.designPressure}</dd>
-          </div>
-        )}
-        {meta?.designTemp && (
-          <div>
-            <dt>Расч. температура</dt>
-            <dd>{meta.designTemp}</dd>
-          </div>
-        )}
-      </dl>
-      <div className="equip-future">
-        <strong>Взаимодействие</strong>
-        <p>Панель управления элементом — на следующем этапе.</p>
+        </>
+      )}
+
+      {node && (
+        <>
+          <dl className="equip-meta">
+            <div>
+              <dt>Тип</dt>
+              <dd>{EQUIPMENT_TYPE_LABELS[node.type]}</dd>
+            </div>
+            <div>
+              <dt>Позиция</dt>
+              <dd>{node.id}</dd>
+            </div>
+            {node.meta?.zone && (
+              <div>
+                <dt>Зона</dt>
+                <dd>{node.meta.zone}</dd>
+              </div>
+            )}
+            {node.meta?.description && (
+              <div>
+                <dt>Описание</dt>
+                <dd>{node.meta.description}</dd>
+              </div>
+            )}
+            {node.meta?.trays != null && (
+              <div>
+                <dt>Тарелки</dt>
+                <dd>{node.meta.trays}</dd>
+              </div>
+            )}
+            {node.meta?.reserves && (
+              <div>
+                <dt>Резерв</dt>
+                <dd>{node.meta.reserves.join(', ')}</dd>
+              </div>
+            )}
+          </dl>
+
+          {liveBits.length > 0 && (
+            <div className="live-box">
+              {liveBits.map((b) => (
+                <div key={b}>{b}</div>
+              ))}
+            </div>
+          )}
+
+          {analog && (
+            <div className={`live-box ${isAnalogAlarm(analog) ? 'alarm' : ''}`}>
+              <div>
+                {analog.value.toFixed(1)} {analog.unit}
+              </div>
+            </div>
+          )}
+
+          <button
+            type="button"
+            className="open-ctrl-btn"
+            onClick={() => openPanelForEquip(node.id)}
+          >
+            Открыть панель управления
+          </button>
+        </>
+      )}
+
+      <div className="journals">
+        <h3>Системные события</h3>
+        <ul className="log-list">
+          {[...state.systemEvents].reverse().slice(0, 12).map((e) => (
+            <li key={e.id}>
+              <time>{new Date(e.at).toLocaleTimeString()}</time> {e.description}
+            </li>
+          ))}
+        </ul>
+        <h3>Журнал действий</h3>
+        <ul className="log-list">
+          {[...state.actionsLog].reverse().slice(0, 12).map((e) => (
+            <li key={e.id}>
+              <time>{new Date(e.at).toLocaleTimeString()}</time> {e.description}
+            </li>
+          ))}
+        </ul>
       </div>
     </aside>
   )

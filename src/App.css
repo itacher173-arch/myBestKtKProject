@@ -41,6 +41,112 @@
   color: #7f97ab;
 }
 
+.app-header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.hdr-btn {
+  border: 1px solid #4a6780;
+  background: #2a4054;
+  color: #e8eef4;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.hdr-btn.ghost {
+  background: transparent;
+}
+
+.hdr-btn:hover {
+  background: #35506a;
+}
+
+.result-banner {
+  padding: 8px 16px;
+  background: #243a28;
+  border-bottom: 1px solid #3d5a40;
+  color: #c8e0c8;
+  font-size: 13px;
+}
+
+.live-strip ul,
+.log-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.live-strip li button {
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: #c5d4e0;
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 0;
+  cursor: pointer;
+}
+
+.live-strip li.alarm button {
+  color: #e07070;
+}
+
+.live-box {
+  margin: 12px 0;
+  padding: 10px;
+  border-radius: 8px;
+  background: #1e2a36;
+  border: 1px solid #3a556c;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #c5d4e0;
+}
+
+.live-box.alarm {
+  border-color: #8a4040;
+  color: #e09090;
+}
+
+.open-ctrl-btn {
+  width: 100%;
+  margin: 8px 0 16px;
+  border: 1px solid #4a6780;
+  background: #243d52;
+  color: #e8eef4;
+  border-radius: 6px;
+  padding: 10px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.journals h3 {
+  margin: 14px 0 6px;
+}
+
+.log-list {
+  max-height: 140px;
+  overflow: auto;
+  font-size: 11px;
+  color: #9db4c7;
+  line-height: 1.35;
+}
+
+.log-list li {
+  margin-bottom: 4px;
+}
+
+.log-list time {
+  font-family: 'IBM Plex Mono', monospace;
+  color: #7f97ab;
+  margin-right: 4px;
+}
+
 .app-main {
   flex: 1;
   display: grid;

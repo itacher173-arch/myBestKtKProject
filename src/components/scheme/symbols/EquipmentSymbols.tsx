@@ -273,6 +273,48 @@ export function LabelSymbol({ w, h, selected, hovered }: SymbolProps) {
   )
 }
 
+export function ValveSymbol({ w, h, selected, hovered }: SymbolProps) {
+  const s = strokeColor(selected, hovered)
+  const cx = w / 2
+  const cy = h / 2
+  return (
+    <g>
+      <circle
+        cx={cx}
+        cy={cy}
+        r={Math.min(w, h) / 2 - 3}
+        fill="#1e2a36"
+        stroke={s}
+        strokeWidth={selected ? 2.5 : 1.5}
+      />
+      <polygon
+        points={`${cx},${cy - 10} ${cx + 10},${cy} ${cx},${cy + 10} ${cx - 10},${cy}`}
+        fill="none"
+        stroke="#e07a3d"
+        strokeWidth={1.8}
+      />
+    </g>
+  )
+}
+
+export function SignalSymbol({ w, h, selected, hovered }: SymbolProps) {
+  const s = strokeColor(selected, hovered)
+  return (
+    <g>
+      <rect
+        x={1}
+        y={1}
+        width={w - 2}
+        height={h - 2}
+        rx={3}
+        fill="#162028"
+        stroke={s}
+        strokeWidth={selected ? 2 : 1}
+      />
+    </g>
+  )
+}
+
 export function EquipmentSymbol({
   type,
   w,
@@ -299,5 +341,9 @@ export function EquipmentSymbol({
       return <GroupSymbol w={w} h={h} selected={selected} hovered={hovered} />
     case 'label':
       return <LabelSymbol w={w} h={h} selected={selected} hovered={hovered} />
+    case 'valve':
+      return <ValveSymbol w={w} h={h} selected={selected} hovered={hovered} />
+    case 'signal':
+      return <SignalSymbol w={w} h={h} selected={selected} hovered={hovered} />
   }
 }

@@ -1,24 +1,71 @@
-import { useState } from 'react'
+import { ControlPanel } from './components/ControlPanel'
+import { StartScreen } from './components/StartScreen'
 import { EquipmentPanel } from './components/scheme/EquipmentPanel'
 import { SchemeViewer } from './components/scheme/SchemeViewer'
+import { TrainerProvider, useTrainer } from './sim/TrainerContext'
+import { getExercise } from './sim/scenarios'
 import './App.css'
 
-export default function App() {
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+function TrainerApp() {
+  const { state, completeExercise, resetToStart } = useTrainer()
+  const { session } = state
+
+  if (!session.started) {
+    return <StartScreen />
+  }
+
+  const exercise = getExercise(session.exerciseId)
+  const roleLabel =
+    session.role === 'instructor' ? 'Инструктор' : 'Обучаемый'
 
   return (
     <div className="app">
       <header className="app-header">
         <div className="app-brand">
           <span className="app-title">КТК ЭЛОУ-АВТ</span>
-          <span className="app-subtitle">Мнемосхема по схеме КТС</span>
+          <span className="app-subtitle">
+            {exercise?.name ?? 'Мнемосхема'} · {roleLabel}: {session.userName}
+          </span>
         </div>
-        <div className="app-meta">Ч2026 / ГПН · этап отображения</div>
+        <div className="app-header-actions">
+          {!session.completed && (
+            <button type="button" className="hdr-btn" onClick={completeExercise}>
+              Завершить упражнение
+            </button>
+          )}
+          <button type="button" className="hdr-btn ghost" onClick={resetToStart}>
+            На старт
+          </button>
+        </div>
       </header>
+
+      {session.completed && (
+        <div className="result-banner">
+          Результат: {session.scorePercent}% эталонных шагов · лишних действий:{' '}
+          {session.penalty}
+          {session.responseSeconds != null && (
+            <>
+              {' '}
+              · реакция на отказ: {session.responseSeconds.toFixed(1)} с
+              {session.respondedInTime === false ? ' (сверх нормы)' : ''}
+            </>
+          )}
+        </div>
+      )}
+
       <main className="app-main">
-        <SchemeViewer selectedId={selectedId} onSelect={setSelectedId} />
-        <EquipmentPanel selectedId={selectedId} />
+        <SchemeViewer />
+        <EquipmentPanel />
       </main>
+      <ControlPanel />
     </div>
+  )
+}
+
+export default function App() {
+  return (
+    <TrainerProvider>
+      <TrainerApp />
+    </TrainerProvider>
   )
 }
