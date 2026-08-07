@@ -20,6 +20,7 @@ import {
 } from '../../scheme/zones'
 import { useTrainer } from '../../sim/TrainerContext'
 import { EquipmentNodeView } from './EquipmentNodeView'
+import { EquipmentSymbolDefs } from './symbols/EquipmentSymbols'
 
 const PIPE_COLORS: Record<PipeKind, string> = {
   oil: '#c48a3a',
@@ -89,9 +90,22 @@ export function SchemeViewer() {
         return
       }
       setActiveZoneId(null)
+      closePanel()
+      selectEquip(id)
+    },
+    [closePanel, focusZone, selectEquip],
+  )
+
+  const handleNodeActivate = useCallback(
+    (id: string) => {
+      if (isZoneBanner(id)) {
+        handleNodeSelect(id)
+        return
+      }
+      setActiveZoneId(null)
       openPanelForEquip(id)
     },
-    [closePanel, focusZone, openPanelForEquip, selectEquip],
+    [handleNodeSelect, openPanelForEquip],
   )
 
   const onSelect = useCallback(
@@ -179,6 +193,7 @@ export function SchemeViewer() {
           className="scheme-svg"
         >
           <defs>
+            <EquipmentSymbolDefs />
             <marker
               id="arrow-oil"
               markerWidth="8"
@@ -306,6 +321,7 @@ export function SchemeViewer() {
                   hovered={hoveredId === node.id}
                   process={state.process}
                   onSelect={handleNodeSelect}
+                  onActivate={handleNodeActivate}
                   onHover={setHoveredId}
                 />
               </g>
@@ -323,6 +339,7 @@ export function SchemeViewer() {
                   hovered={hoveredId === node.id}
                   process={state.process}
                   onSelect={handleNodeSelect}
+                  onActivate={handleNodeActivate}
                   onHover={setHoveredId}
                 />
               </g>
@@ -333,8 +350,8 @@ export function SchemeViewer() {
 
       <div className="scheme-hint">
         <span className="scheme-hint-ctrl" aria-hidden />
-        Зелёный контур — управление · Клик по зоне сверху — переход к участку ·
-        Колёсико — масштаб
+        Зелёный контур — управление · Клик — выбор · Двойной клик — полное окно
+        · Зоны сверху — переход · Колёсико — масштаб
       </div>
       <div className="scheme-zoom">
         <button

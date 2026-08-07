@@ -1,6 +1,7 @@
 import type { EquipmentNode } from '../../scheme/types'
 import { isZoneBanner } from '../../scheme/zones'
 import { isControllableEquip } from '../../sim/controllable'
+import { isAnalogAlarm } from '../../sim/processModel'
 import type { ProcessState } from '../../sim/types'
 import { EquipmentSymbol } from './symbols/EquipmentSymbols'
 
@@ -10,19 +11,111 @@ interface Props {
   hovered: boolean
   process: ProcessState
   onSelect: (id: string) => void
+  onActivate?: (id: string) => void
   onHover: (id: string | null) => void
 }
 
-function statusFill(nodeId: string, p: ProcessState): string | undefined {
-  if (nodeId === 'N-1') {
-    if (p.pumpN1 === 'running') return '#2d6a3e'
-    if (p.pumpN1 === 'starting') return '#8a7a2a'
-    if (p.pumpN1 === 'tripped') return '#8a3030'
+function visualState(
+  node: EquipmentNode,
+  p: ProcessState,
+): { fillLevel?: number; active?: boolean; alarm?: boolean } {
+  const id = node.id
+
+  if (id === 'N-1') {
+    return {
+      active: p.pumpN1 === 'running' || p.pumpN1 === 'starting',
+      alarm: p.pumpN1 === 'tripped' || p.pumpLeak,
+    }
   }
-  if (nodeId === 'L-1' && p.valveL1 > 5) return '#2d5a6a'
-  if (nodeId === 'L-2' && p.valveL2 > 5) return '#2d5a6a'
-  if (nodeId === 'L-3' && p.valveL3 > 5) return '#2d5a6a'
-  return undefined
+  if (id === 'L-1') return { fillLevel: p.valveL1 / 100, active: p.valveL1 > 5 }
+  if (id === 'L-2') return { fillLevel: p.valveL2 / 100, active: p.valveL2 > 5 }
+  if (id === 'L-3') return { fillLevel: p.valveL3 / 100, active: p.valveL3 > 5 }
+  if (id === 'K-1') {
+    return {
+      fillLevel: p.levelK1 / 100,
+      active: p.feedFlow > 5,
+      alarm: p.levelK1 < 20 || p.pressureK1 >= 4.5,
+    }
+  }
+  if (id === 'K-2') {
+    return {
+      fillLevel: p.levelK2 / 100,
+      active: p.fuelGasPercent > 5 && p.feedFlow > 5,
+      alarm: p.levelK2 < 20 || p.pressureK2 >= 1,
+    }
+  }
+  if (id === 'P-1' || id === 'P-2' || id === 'P-3') {
+    return {
+      fillLevel: p.fuelGasPercent / 100,
+      active:
+        p.fuelGasPercent > 5 &&
+        p.steamOk &&
+        !p.coilRupture &&
+        !p.furnaceEsd,
+      alarm: p.coilRupture || p.tempFurnaceOut >= 365,
+    }
+  }
+  if (id === 'ELOU-block' || /^E-[1-6]$/.test(id)) {
+    return {
+      fillLevel: 0.55,
+      active: p.electricFieldOn || p.demulsifierOn,
+      alarm: p.saltMgL > 5 && p.feedFlow > 5,
+    }
+  }
+  if (node.type === 'column') {
+    return { fillLevel: 0.42, active: p.feedFlow > 5 }
+  }
+  if (node.type === 'vessel') {
+    if (id === 'E-1-vessel')
+      return { fillLevel: p.levelWaterE1 / 100, alarm: p.levelWaterE1 > 85 }
+    if (id === 'E-2-vessel')
+      return { fillLevel: p.levelWaterE2 / 100, alarm: p.levelWaterE2 > 85 }
+    return { fillLevel: 0.4 }
+  }
+  if (node.type === 'heatExchanger') {
+    return { active: p.feedFlow > 5 }
+  }
+  if (node.type === 'pump') {
+    return { active: p.feedFlow > 20 }
+  }
+  if (node.type === 'furnace') {
+    return {
+      fillLevel: p.fuelGasPercent / 100,
+      active: p.fuelGasPercent > 5 && p.steamOk,
+    }
+  }
+  if (node.type === 'desalter') {
+    return {
+      fillLevel: 0.5,
+      active: p.electricFieldOn,
+      alarm: p.saltMgL > 5,
+    }
+  }
+  if (node.type === 'signal') {
+    const tags: {
+      id: string
+      value: number
+      alarmLow?: number
+      alarmHigh?: number
+    }[] = [
+      { id: 'PR_351', value: p.pressureN1, alarmLow: 2, alarmHigh: 22 },
+      { id: 'TR_41_2', value: p.tempElouIn, alarmHigh: 140 },
+      { id: 'Q_ELOU', value: p.saltMgL, alarmHigh: 5 },
+      { id: 'PRA_312', value: p.pressureAfterElou, alarmHigh: 10 },
+      { id: 'TR1K_21', value: p.tempK1In, alarmHigh: 280 },
+      { id: 'PRSA_204', value: p.pressureK1, alarmHigh: 4.5 },
+      { id: 'LRCA_602', value: p.levelK1, alarmLow: 20, alarmHigh: 80 },
+      { id: 'TR_55_1', value: p.tempFurnaceOut, alarmHigh: 365 },
+      { id: 'PRSA_213', value: p.pressureK2, alarmHigh: 1 },
+      { id: 'LRCA_604', value: p.levelK2, alarmLow: 20, alarmHigh: 80 },
+    ]
+    const a = tags.find((x) => x.id === id)
+    return { alarm: a ? isAnalogAlarm(a) : false }
+  }
+  if (node.type === 'valve') {
+    return { fillLevel: 0.2 }
+  }
+  return {}
 }
 
 function overlayText(nodeId: string, p: ProcessState): string | null {
@@ -55,11 +148,11 @@ export function EquipmentNodeView({
   hovered,
   process,
   onSelect,
+  onActivate,
   onHover,
 }: Props) {
   const lines = node.label.split('\n')
   const isBackground = node.type === 'group'
-  const fill = statusFill(node.id, process)
   const overlay = overlayText(node.id, process)
   const controllable = isControllableEquip(node.id)
   const zoneBanner = isZoneBanner(node.id)
@@ -71,6 +164,8 @@ export function EquipmentNodeView({
       : node.type === 'column'
         ? 13
         : 11
+
+  const vs = visualState(node, process)
 
   return (
     <g
@@ -87,9 +182,13 @@ export function EquipmentNodeView({
         e.stopPropagation()
         onSelect(node.id)
       }}
+      onDoubleClick={(e) => {
+        e.stopPropagation()
+        onActivate?.(node.id)
+      }}
       onMouseEnter={() => onHover(node.id)}
       onMouseLeave={() => onHover(null)}
-      opacity={isBackground && !selected && !hovered ? 0.85 : 1}
+      opacity={isBackground && !selected && !hovered ? 0.88 : 1}
     >
       {controllable && (
         <rect
@@ -106,17 +205,6 @@ export function EquipmentNodeView({
           pointerEvents="none"
         />
       )}
-      {fill && (
-        <rect
-          x={2}
-          y={2}
-          width={node.w - 4}
-          height={node.h - 4}
-          rx={node.type === 'pump' || node.type === 'valve' ? 20 : 4}
-          fill={fill}
-          opacity={0.55}
-        />
-      )}
       <EquipmentSymbol
         type={node.type}
         w={node.w}
@@ -125,6 +213,10 @@ export function EquipmentNodeView({
         hovered={hovered}
         controllable={controllable}
         zoneBanner={zoneBanner}
+        clipId={node.id.replace(/[^a-zA-Z0-9_-]/g, '_')}
+        fillLevel={vs.fillLevel}
+        active={vs.active}
+        alarm={vs.alarm}
       />
       <text
         x={zoneBanner ? node.w / 2 + 2 : node.w / 2}
@@ -142,11 +234,16 @@ export function EquipmentNodeView({
               : '#d5e6f2'
             : selected
               ? '#fff6d6'
-              : '#e8eef4'
+              : vs.alarm
+                ? '#ffc9c9'
+                : '#e8eef4'
         }
         fontSize={fontSize}
         fontFamily="IBM Plex Sans, Segoe UI, sans-serif"
         fontWeight={selected || zoneBanner ? 700 : 600}
+        style={{
+          textShadow: '0 1px 2px rgba(0,0,0,0.85)',
+        }}
         pointerEvents="none"
       >
         {lines.map((line, i) => (
@@ -170,9 +267,10 @@ export function EquipmentNodeView({
               : node.h + 12
           }
           textAnchor="middle"
-          fill="#9fd0ff"
+          fill={vs.alarm ? '#f0a0a0' : '#9fd0ff'}
           fontSize={9}
           fontFamily="IBM Plex Mono, monospace"
+          fontWeight={600}
           pointerEvents="none"
         >
           {overlay}

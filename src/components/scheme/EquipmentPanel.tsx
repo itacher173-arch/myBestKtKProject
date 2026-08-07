@@ -1,18 +1,22 @@
 import { useTrainer } from '../../sim/TrainerContext'
 import { EQUIPMENT_TYPE_LABELS, equipmentById } from '../../scheme'
 import { isAnalogAlarm } from '../../sim/processModel'
+import { isControllableEquip } from '../../sim/controllable'
+import { EquipInlineControls } from '../EquipInlineControls'
 
 export function EquipmentPanel() {
-  const { state, analogs, openPanelForEquip } = useTrainer()
+  const { state, analogs, openPanelForEquip, selectEquip } = useTrainer()
   const selectedId = state.selectedEquipId
   const node = selectedId ? equipmentById[selectedId] : null
   const p = state.process
+  const controllable = selectedId ? isControllableEquip(selectedId) : false
 
   const liveBits: string[] = []
   if (selectedId === 'N-1') {
     liveBits.push(
       `Состояние: ${p.pumpN1}`,
       `P: ${p.pressureN1.toFixed(1)} кгс/см²`,
+      `Питание: ${p.powerOk ? 'ок' : 'НЕТ'}`,
     )
   }
   if (selectedId === 'L-1') liveBits.push(`Открытие: ${p.valveL1.toFixed(0)}%`)
@@ -47,6 +51,7 @@ export function EquipmentPanel() {
     liveBits.push(
       `Топливо П-1…П-3: ${p.fuelGasPercent}%`,
       `T выхода: ${p.tempFurnaceOut.toFixed(0)} °C`,
+      `Пар: ${p.steamOk ? 'ок' : 'НЕТ'}`,
     )
   }
   if (selectedId === 'P-4') {
@@ -62,15 +67,16 @@ export function EquipmentPanel() {
       {!node && (
         <>
           <p className="equip-panel-empty">
-            Выберите элемент на мнемосхеме. Интерактивные: Н-1, Л-1/Л-2/Л-3,
-            ЭЛОУ, печи, К-1/К-2, приборы КИП.
+            Клик по элементу — сведения и управление. Зелёный контур —
+            интерактивные узлы (Н-1, Л-1…3, ЭЛОУ, П-1…3). Двойной клик —
+            полное окно.
           </p>
           <div className="live-strip">
             <h3>Живые параметры</h3>
             <ul>
               {analogs.map((a) => (
                 <li key={a.id} className={isAnalogAlarm(a) ? 'alarm' : ''}>
-                  <button type="button" onClick={() => openPanelForEquip(a.id)}>
+                  <button type="button" onClick={() => selectEquip(a.id)}>
                     {a.tag}: {a.value.toFixed(1)} {a.unit}
                   </button>
                 </li>
@@ -82,6 +88,10 @@ export function EquipmentPanel() {
 
       {node && (
         <>
+          {controllable && (
+            <p className="ctrl-badge">Управление доступно</p>
+          )}
+
           <dl className="equip-meta">
             <div>
               <dt>Тип</dt>
@@ -117,7 +127,11 @@ export function EquipmentPanel() {
             )}
           </dl>
 
-          {liveBits.length > 0 && (
+          {selectedId && controllable && (
+            <EquipInlineControls equipId={selectedId} />
+          )}
+
+          {liveBits.length > 0 && !controllable && (
             <div className="live-box">
               {liveBits.map((b) => (
                 <div key={b}>{b}</div>
@@ -127,19 +141,30 @@ export function EquipmentPanel() {
 
           {analog && (
             <div className={`live-box ${isAnalogAlarm(analog) ? 'alarm' : ''}`}>
-              <div>
+              <div className="analog-big">
                 {analog.value.toFixed(1)} {analog.unit}
+              </div>
+              <div className="analog-meta">
+                {analog.tag} · {analog.description}
+                {analog.alarmHigh != null
+                  ? ` · тревога ≥ ${analog.alarmHigh}`
+                  : ''}
+                {analog.alarmLow != null
+                  ? ` · тревога ≤ ${analog.alarmLow}`
+                  : ''}
               </div>
             </div>
           )}
 
-          <button
-            type="button"
-            className="open-ctrl-btn"
-            onClick={() => openPanelForEquip(node.id)}
-          >
-            Открыть панель управления
-          </button>
+          {controllable && (
+            <button
+              type="button"
+              className="open-ctrl-btn"
+              onClick={() => openPanelForEquip(node.id)}
+            >
+              Полное окно управления
+            </button>
+          )}
         </>
       )}
 

@@ -125,6 +125,30 @@
   cursor: pointer;
 }
 
+.ctrl-badge {
+  display: inline-block;
+  margin: 0 0 10px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: rgba(62, 207, 154, 0.12);
+  border: 1px solid #3ecf9a;
+  color: #3ecf9a;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.analog-big {
+  font-size: 22px;
+  font-weight: 700;
+  color: #e8eef4;
+}
+
+.analog-meta {
+  margin-top: 4px;
+  font-size: 11px;
+  color: #9db4c7;
+}
+
 .journals h3 {
   margin: 14px 0 6px;
 }

@@ -1,0 +1,82 @@
+.inline-ctrl {
+  margin: 10px 0 12px;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #3d6a4a;
+  background: #152820;
+}
+
+.inline-ctrl.compact {
+  margin: 0;
+  background: rgba(18, 32, 28, 0.94);
+  border-color: #4a7a5a;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.inline-ctrl-status {
+  font-size: 12px;
+  color: #c5d4e0;
+  margin-bottom: 8px;
+  line-height: 1.35;
+}
+
+.inline-ctrl-status .warn {
+  color: #e09090;
+  font-weight: 600;
+}
+
+.inline-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: #0f171e;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+
+.inline-bar span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #2d6a3e, #3ecf9a);
+  border-radius: 3px;
+}
+
+.inline-ctrl-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.inline-ctrl-row button {
+  border: 1px solid #3a556c;
+  background: #1e2a36;
+  color: #e8eef4;
+  border-radius: 6px;
+  padding: 7px 10px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.inline-ctrl-row button.on {
+  border-color: #3d8ebd;
+  background: #1e3a4a;
+  color: #6ec1ff;
+}
+
+.inline-ctrl-row button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.inline-slider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 11px;
+  color: #7f97ab;
+}
+
+.inline-slider input {
+  flex: 1;
+}

@@ -1,5 +1,6 @@
 import { ControlPanel } from './components/ControlPanel'
 import { EmergencyPanel } from './components/EmergencyPanel'
+import { SchemeQuickBar } from './components/SchemeQuickBar'
 import { ReportsPage } from './components/ReportsPage'
 import { StartScreen } from './components/StartScreen'
 import { EquipmentPanel } from './components/scheme/EquipmentPanel'
@@ -61,6 +62,7 @@ function TrainerApp() {
         <div className="scheme-wrap">
           <SchemeViewer />
           <EmergencyPanel />
+          <SchemeQuickBar />
         </div>
         <EquipmentPanel />
       </main>
