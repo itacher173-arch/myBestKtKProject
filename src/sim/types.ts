@@ -33,15 +33,27 @@ export interface ProcessState {
   valveL3Motion: ValveMotion
 
   pumpN1: PumpState
+  /** Подача в печи П-1/П-2 */
+  pumpN2: PumpState
+  /** Подача в печь П-3 */
+  pumpN3: PumpState
 
   demulsifierOn: boolean
   electricFieldOn: boolean
+  /** Промывная вода на ЭЛОУ */
+  washWaterOn: boolean
 
   /** Топливный газ П-1…П-3, 0–100% */
   fuelGasPercent: number
 
   levelK1: number
   levelK2: number
+  /** Уставки уровня куба, % (контур регулирования) */
+  levelSetpointK1: number
+  levelSetpointK2: number
+
+  /** АВО / воздушное охлаждение (АВЗ-3) */
+  avoFanOn: boolean
 
   pressureN1: number
   tempElouIn: number
@@ -135,11 +147,17 @@ export function createInitialProcess(): ProcessState {
     valveL2Motion: 'idle',
     valveL3Motion: 'idle',
     pumpN1: 'stopped',
+    pumpN2: 'stopped',
+    pumpN3: 'stopped',
     demulsifierOn: false,
     electricFieldOn: false,
+    washWaterOn: false,
     fuelGasPercent: 0,
     levelK1: 45,
     levelK2: 45,
+    levelSetpointK1: 50,
+    levelSetpointK2: 50,
+    avoFanOn: true,
     pressureN1: 0,
     tempElouIn: 25,
     saltMgL: 50,
@@ -181,24 +199,35 @@ export function createWarmProcess(): ProcessState {
     valveL2: 70,
     valveL3: 70,
     pumpN1: 'running',
+    pumpN2: 'running',
+    pumpN3: 'running',
     demulsifierOn: true,
     electricFieldOn: true,
+    washWaterOn: true,
     fuelGasPercent: 60,
-    pressureN1: 17,
-    feedFlow: 100,
+    pressureN1: 17.3,
+    feedFlow: 113,
     tempElouIn: 118,
     saltMgL: 3,
-    pressureAfterElou: 6,
-    tempK1In: 125,
-    tempK1Bottom: 165,
-    pressureK1: 2.2,
-    tempFurnaceOut: 288,
-    pressureK2: 0.55,
-    levelK1: 48,
+    pressureAfterElou: 7,
+    tempK1In: 135,
+    tempK1Bottom: 170,
+    pressureK1: 1.5,
+    tempFurnaceOut: 300,
+    pressureK2: 0.52,
+    levelK1: 50,
     levelK2: 50,
-    levelWaterE1: 40,
-    levelWaterE2: 40,
-    levelReflux: 50,
+    levelSetpointK1: 50,
+    levelSetpointK2: 50,
+    avoFanOn: true,
+    levelWaterE1: 55,
+    levelWaterE2: 52,
+    levelReflux: 65,
+    tempElouIn: 113,
+    tempK1In: 135,
+    tempK1Bottom: 175,
+    pressureK1: 1.45,
+    tempFurnaceOut: 308,
   }
 }
 

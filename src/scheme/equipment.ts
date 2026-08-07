@@ -573,7 +573,7 @@ export const equipment: EquipmentNode[] = [
   },
   {
     id: 'AVZ-3',
-    type: 'vessel',
+    type: 'heatExchanger',
     label: 'АВЗ-3',
     x: 1180,
     y: 210,
@@ -581,7 +581,7 @@ export const equipment: EquipmentNode[] = [
     h: 48,
     meta: {
       zone: '4. Атмосферный',
-      description: 'Аппарат воздушного охлаждения у К-1',
+      description: 'Аппарат воздушного охлаждения у К-1 (вентилятор)',
     },
   },
 
@@ -1629,6 +1629,20 @@ export const equipment: EquipmentNode[] = [
     w: 160,
     h: 32,
     meta: { zone: '1. Сырьё' },
+  },
+  {
+    id: 'UTIL-block',
+    type: 'group',
+    label: 'Утилиты\nпар · вода · воздух · вент.',
+    x: 40,
+    y: 80,
+    w: 200,
+    h: 70,
+    meta: {
+      zone: '1. Сырьё',
+      description:
+        'Учебный блок утилит: пар, оборотная вода, приборный воздух, вентиляция (SC-02…06, 09–10).',
+    },
   },
   {
     id: 'zone-2',

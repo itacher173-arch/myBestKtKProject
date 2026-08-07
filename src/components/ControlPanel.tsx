@@ -9,14 +9,20 @@ export function ControlPanel() {
     analogs,
     closePanel,
     canControl,
-    startPumpN1,
-    stopPumpN1,
+    startPump,
+    stopPump,
     openValve,
     closeValve,
     stopValve,
     setDemulsifier,
     setElectricField,
+    setWashWater,
     setFuelGas,
+    setLevelSetpoint,
+    drainVesselWater,
+    setAvoFan,
+    setUtility,
+    protectColumnLevel,
   } = useTrainer()
 
   const panel = state.activePanel
@@ -46,7 +52,19 @@ export function ControlPanel() {
   const controllableValve =
     panel.type === 'valve' &&
     (panel.id === 'L-1' || panel.id === 'L-2' || panel.id === 'L-3')
-  const controllablePump = panel.type === 'pump' && panel.id === 'N-1'
+  const controllablePump =
+    panel.type === 'pump' &&
+    (panel.id === 'N-1' || panel.id === 'N-2' || panel.id === 'N-3')
+  const pumpId = controllablePump
+    ? (panel.id as 'N-1' | 'N-2' | 'N-3')
+    : null
+  const pumpState = pumpId
+    ? pumpId === 'N-1'
+      ? p.pumpN1
+      : pumpId === 'N-2'
+        ? p.pumpN2
+        : p.pumpN3
+    : null
   const atmFurnace =
     panel.type === 'furnace' &&
     (panel.id === 'P-1' || panel.id === 'P-2' || panel.id === 'P-3')
@@ -83,30 +101,37 @@ export function ControlPanel() {
             <p className="ctrl-desc">{node.meta.description}</p>
           )}
 
-          {panel.type === 'pump' && controllablePump && (
+          {panel.type === 'pump' && controllablePump && pumpId && pumpState && (
             <>
               <p>
                 Состояние:{' '}
                 <strong>
-                  {p.pumpN1 === 'running'
+                  {pumpState === 'running'
                     ? 'В работе'
-                    : p.pumpN1 === 'starting'
+                    : pumpState === 'starting'
                       ? 'Пуск…'
-                      : p.pumpN1 === 'tripped'
+                      : pumpState === 'tripped'
                         ? 'Аварийный останов'
                         : 'Остановлен'}
                 </strong>
               </p>
-              <p>Давление нагнетания: {p.pressureN1.toFixed(1)} кгс/см²</p>
+              {pumpId === 'N-1' && (
+                <p>Давление нагнетания: {p.pressureN1.toFixed(1)} кгс/см²</p>
+              )}
+              {(pumpId === 'N-2' || pumpId === 'N-3') && (
+                <p className="hint">
+                  Насос подачи в печной тракт (нужен для нагрева П-1…П-3).
+                </p>
+              )}
               <div className="ctrl-actions">
                 <button
                   type="button"
                   disabled={
                     !canControl ||
-                    p.pumpN1 === 'running' ||
-                    p.pumpN1 === 'starting'
+                    pumpState === 'running' ||
+                    pumpState === 'starting'
                   }
-                  onClick={startPumpN1}
+                  onClick={() => startPump(pumpId)}
                 >
                   Пуск
                 </button>
@@ -114,10 +139,10 @@ export function ControlPanel() {
                   type="button"
                   disabled={
                     !canControl ||
-                    p.pumpN1 === 'stopped' ||
-                    p.pumpN1 === 'tripped'
+                    pumpState === 'stopped' ||
+                    pumpState === 'tripped'
                   }
-                  onClick={stopPumpN1}
+                  onClick={() => stopPump(pumpId)}
                 >
                   Стоп
                 </button>
@@ -134,8 +159,7 @@ export function ControlPanel() {
                   : ''}
               </p>
               <p className="hint">
-                Управление в симуляции пока доступно для Н-1 (основной сырьевой
-                насос сценария).
+                Управление в симуляции: Н-1 (сырьё), Н-2 / Н-3 (подача в печи).
               </p>
             </>
           )}
@@ -145,7 +169,14 @@ export function ControlPanel() {
               <p>
                 Открытие: <strong>{valvePercent?.toFixed(0)}%</strong>
               </p>
-              <p>Привод: {valveMotion}</p>
+              <p>
+                Привод:{' '}
+                {valveMotion === 'opening'
+                  ? 'открытие'
+                  : valveMotion === 'closing'
+                    ? 'закрытие'
+                    : 'стоп'}
+              </p>
               <div className="ctrl-actions">
                 <button
                   type="button"
@@ -221,6 +252,14 @@ export function ControlPanel() {
                 >
                   Эл. поле: {p.electricFieldOn ? 'Вкл' : 'Выкл'}
                 </button>
+                <button
+                  type="button"
+                  disabled={!canControl}
+                  className={p.washWaterOn ? 'on' : ''}
+                  onClick={() => setWashWater(!p.washWaterOn)}
+                >
+                  Пром. вода: {p.washWaterOn ? 'Вкл' : 'Выкл'}
+                </button>
               </div>
             </>
           )}
@@ -255,7 +294,17 @@ export function ControlPanel() {
                 <button
                   type="button"
                   disabled={!canControl}
-                  onClick={() => setFuelGas(0)}
+                  onClick={() => {
+                    if (
+                      p.fuelGasPercent > 0 &&
+                      !window.confirm(
+                        'Подтвердите отсечение топливного газа (0%)?',
+                      )
+                    ) {
+                      return
+                    }
+                    setFuelGas(0)
+                  }}
                 >
                   0%
                 </button>
@@ -290,6 +339,30 @@ export function ControlPanel() {
                     </strong>
                   </p>
                   <p>
+                    Задание:{' '}
+                    <strong>
+                      {panel.id === 'K-1'
+                        ? p.levelSetpointK1
+                        : p.levelSetpointK2}
+                      %
+                    </strong>
+                  </p>
+                  <input
+                    type="range"
+                    min={10}
+                    max={90}
+                    value={
+                      panel.id === 'K-1' ? p.levelSetpointK1 : p.levelSetpointK2
+                    }
+                    disabled={!canControl}
+                    onChange={(e) =>
+                      setLevelSetpoint(
+                        panel.id as 'K-1' | 'K-2',
+                        Number(e.target.value),
+                      )
+                    }
+                  />
+                  <p>
                     Давление верха (
                     {panel.id === 'K-1' ? 'PRSA204' : 'PRSA213'}):{' '}
                     <strong>
@@ -310,6 +383,19 @@ export function ControlPanel() {
                       <p>Температура низа: {p.tempK1Bottom.toFixed(0)} °C</p>
                     </>
                   )}
+                  <div className="ctrl-actions">
+                    <button
+                      type="button"
+                      disabled={!canControl}
+                      onClick={() =>
+                        protectColumnLevel(panel.id as 'K-1' | 'K-2')
+                      }
+                    >
+                      {panel.id === 'K-1'
+                        ? 'Разгрузка / защита уровня'
+                        : 'Рефлюкс / снижение нагрузки'}
+                    </button>
+                  </div>
                 </>
               ) : (
                 <>
@@ -359,24 +445,120 @@ export function ControlPanel() {
             </>
           )}
 
-          {panel.type === 'info' && (
+          {panel.type === 'info' && panel.id === 'UTIL-block' && (
             <>
-              <p>
-                Тип:{' '}
-                {EQUIPMENT_TYPE_LABELS[
-                  panel.equipType as keyof typeof EQUIPMENT_TYPE_LABELS
-                ] ?? panel.equipType}
-              </p>
-              {node?.meta?.zone && <p>Зона: {node.meta.zone}</p>}
-              {node?.meta?.reserves && (
-                <p>Резерв: {node.meta.reserves.join(', ')}</p>
-              )}
-              <p className="hint">
-                Панель сведений. Полное управление этим узлом будет добавлено по
-                мере расширения модели.
-              </p>
+              <p>Учебный блок утилит (пар, вода, воздух, вентиляция).</p>
+              <div className="ctrl-actions">
+                {(
+                  [
+                    ['steamOk', 'Технологический пар', p.steamOk],
+                    ['powerOk', 'Электропитание', p.powerOk],
+                    ['coolingWaterOk', 'Оборотная вода', p.coolingWaterOk],
+                    ['instrumentAirOk', 'Приборный воздух', p.instrumentAirOk],
+                    ['ventOpsOk', 'Вентиляция РУ', p.ventOpsOk],
+                    ['ventElouOk', 'Вентиляция ЭЛОУ', p.ventElouOk],
+                  ] as const
+                ).map(([key, label, ok]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    disabled={!canControl}
+                    className={ok ? 'on' : ''}
+                    onClick={() => setUtility(key, !ok)}
+                  >
+                    {label}: {ok ? 'ОК' : 'НЕТ'}
+                  </button>
+                ))}
+              </div>
             </>
           )}
+
+          {panel.type === 'info' &&
+            (panel.id === 'E-1-vessel' || panel.id === 'E-2-vessel') && (
+              <>
+                <p>
+                  Уровень воды:{' '}
+                  <strong>
+                    {(panel.id === 'E-1-vessel'
+                      ? p.levelWaterE1
+                      : p.levelWaterE2
+                    ).toFixed(0)}
+                    %
+                  </strong>
+                </p>
+                <div className="ctrl-actions">
+                  <button
+                    type="button"
+                    disabled={!canControl}
+                    onClick={() =>
+                      drainVesselWater(
+                        panel.id as 'E-1-vessel' | 'E-2-vessel',
+                      )
+                    }
+                  >
+                    Дренаж воды E-1/E-2
+                  </button>
+                </div>
+              </>
+            )}
+
+          {panel.type === 'info' && panel.id === 'AVZ-3' && (
+            <>
+              <p>
+                Вентилятор АВО:{' '}
+                <strong>{p.avoFanOn ? 'Включён' : 'Отключён'}</strong>
+              </p>
+              <div className="ctrl-actions">
+                <button
+                  type="button"
+                  disabled={!canControl || p.avoFanOn}
+                  className={p.avoFanOn ? 'on' : ''}
+                  onClick={() => setAvoFan(true)}
+                >
+                  Вкл
+                </button>
+                <button
+                  type="button"
+                  disabled={!canControl || !p.avoFanOn}
+                  onClick={() => {
+                    if (
+                      !window.confirm(
+                        'Подтвердите отключение вентилятора АВО АВЗ-3?',
+                      )
+                    ) {
+                      return
+                    }
+                    setAvoFan(false)
+                  }}
+                >
+                  Выкл
+                </button>
+              </div>
+            </>
+          )}
+
+          {panel.type === 'info' &&
+            panel.id !== 'UTIL-block' &&
+            panel.id !== 'E-1-vessel' &&
+            panel.id !== 'E-2-vessel' &&
+            panel.id !== 'AVZ-3' && (
+              <>
+                <p>
+                  Тип:{' '}
+                  {EQUIPMENT_TYPE_LABELS[
+                    panel.equipType as keyof typeof EQUIPMENT_TYPE_LABELS
+                  ] ?? panel.equipType}
+                </p>
+                {node?.meta?.zone && <p>Зона: {node.meta.zone}</p>}
+                {node?.meta?.reserves && (
+                  <p>Резерв: {node.meta.reserves.join(', ')}</p>
+                )}
+                <p className="hint">
+                  Панель сведений. Управление доступно для выделенных органов
+                  сценария (зелёная обводка).
+                </p>
+              </>
+            )}
         </div>
       </div>
     </div>

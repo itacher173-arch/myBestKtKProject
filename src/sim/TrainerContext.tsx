@@ -229,12 +229,29 @@ interface TrainerApi {
   closePanel: () => void
   startPumpN1: () => void
   stopPumpN1: () => void
+  startPump: (id: 'N-1' | 'N-2' | 'N-3') => void
+  stopPump: (id: 'N-1' | 'N-2' | 'N-3') => void
   openValve: (id: 'L-1' | 'L-2' | 'L-3') => void
   closeValve: (id: 'L-1' | 'L-2' | 'L-3') => void
   stopValve: (id: 'L-1' | 'L-2' | 'L-3') => void
   setDemulsifier: (on: boolean) => void
   setElectricField: (on: boolean) => void
+  setWashWater: (on: boolean) => void
   setFuelGas: (percent: number) => void
+  setLevelSetpoint: (column: 'K-1' | 'K-2', percent: number) => void
+  drainVesselWater: (id: 'E-1-vessel' | 'E-2-vessel') => void
+  setAvoFan: (on: boolean) => void
+  setUtility: (
+    key:
+      | 'steamOk'
+      | 'powerOk'
+      | 'coolingWaterOk'
+      | 'instrumentAirOk'
+      | 'ventOpsOk'
+      | 'ventElouOk',
+    ok: boolean,
+  ) => void
+  protectColumnLevel: (column: 'K-1' | 'K-2') => void
   completeExercise: () => void
   resetToStart: () => void
   performEmergencyAction: (actionId: string) => void
@@ -406,6 +423,13 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     }
     const p = proc.pumpN1
     if (p === 'running' || p === 'starting') return
+    if (
+      !window.confirm(
+        'Подтвердите пуск сырьевого насоса Н-1 (критическая операция).',
+      )
+    ) {
+      return
+    }
     logAction("Насос 'Н-1': нажата кнопка 'Пуск'")
     dispatch({ type: 'SET_PROCESS', patch: { pumpN1: 'starting' } })
     if (pumpStartTimer.current) clearTimeout(pumpStartTimer.current)
@@ -430,6 +454,46 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
       patch: { pumpN1: 'stopped', pressureN1: 0 },
     })
   }, [canControl, logAction])
+
+  const startPump = useCallback(
+    (id: 'N-1' | 'N-2' | 'N-3') => {
+      if (id === 'N-1') {
+        startPumpN1()
+        return
+      }
+      if (!canControl) return
+      const proc = stateRef.current.process
+      if (!proc.powerOk) {
+        pushSystem(`Пуск ${id} невозможен: нет электропитания.`)
+        return
+      }
+      const key = id === 'N-2' ? 'pumpN2' : 'pumpN3'
+      if (proc[key] === 'running' || proc[key] === 'starting') return
+      if (
+        !window.confirm(`Подтвердите пуск насоса ${id} (подача в печной тракт).`)
+      ) {
+        return
+      }
+      logAction(`Насос '${id}': нажата кнопка 'Пуск'`)
+      dispatch({ type: 'SET_PROCESS', patch: { [key]: 'running' } })
+    },
+    [canControl, logAction, pushSystem, startPumpN1],
+  )
+
+  const stopPump = useCallback(
+    (id: 'N-1' | 'N-2' | 'N-3') => {
+      if (id === 'N-1') {
+        stopPumpN1()
+        return
+      }
+      if (!canControl) return
+      const key = id === 'N-2' ? 'pumpN2' : 'pumpN3'
+      if (stateRef.current.process[key] === 'stopped') return
+      logAction(`Насос '${id}': нажата кнопка 'Стоп'`)
+      dispatch({ type: 'SET_PROCESS', patch: { [key]: 'stopped' } })
+    },
+    [canControl, logAction, stopPumpN1],
+  )
 
   const openValve = useCallback(
     (id: 'L-1' | 'L-2' | 'L-3') => {
@@ -518,6 +582,155 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     [canControl, logAction],
   )
 
+  const setWashWater = useCallback(
+    (on: boolean) => {
+      if (!canControl) return
+      if (on) logAction("ЭЛОУ 'Э-1..Э-6': промывная вода включена")
+      else logAction("ЭЛОУ 'Э-1..Э-6': промывная вода отключена")
+      dispatch({ type: 'SET_PROCESS', patch: { washWaterOn: on } })
+    },
+    [canControl, logAction],
+  )
+
+  const setLevelSetpoint = useCallback(
+    (column: 'K-1' | 'K-2', percent: number) => {
+      if (!canControl) return
+      const v = Math.max(10, Math.min(90, Math.round(percent)))
+      if (column === 'K-1') {
+        logAction(`Колонна 'К-1': задан уровень куба ${v}%`)
+        dispatch({ type: 'SET_PROCESS', patch: { levelSetpointK1: v } })
+      } else {
+        logAction(`Колонна 'К-2': задан уровень куба ${v}%`)
+        dispatch({ type: 'SET_PROCESS', patch: { levelSetpointK2: v } })
+      }
+    },
+    [canControl, logAction],
+  )
+
+  const drainVesselWater = useCallback(
+    (id: 'E-1-vessel' | 'E-2-vessel') => {
+      if (!canControl) return
+      const label = id === 'E-1-vessel' ? 'E-1' : 'E-2'
+      if (
+        !window.confirm(
+          `Подтвердите дренаж воды из ${label} (и парной ёмкости E-1/E-2)?`,
+        )
+      ) {
+        return
+      }
+      dispatch({
+        type: 'SET_PROCESS',
+        patch: { levelWaterE1: 35, levelWaterE2: 35 },
+      })
+      logAction(
+        "Авария: скорректирован уровень воды E-1/E-2, предотвращён занос в колонны (SC-11)",
+      )
+    },
+    [canControl, logAction],
+  )
+
+  const setAvoFan = useCallback(
+    (on: boolean) => {
+      if (!canControl) return
+      logAction(
+        on
+          ? "АВО 'АВЗ-3': вентилятор включён"
+          : "АВО 'АВЗ-3': вентилятор отключён",
+      )
+      dispatch({ type: 'SET_PROCESS', patch: { avoFanOn: on } })
+    },
+    [canControl, logAction],
+  )
+
+  const setUtility = useCallback(
+    (
+      key:
+        | 'steamOk'
+        | 'powerOk'
+        | 'coolingWaterOk'
+        | 'instrumentAirOk'
+        | 'ventOpsOk'
+        | 'ventElouOk',
+      ok: boolean,
+    ) => {
+      if (!canControl) return
+      const names: Record<typeof key, string> = {
+        steamOk: 'Технологический пар',
+        powerOk: 'Электропитание 0,4/6 кВ',
+        coolingWaterOk: 'Оборотная вода',
+        instrumentAirOk: 'Приборный воздух',
+        ventOpsOk: 'Вентиляция операторной/РУ',
+        ventElouOk: 'Вентиляция насосных ЭЛОУ',
+      }
+      if (
+        !ok &&
+        !window.confirm(
+          `Подтвердите отключение утилиты «${names[key]}» (критично для процесса)?`,
+        )
+      ) {
+        return
+      }
+      logAction(
+        ok
+          ? `Утилита «${names[key]}»: восстановлена / включена`
+          : `Утилита «${names[key]}»: отключена`,
+      )
+      const patch: Partial<ProcessState> = { [key]: ok }
+      if (key === 'powerOk' && ok) {
+        patch.opsPowerOk = true
+        patch.opsPowerOnBattery = false
+      }
+      if (key === 'steamOk' && !ok) {
+        patch.fuelGasPercent = 0
+      }
+      dispatch({ type: 'SET_PROCESS', patch })
+    },
+    [canControl, logAction],
+  )
+
+  const protectColumnLevel = useCallback(
+    (column: 'K-1' | 'K-2') => {
+      if (!canControl) return
+      if (
+        !window.confirm(
+          `Подтвердите разгрузку печи и защиту уровня ${column}?`,
+        )
+      ) {
+        return
+      }
+      if (column === 'K-1') {
+        logAction(
+          "Авария: разгрузка печи и меры по сохранению минимального уровня K-1 (SC-12)",
+        )
+        dispatch({
+          type: 'SET_PROCESS',
+          patch: {
+            fuelGasPercent: 0,
+            levelSetpointK1: 45,
+            levelK1: Math.max(stateRef.current.process.levelK1, 28),
+            safeShutdownInitiated: true,
+          },
+        })
+      } else {
+        logAction(
+          "Авария: восстановление рефлюкса и снижение нагрузки (SC-13)",
+        )
+        dispatch({
+          type: 'SET_PROCESS',
+          patch: {
+            levelReflux: 45,
+            levelSetpointK2: 50,
+            fuelGasPercent: Math.min(
+              stateRef.current.process.fuelGasPercent,
+              40,
+            ),
+          },
+        })
+      }
+    },
+    [canControl, logAction],
+  )
+
   const setFuelGas = useCallback(
     (percent: number) => {
       if (!canControl) return
@@ -550,6 +763,18 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
         !cur.faultTriggered ||
         !ex?.faultType ||
         !def.clearsFaults.includes(ex.faultType)
+      ) {
+        return
+      }
+      const needsConfirm =
+        actionId === 'esd-coil' ||
+        actionId === 'safe-stop-power' ||
+        actionId === 'safe-stop-air' ||
+        actionId === 'cut-fuel-steam' ||
+        actionId === 'isolate-leak'
+      if (
+        needsConfirm &&
+        !window.confirm(`Подтвердите аварийное действие:\n«${def.label}»`)
       ) {
         return
       }
@@ -599,9 +824,17 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
       case 'group':
         if (equipId === 'ELOU-block') {
           panel = { type: 'desalter', id: 'ELOU-block' }
+        } else if (equipId === 'UTIL-block') {
+          panel = { type: 'info', id: equipId, equipType: 'utilities' }
         } else {
           panel = { type: 'info', id: equipId, equipType: node.type }
         }
+        break
+      case 'vessel':
+        panel = { type: 'info', id: equipId, equipType: 'vessel' }
+        break
+      case 'heatExchanger':
+        panel = { type: 'info', id: equipId, equipType: 'heatExchanger' }
         break
       default:
         panel = { type: 'info', id: equipId, equipType: node.type }
@@ -692,12 +925,20 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     closePanel: () => dispatch({ type: 'CLOSE_PANEL' }),
     startPumpN1,
     stopPumpN1,
+    startPump,
+    stopPump,
     openValve,
     closeValve,
     stopValve,
     setDemulsifier,
     setElectricField,
+    setWashWater,
     setFuelGas,
+    setLevelSetpoint,
+    drainVesselWater,
+    setAvoFan,
+    setUtility,
+    protectColumnLevel,
     completeExercise,
     resetToStart,
     performEmergencyAction,

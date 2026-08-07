@@ -25,6 +25,15 @@
   font-weight: 600;
 }
 
+.inline-ctrl-status .hint-inline {
+  color: #7f97ab;
+  font-weight: 400;
+}
+
+.inline-ctrl-row.wrap {
+  max-width: 320px;
+}
+
 .inline-bar {
   height: 6px;
   border-radius: 3px;
