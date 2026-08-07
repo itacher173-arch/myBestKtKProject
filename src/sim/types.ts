@@ -1,3 +1,5 @@
+import type { FaultType } from './faultEngine'
+
 export type Role = 'instructor' | 'trainee'
 
 export type PumpState = 'stopped' | 'starting' | 'running' | 'tripped'
@@ -23,7 +25,6 @@ export interface AnalogTag {
 }
 
 export interface ProcessState {
-  /** Л-1 вход сырья, 0–100% */
   valveL1: number
   valveL2: number
   valveL3: number
@@ -36,42 +37,58 @@ export interface ProcessState {
   demulsifierOn: boolean
   electricFieldOn: boolean
 
-  /** Подача топливного газа к печам П-1…П-3 (атмосферный тракт), 0–100% */
+  /** Топливный газ П-1…П-3, 0–100% */
   fuelGasPercent: number
 
-  /** Уровни кубов % */
   levelK1: number
   levelK2: number
 
-  /** Температуры/давления (обновляются тиком) */
   pressureN1: number
   tempElouIn: number
   saltMgL: number
   pressureAfterElou: number
-  /** Питание К-1 (TR1K-21) */
   tempK1In: number
   tempK1Bottom: number
-  /** Верх К-1 (PRSA204), кгс/см² */
   pressureK1: number
-  /** Выход печей П-1…П-3 (TR55-1) */
   tempFurnaceOut: number
-  /** Верх К-2 (PRSA213), кгс/см² */
   pressureK2: number
 
   feedFlow: number
   running: boolean
   simTimeSec: number
+
+  /** Утилиты и аварийные флаги (SC-02…SC-15) */
+  steamOk: boolean
+  powerOk: boolean
+  opsPowerOk: boolean
+  opsPowerOnBattery: boolean
+  batteryMinutesLeft: number
+  coolingWaterOk: boolean
+  instrumentAirOk: boolean
+  ventOpsOk: boolean
+  ventElouOk: boolean
+  h2GasOk: boolean
+  levelWaterE1: number
+  levelWaterE2: number
+  levelReflux: number
+  coilRupture: boolean
+  pumpLeak: boolean
+  furnaceEsd: boolean
+  safeShutdownInitiated: boolean
 }
 
 export interface Exercise {
   id: string
+  specId?: string
   name: string
   description: string
   triggerDelaySeconds: number
   normResponseSeconds?: number
   scenarioSteps: string[]
   expectedResponseActions?: string[]
-  faultType?: 'demulsifier' | 'fuelGas' | 'pumpTrip' | null
+  faultType?: FaultType | null
+  /** Стартовать уже в нормальном режиме (для отработки отказа) */
+  warmStart?: boolean
 }
 
 export type PanelKind =
@@ -79,8 +96,8 @@ export type PanelKind =
   | { type: 'valve'; id: string }
   | { type: 'desalter'; id: string }
   | { type: 'furnace'; id: string }
-  | { type: 'signal'; id: string }
   | { type: 'column'; id: string }
+  | { type: 'signal'; id: string }
   | { type: 'info'; id: string; equipType: string }
   | null
 
@@ -88,7 +105,6 @@ export interface SessionState {
   role: Role | null
   userName: string
   exerciseId: string | null
-  /** start = экран входа, exercise = мнемосхема, reports = отчёты инструктора */
   view: 'start' | 'exercise' | 'reports'
   started: boolean
   completed: boolean
@@ -136,6 +152,53 @@ export function createInitialProcess(): ProcessState {
     feedFlow: 0,
     running: false,
     simTimeSec: 0,
+    steamOk: true,
+    powerOk: true,
+    opsPowerOk: true,
+    opsPowerOnBattery: false,
+    batteryMinutesLeft: 30,
+    coolingWaterOk: true,
+    instrumentAirOk: true,
+    ventOpsOk: true,
+    ventElouOk: true,
+    h2GasOk: true,
+    levelWaterE1: 40,
+    levelWaterE2: 40,
+    levelReflux: 50,
+    coilRupture: false,
+    pumpLeak: false,
+    furnaceEsd: false,
+    safeShutdownInitiated: false,
+  }
+}
+
+/** Нормальный режим для сценариев отказа (SC). */
+export function createWarmProcess(): ProcessState {
+  return {
+    ...createInitialProcess(),
+    running: true,
+    valveL1: 100,
+    valveL2: 70,
+    valveL3: 70,
+    pumpN1: 'running',
+    demulsifierOn: true,
+    electricFieldOn: true,
+    fuelGasPercent: 60,
+    pressureN1: 17,
+    feedFlow: 100,
+    tempElouIn: 118,
+    saltMgL: 3,
+    pressureAfterElou: 6,
+    tempK1In: 125,
+    tempK1Bottom: 165,
+    pressureK1: 2.2,
+    tempFurnaceOut: 288,
+    pressureK2: 0.55,
+    levelK1: 48,
+    levelK2: 50,
+    levelWaterE1: 40,
+    levelWaterE2: 40,
+    levelReflux: 50,
   }
 }
 

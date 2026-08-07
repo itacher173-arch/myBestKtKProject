@@ -10,20 +10,34 @@ function approach(current: number, target: number, rate: number) {
 }
 
 /**
- * Упрощённый тик ~1 с по мотивам регламента ЭЛОУ-АВТ (§3) и WPF-прототипа.
- * Рабочие окна: К-1 верх 1–4,5 кгс/см²; К-2 верх 0,2–1; печи ≤365 °C; вход ЭЛОУ ≤140 °C;
- * соли после ЭЛОУ — норма обучения ≤5 мг/л.
+ * Упрощённый тик ~1 с. Учитывает утилиты и аварийные флаги SC-02…SC-15.
  */
 export function tickProcess(p: ProcessState, dtSec: number): ProcessState {
   if (!p.running) return p
 
   let next = { ...p, simTimeSec: p.simTimeSec + dtSec }
 
-  const valveStep = 25 * dtSec
+  // SC-04: разряд АКБ операторной
+  if (next.opsPowerOnBattery && !next.opsPowerOk) {
+    next.batteryMinutesLeft = Math.max(
+      0,
+      next.batteryMinutesLeft - dtSec / 60,
+    )
+  }
+
+  const airOk = next.instrumentAirOk
+  const powerOk = next.powerOk
+  const steamOk = next.steamOk
+
+  const valveStep = airOk ? 25 * dtSec : 0
   for (const key of ['L1', 'L2', 'L3'] as const) {
     const motionKey = `valve${key}Motion` as const
     const valKey = `valve${key}` as const
     const motion = next[motionKey]
+    if (!airOk) {
+      next[motionKey] = 'idle'
+      continue
+    }
     if (motion === 'opening') {
       next[valKey] = clamp(next[valKey] + valveStep, 0, 100)
       if (next[valKey] >= 100) next[motionKey] = 'idle'
@@ -33,28 +47,33 @@ export function tickProcess(p: ProcessState, dtSec: number): ProcessState {
     }
   }
 
-  if (next.pumpN1 === 'starting') {
+  if (!powerOk && next.pumpN1 === 'running') {
+    next.pumpN1 = 'tripped'
+  }
+
+  if (next.pumpN1 === 'starting' && powerOk) {
     next.pressureN1 = approach(next.pressureN1, 8, 4 * dtSec)
   }
 
-  const pumpOn = next.pumpN1 === 'running'
+  const pumpOn = next.pumpN1 === 'running' && powerOk
   const feedOpen = next.valveL1 / 100
   const hasFeed = pumpOn && feedOpen > 0.05
 
   if (hasFeed) {
-    // Н-1: расчётное ~19,5 кгс/см² (§9.1.3) при полном открытии Л-1
     next.feedFlow = approach(next.feedFlow, 120 * feedOpen, 40 * dtSec)
     next.pressureN1 = approach(next.pressureN1, 18 * feedOpen + 1, 6 * dtSec)
-  } else if (next.pumpN1 === 'stopped' || next.pumpN1 === 'tripped') {
+  } else if (
+    next.pumpN1 === 'stopped' ||
+    next.pumpN1 === 'tripped' ||
+    !powerOk
+  ) {
     next.feedFlow = approach(next.feedFlow, 0, 50 * dtSec)
     next.pressureN1 = approach(next.pressureN1, 0, 8 * dtSec)
   }
 
-  // TR41-2: подогрев перед ЭЛОУ, регламент ≤140 °C
   const tElouTarget = next.feedFlow > 5 ? 110 + next.feedFlow * 0.1 : 25
   next.tempElouIn = approach(next.tempElouIn, tElouTarget, 8 * dtSec)
 
-  // Соли после ЭЛОУ (как в WPF Desalter: норма 3, частичный 120, сырая 900)
   let saltTarget = 50
   if (next.feedFlow > 5) {
     if (next.demulsifierOn && next.electricFieldOn) saltTarget = 3
@@ -63,46 +82,61 @@ export function tickProcess(p: ProcessState, dtSec: number): ProcessState {
   }
   next.saltMgL = approach(next.saltMgL, saltTarget, 40 * dtSec)
 
-  // PRA312: обессоленная нефть, рабочий диапазон ~4,5–10 кгс/см²
   next.pressureAfterElou = approach(
     next.pressureAfterElou,
     hasFeed ? 6 : 0,
     2 * dtSec,
   )
 
-  // Питание К-1 только от теплообменников (без печи) — TR1K-21
   const tK1InTarget = next.feedFlow > 5 ? next.tempElouIn + 8 : 25
   next.tempK1In = approach(next.tempK1In, tK1InTarget, 6 * dtSec)
 
-  next.tempK1Bottom = approach(
-    next.tempK1Bottom,
-    next.feedFlow > 5 ? 120 + next.tempElouIn * 0.4 : 30,
-    6 * dtSec,
-  )
+  let tBottomTarget =
+    next.feedFlow > 5 ? 120 + next.tempElouIn * 0.4 : 30
+  if (!next.coolingWaterOk) tBottomTarget += 40
+  next.tempK1Bottom = approach(next.tempK1Bottom, tBottomTarget, 6 * dtSec)
 
-  // PRSA204: верх К-1, рабочее 1–4,5 кгс/см²
-  next.pressureK1 = approach(
-    next.pressureK1,
-    next.feedFlow > 5 ? 2.2 : 0.6,
-    0.4 * dtSec,
-  )
+  let pK1Target = next.feedFlow > 5 ? 2.2 : 0.6
+  if (next.levelWaterE1 > 85 || next.levelWaterE2 > 85) pK1Target += 1.8
+  if (!next.coolingWaterOk) pK1Target += 0.8
+  if (next.levelReflux < 15 && next.feedFlow > 5) pK1Target += 0.3
+  next.pressureK1 = approach(next.pressureK1, pK1Target, 0.5 * dtSec)
 
-  // Печи П-1…П-3 (атмосферный нагрев отбензиненной нефти к К-2)
-  const furnaceOn = next.fuelGasPercent > 5 && next.feedFlow > 5
-  const tFurnTarget = furnaceOn ? 180 + next.fuelGasPercent * 1.8 : 40
+  // Печи: без пара / ESD / coil — нет устойчивого нагрева
+  const burnersOk =
+    steamOk && !next.coilRupture && !next.furnaceEsd && powerOk
+  const furnaceOn =
+    burnersOk && next.fuelGasPercent > 5 && next.feedFlow > 5
+  let tFurnTarget = furnaceOn ? 180 + next.fuelGasPercent * 1.8 : 40
+  if (!next.coolingWaterOk && furnaceOn) tFurnTarget += 25
+  if (next.coilRupture) tFurnTarget = 80
   next.tempFurnaceOut = approach(next.tempFurnaceOut, tFurnTarget, 12 * dtSec)
 
-  // PRSA213: верх К-2, рабочее 0,2–1 кгс/см²
-  next.pressureK2 = approach(
-    next.pressureK2,
-    furnaceOn ? 0.55 : 0.25,
-    0.15 * dtSec,
-  )
+  let pK2Target = furnaceOn ? 0.55 : 0.25
+  if (!next.coolingWaterOk) pK2Target += 0.35
+  if (!next.h2GasOk) pK2Target += 0.15
+  next.pressureK2 = approach(next.pressureK2, pK2Target, 0.2 * dtSec)
+
+  // Вода в E-1/E-2: при высоком уровне медленно растёт, пока не сдренируют
+  if (next.levelWaterE1 > 80) {
+    next.levelWaterE1 = clamp(next.levelWaterE1 + 0.4 * dtSec, 0, 98)
+  }
+  if (next.levelWaterE2 > 80) {
+    next.levelWaterE2 = clamp(next.levelWaterE2 + 0.4 * dtSec, 0, 98)
+  }
+  if (next.levelReflux < 20 && next.feedFlow > 5) {
+    next.levelReflux = clamp(next.levelReflux - 0.3 * dtSec, 0, 100)
+  }
 
   const inK1 = next.feedFlow * 0.02 * dtSec
   const outK1Top = (next.valveL2 / 100) * next.feedFlow * 0.008 * dtSec
   const outK1Bot = next.feedFlow > 5 ? next.feedFlow * 0.012 * dtSec : 0
-  next.levelK1 = clamp(next.levelK1 + inK1 - outK1Top - outK1Bot * 0.3, 5, 95)
+  let levelK1 = next.levelK1 + inK1 - outK1Top - outK1Bot * 0.3
+  if (next.levelK1 < 20 && furnaceOn) {
+    // ускоренное опорожнение при низком уровне и работе печи (риск)
+    levelK1 -= 0.15 * dtSec
+  }
+  next.levelK1 = clamp(levelK1, 5, 95)
 
   const inK2 = furnaceOn ? outK1Bot : 0
   const outK2 =
@@ -205,7 +239,8 @@ export function getAnalogs(p: ProcessState): AnalogTag[] {
       min: 0,
       max: 2,
       alarmHigh: 1,
-    },    {
+    },
+    {
       id: 'LRCA_604',
       tag: 'LRCA604',
       description: 'Уровень в колонне К-2',
@@ -229,5 +264,28 @@ export function isAnalogAlarm(tag: {
   return false
 }
 
-/** Норма остаточных солей после ЭЛОУ (обучение / WPF MaxNormSaltContent). */
 export const SALT_NORM_MG_L = 5
+
+export function getUtilityAlarms(p: ProcessState): string[] {
+  const a: string[] = []
+  if (!p.steamOk) a.push('Пар: НЕТ')
+  if (!p.powerOk) a.push('Питание 0,4/6 кВ: НЕТ')
+  if (!p.opsPowerOk)
+    a.push(
+      p.opsPowerOnBattery
+        ? `Операторная: АКБ ${p.batteryMinutesLeft.toFixed(0)} мин`
+        : 'Операторная: НЕТ питания',
+    )
+  if (!p.coolingWaterOk) a.push('Оборотная вода: НЕТ')
+  if (!p.instrumentAirOk) a.push('Приборный воздух: НЕТ')
+  if (!p.ventOpsOk) a.push('Вентиляция РУ: НЕТ')
+  if (!p.ventElouOk) a.push('Вентиляция ЭЛОУ: НЕТ')
+  if (!p.h2GasOk) a.push('H₂-газ K-12: НЕТ')
+  if (p.coilRupture) a.push('Змеевик печи: РАЗРЫВ')
+  if (p.pumpLeak) a.push('Утечка насоса/фланца')
+  if (p.levelWaterE1 > 85) a.push(`E-1 вода ${p.levelWaterE1.toFixed(0)}%`)
+  if (p.levelWaterE2 > 85) a.push(`E-2 вода ${p.levelWaterE2.toFixed(0)}%`)
+  if (p.levelReflux < 15) a.push(`Рефлюкс ${p.levelReflux.toFixed(0)}%`)
+  if (p.levelK1 < 20) a.push(`K-1 уровень ${p.levelK1.toFixed(0)}%`)
+  return a
+}

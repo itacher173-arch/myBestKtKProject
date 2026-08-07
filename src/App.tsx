@@ -1,4 +1,5 @@
 import { ControlPanel } from './components/ControlPanel'
+import { EmergencyPanel } from './components/EmergencyPanel'
 import { ReportsPage } from './components/ReportsPage'
 import { StartScreen } from './components/StartScreen'
 import { EquipmentPanel } from './components/scheme/EquipmentPanel'
@@ -57,7 +58,10 @@ function TrainerApp() {
       )}
 
       <main className="app-main">
-        <SchemeViewer />
+        <div className="scheme-wrap">
+          <SchemeViewer />
+          <EmergencyPanel />
+        </div>
         <EquipmentPanel />
       </main>
       <ControlPanel />

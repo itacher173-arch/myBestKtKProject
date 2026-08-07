@@ -9,11 +9,19 @@ import {
   type ReactNode,
 } from 'react'
 import { equipmentById } from '../scheme'
+import {
+  EMERGENCY_ACTIONS,
+  applyFault,
+} from './faultEngine'
 import { getAnalogs, tickProcess } from './processModel'
 import { saveReport } from './reportsStorage'
 import { exercises, getExercise } from './scenarios'
 import type { AnalogTag, PanelKind, ProcessState, Role, TrainerState } from './types'
-import { createInitialProcess, createInitialSession } from './types'
+import {
+  createInitialProcess,
+  createInitialSession,
+  createWarmProcess,
+} from './types'
 
 type Action =
   | { type: 'SET_ROLE'; role: Role }
@@ -75,6 +83,10 @@ function reducer(state: TrainerState, action: Action): TrainerState {
       }
     case 'START_SESSION': {
       const startedAt = Date.now()
+      const ex = getExercise(state.session.exerciseId)
+      const process = ex?.warmStart
+        ? createWarmProcess()
+        : { ...createInitialProcess(), running: true }
       return {
         ...state,
         session: {
@@ -88,13 +100,15 @@ function reducer(state: TrainerState, action: Action): TrainerState {
           responseSeconds: null,
           respondedInTime: null,
         },
-        process: { ...createInitialProcess(), running: true },
+        process,
         actionsLog: [],
         systemEvents: [
           {
             id: `start-${startedAt}`,
             at: startedAt,
-            description: `Упражнение начато: ${getExercise(state.session.exerciseId)?.name ?? '—'}`,
+            description: `Упражнение начато: ${ex?.name ?? '—'}${
+              ex?.warmStart ? ' (нормальный режим, ожидание отказа)' : ''
+            }`,
           },
         ],
         faultTriggered: false,
@@ -223,6 +237,7 @@ interface TrainerApi {
   setFuelGas: (percent: number) => void
   completeExercise: () => void
   resetToStart: () => void
+  performEmergencyAction: (actionId: string) => void
   canControl: boolean
 }
 
@@ -309,28 +324,9 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
       const exercise = getExercise(cur.session.exerciseId)
       if (!exercise?.faultType || cur.faultTriggered) return
 
-      if (exercise.faultType === 'demulsifier') {
-        dispatch({
-          type: 'SET_PROCESS',
-          patch: { demulsifierOn: false },
-        })
-        pushSystem(
-          'ОТКАЗ: остановлен насос-дозатор деэмульгатора на ЭЛОУ. Ожидается рост солей (Q-ELOU).',
-        )
-      } else if (exercise.faultType === 'fuelGas') {
-        dispatch({ type: 'SET_PROCESS', patch: { fuelGasPercent: 0 } })
-        pushSystem(
-          'ОТКАЗ: прекращена подача топливного газа к печам П-1…П-3. Температура на выходе (TR55-1) будет падать.',
-        )
-      } else if (exercise.faultType === 'pumpTrip') {
-        dispatch({
-          type: 'SET_PROCESS',
-          patch: { pumpN1: 'tripped', pressureN1: 0 },
-        })
-        pushSystem(
-          'ОТКАЗ: аварийная остановка Н-1 (защита электродвигателя). Давление PRA351 падает.',
-        )
-      }
+      const applied = applyFault(exercise.faultType)
+      dispatch({ type: 'SET_PROCESS', patch: applied.patch })
+      for (const msg of applied.messages) pushSystem(msg)
       dispatch({ type: 'FAULT_TRIGGERED' })
       pushSystem(`--- Запущена нештатная ситуация: «${exercise.name}» ---`)
     }, ex.triggerDelaySeconds * 1000)
@@ -403,13 +399,21 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
 
   const startPumpN1 = useCallback(() => {
     if (!canControl) return
-    const p = stateRef.current.process.pumpN1
+    const proc = stateRef.current.process
+    if (!proc.powerOk) {
+      pushSystem('Пуск Н-1 невозможен: нет электропитания.')
+      return
+    }
+    const p = proc.pumpN1
     if (p === 'running' || p === 'starting') return
     logAction("Насос 'Н-1': нажата кнопка 'Пуск'")
     dispatch({ type: 'SET_PROCESS', patch: { pumpN1: 'starting' } })
     if (pumpStartTimer.current) clearTimeout(pumpStartTimer.current)
     pumpStartTimer.current = window.setTimeout(() => {
-      if (stateRef.current.process.pumpN1 === 'starting') {
+      if (
+        stateRef.current.process.pumpN1 === 'starting' &&
+        stateRef.current.process.powerOk
+      ) {
         dispatch({ type: 'SET_PROCESS', patch: { pumpN1: 'running' } })
         pushSystem('Н-1 вышел на режим (Running).')
       }
@@ -430,6 +434,10 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
   const openValve = useCallback(
     (id: 'L-1' | 'L-2' | 'L-3') => {
       if (!canControl) return
+      if (!stateRef.current.process.instrumentAirOk) {
+        pushSystem('Привод задвижки недоступен: нет приборного воздуха.')
+        return
+      }
       const names = {
         'L-1': "Электрозадвижка 'Л-1 (вход сырья)' нажата кнопка 'Открыть'",
         'L-2':
@@ -446,12 +454,16 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
             : { valveL3Motion: 'opening' }
       dispatch({ type: 'SET_PROCESS', patch })
     },
-    [canControl, logAction],
+    [canControl, logAction, pushSystem],
   )
 
   const closeValve = useCallback(
     (id: 'L-1' | 'L-2' | 'L-3') => {
       if (!canControl) return
+      if (!stateRef.current.process.instrumentAirOk) {
+        pushSystem('Привод задвижки недоступен: нет приборного воздуха.')
+        return
+      }
       const names = {
         'L-1': "Электрозадвижка 'Л-1 (вход сырья)' нажата кнопка 'Закрыть'",
         'L-2':
@@ -468,7 +480,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
             : { valveL3Motion: 'closing' }
       dispatch({ type: 'SET_PROCESS', patch })
     },
-    [canControl, logAction],
+    [canControl, logAction, pushSystem],
   )
 
   const stopValve = useCallback(
@@ -509,11 +521,46 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
   const setFuelGas = useCallback(
     (percent: number) => {
       if (!canControl) return
+      const proc = stateRef.current.process
+      if (!proc.steamOk && percent > 0) {
+        pushSystem(
+          'Подача топлива заблокирована: нет технологического пара (горелки погашены).',
+        )
+        return
+      }
+      if (proc.coilRupture || proc.furnaceEsd) {
+        pushSystem('Подача топлива заблокирована: ESD / разрыв змеевика.')
+        return
+      }
       const p = Math.max(0, Math.min(100, Math.round(percent)))
       logAction(`Печь 'П-1': Изменена подача топливного газа на ${p}%`)
       dispatch({ type: 'SET_PROCESS', patch: { fuelGasPercent: p } })
     },
-    [canControl, logAction],
+    [canControl, logAction, pushSystem],
+  )
+
+  const performEmergencyAction = useCallback(
+    (actionId: string) => {
+      if (!canControl) return
+      const def = EMERGENCY_ACTIONS.find((a) => a.id === actionId)
+      if (!def) return
+      const cur = stateRef.current
+      const ex = getExercise(cur.session.exerciseId)
+      if (
+        !cur.faultTriggered ||
+        !ex?.faultType ||
+        !def.clearsFaults.includes(ex.faultType)
+      ) {
+        return
+      }
+      const patch = def.apply?.(cur.process) ?? {}
+      if (Object.keys(patch).length) {
+        dispatch({ type: 'SET_PROCESS', patch })
+      }
+      logAction(def.logDescription)
+      pushSystem(`Выполнено: ${def.label}`)
+    },
+    [canControl, logAction, pushSystem],
   )
 
   const openPanelForEquip = useCallback((equipId: string) => {
@@ -653,6 +700,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     setFuelGas,
     completeExercise,
     resetToStart,
+    performEmergencyAction,
     canControl,
   }
 

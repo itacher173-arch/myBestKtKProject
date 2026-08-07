@@ -10,7 +10,7 @@
 }
 
 .start-card {
-  width: min(520px, 100%);
+  width: min(640px, 100%);
   background: #152028;
   border: 1px solid #3a556c;
   border-radius: 12px;
@@ -25,9 +25,68 @@
 }
 
 .start-lead {
-  margin: 6px 0 20px;
+  margin: 6px 0 12px;
   color: #9db4c7;
   font-size: 13px;
+}
+
+.spec-badge {
+  margin: 0 0 18px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #3a556c;
+  background: #0f171e;
+  color: #9db4c7;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.spec-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 180px;
+  overflow: auto;
+  border: 1px solid #2c3f50;
+  border-radius: 8px;
+  background: #0f171e;
+}
+
+.spec-list li {
+  display: grid;
+  grid-template-columns: 52px 1fr auto;
+  gap: 8px;
+  align-items: baseline;
+  padding: 6px 10px;
+  border-bottom: 1px solid #1e2a36;
+  font-size: 11px;
+}
+
+.spec-list li:last-child {
+  border-bottom: none;
+}
+
+.spec-list .spec-id {
+  font-family: 'IBM Plex Mono', monospace;
+  color: #7ec8f0;
+  font-weight: 600;
+}
+
+.spec-list .spec-event {
+  color: #c5d4e0;
+}
+
+.spec-list .spec-status {
+  color: #7f97ab;
+  white-space: nowrap;
+}
+
+.spec-list li.playable .spec-status {
+  color: #3ecf9a;
+}
+
+.spec-list li.planned {
+  opacity: 0.72;
 }
 
 .start-card section {

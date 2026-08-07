@@ -23,12 +23,14 @@ export function EquipmentPanel() {
       `Уровень: ${p.levelK1.toFixed(0)}%`,
       `P верха: ${p.pressureK1.toFixed(2)} кгс/см²`,
       `T пит.: ${p.tempK1In.toFixed(0)} °C`,
+      `E-1/E-2 вода: ${p.levelWaterE1.toFixed(0)}/${p.levelWaterE2.toFixed(0)}%`,
     )
   }
   if (selectedId === 'K-2') {
     liveBits.push(
       `Уровень: ${p.levelK2.toFixed(0)}%`,
       `P верха: ${p.pressureK2.toFixed(2)} кгс/см²`,
+      `Рефлюкс: ${p.levelReflux.toFixed(0)}%`,
     )
   }
   if (

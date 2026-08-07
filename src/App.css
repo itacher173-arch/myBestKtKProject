@@ -154,6 +154,19 @@
   min-height: 0;
 }
 
+.scheme-wrap {
+  position: relative;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.scheme-wrap .scheme-viewer {
+  flex: 1;
+  min-height: 0;
+}
+
 .scheme-viewer {
   position: relative;
   overflow: hidden;
