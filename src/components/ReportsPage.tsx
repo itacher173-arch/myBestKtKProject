@@ -11,6 +11,7 @@ import {
   clearReports,
   deleteReport,
   downloadSessionProtocol,
+  printSessionProtocol,
   loadReports,
   type TraineeReport,
 } from '../sim/reportsStorage'
@@ -75,11 +76,21 @@ export function ReportsPage() {
   }
 
   const onDownloadProtocol = (r: TraineeReport) => {
-    downloadSessionProtocol(r)
+    void downloadSessionProtocol(r)
     appendAudit({
       actor: 'instructor',
       role: 'instructor',
       action: 'download_protocol',
+      detail: r.id,
+    })
+  }
+
+  const onPrintProtocol = (r: TraineeReport) => {
+    printSessionProtocol(r)
+    appendAudit({
+      actor: 'instructor',
+      role: 'instructor',
+      action: 'print_protocol',
       detail: r.id,
     })
   }
@@ -207,6 +218,13 @@ export function ReportsPage() {
                       onClick={() => onDownloadProtocol(selected)}
                     >
                       Скачать протокол JSON
+                    </button>
+                    <button
+                      type="button"
+                      className="hdr-btn ghost"
+                      onClick={() => onPrintProtocol(selected)}
+                    >
+                      Печать
                     </button>
                     <button
                       type="button"

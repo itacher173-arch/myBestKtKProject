@@ -1,4 +1,5 @@
 import type { Exercise, ProcessState } from './types'
+import { criticalFailReasonText } from './pazGuards'
 
 export type PenaltyKind = 'unsafe' | 'late' | 'extra' | 'missed'
 
@@ -156,24 +157,7 @@ export function detectCriticalFails(
   exercise: Exercise | undefined,
   actionsLog: { description: string }[],
 ): boolean {
-  if (exercise?.faultType === 'steamLoss' && process.fuelGasPercent > 10) {
-    if (!process.safeShutdownInitiated) return true
-  }
-  if (!process.steamOk && process.fuelGasPercent > 15) return true
-  if (process.coilRupture && process.fuelGasPercent > 5 && !process.furnaceEsd) {
-    return true
-  }
-  // Увеличение топлива при активной потере пара / разрыве змеевика
-  if (
-    (!process.steamOk || process.coilRupture) &&
-    actionsLog.some((a) => {
-      const m = a.description.match(/топливного газа на (\d+)%/)
-      return m != null && Number(m[1]) > 10
-    })
-  ) {
-    return true
-  }
-  return false
+  return criticalFailReasonText(process, exercise, actionsLog) != null
 }
 
 function countUnsafeActions(

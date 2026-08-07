@@ -1,0 +1,116 @@
+.alarm-bar {
+  position: absolute;
+  left: 50%;
+  top: 12px;
+  transform: translateX(-50%);
+  z-index: 6;
+  width: min(560px, calc(100% - 340px));
+  max-height: 140px;
+  overflow: auto;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #3a556c;
+  background: rgba(14, 22, 30, 0.92);
+  color: #d7e3ee;
+  font-size: 11px;
+  pointer-events: auto;
+}
+
+.alarm-bar.has-p1 {
+  border-color: #c05050;
+  box-shadow: 0 0 0 1px rgba(192, 80, 80, 0.35);
+  animation: alarm-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes alarm-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 1px rgba(192, 80, 80, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 0 3px rgba(192, 80, 80, 0.45);
+  }
+}
+
+.alarm-bar-head {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  color: #9db4c7;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 10px;
+}
+
+.alarm-bar-ok {
+  margin: 0;
+  color: #7dba8f;
+}
+
+.alarm-bar ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.alarm-bar li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.alarm-bar li.acked {
+  opacity: 0.55;
+}
+
+.ab-prio {
+  flex-shrink: 0;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+  border: 1px solid;
+}
+
+.prio-1 .ab-prio {
+  color: #ffb0b0;
+  border-color: #c05050;
+  background: #3a1818;
+}
+
+.prio-2 .ab-prio {
+  color: #ffd090;
+  border-color: #a07830;
+  background: #2a2410;
+}
+
+.prio-3 .ab-prio {
+  color: #c0d0e0;
+  border-color: #4a6070;
+  background: #1a2430;
+}
+
+.ab-msg {
+  flex: 1;
+  min-width: 0;
+  color: #f0a0a0;
+  font-weight: 600;
+}
+
+.alarm-bar time {
+  color: #8a9eae;
+  font-variant-numeric: tabular-nums;
+}
+
+.alarm-bar button {
+  border: 1px solid #4a6780;
+  background: #1e2a36;
+  color: #c5d4e0;
+  border-radius: 4px;
+  font: inherit;
+  font-size: 10px;
+  padding: 2px 6px;
+  cursor: pointer;
+}

@@ -52,6 +52,21 @@
   line-height: 1.4;
 }
 
+.ctrl-knowledge-btn {
+  width: 100%;
+  margin: 0 0 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--gpn-sky, #00aeef);
+  border-radius: 6px;
+  background: rgba(0, 174, 239, 0.12);
+  color: #bfeeff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ctrl-knowledge-btn:hover {
+  background: rgba(0, 174, 239, 0.22);
+}
 
 .ctrl-actions {
   display: flex;

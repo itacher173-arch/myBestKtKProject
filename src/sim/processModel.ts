@@ -91,6 +91,12 @@ export function tickProcess(p: ProcessState, dtSec: number): ProcessState {
     pN1Target = 0
   }
 
+  // Потеря приборного воздуха — клапаны «плывут», расход падает
+  if (!airOk && flowTarget > 0) {
+    flowTarget *= 0.18
+    pN1Target *= 0.55
+  }
+
   next.feedFlow = approach(next.feedFlow, flowTarget, 28, dt)
   next.pressureN1 = approach(next.pressureN1, pN1Target, 5.5, dt)
 
@@ -133,6 +139,22 @@ export function tickProcess(p: ProcessState, dtSec: number): ProcessState {
   }
   // соли меняются медленнее температуры (инерция анализатора / объём)
   next.saltMgL = approach(next.saltMgL, saltTarget, 18, dt)
+
+  let waterTarget = hasFeed ? 0.55 : 0.2
+  if (hasFeed) {
+    const dem = next.demulsifierOn
+    const field = next.electricFieldOn
+    const wash = next.washWaterOn
+    if (dem && field && wash) waterTarget = 0.09
+    else if (dem && field) waterTarget = 0.22
+    else if (dem || field || wash) waterTarget = 0.35
+    else waterTarget = 0.7
+  }
+  next.waterAfterElou = approach(next.waterAfterElou, waterTarget, 0.04, dt)
+
+  // Загазованность: вентиляция ЭЛОУ снижает % НКПР
+  const gasTarget = next.ventElouOk ? 4 : 28
+  next.gasPercent = approach(next.gasPercent, gasTarget, 1.2, dt)
 
   // Давление после ЭЛОУ: ниже напора Н-1, растёт с расходом, падает при потерях
   let pElouTarget = 0
@@ -458,6 +480,14 @@ export function getUtilityAlarms(p: ProcessState): UtilityAlarm[] {
   if (!p.instrumentAirOk) push('air', 'Приборный воздух: НЕТ', 1)
   if (!p.ventOpsOk) push('ventOps', 'Вентиляция РУ: НЕТ', 2)
   if (!p.ventElouOk) push('ventElou', 'Вентиляция ЭЛОУ: НЕТ', 2)
+  if (p.gasPercent >= 20)
+    push('gas', `Загазованность ${p.gasPercent.toFixed(0)}% НКПР`, 1)
+  if (p.waterAfterElou > 0.15 && p.feedFlow > 5)
+    push(
+      'elouWater',
+      `Вода после ЭЛОУ ${p.waterAfterElou.toFixed(2)}%`,
+      2,
+    )
   if (!p.h2GasOk) push('h2', 'H₂-газ K-12: НЕТ', 2)
   if (p.coilRupture) push('coil', 'Змеевик печи: РАЗРЫВ', 1)
   if (p.pumpLeak) push('leak', 'Утечка насоса/фланца', 1)

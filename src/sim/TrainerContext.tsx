@@ -6,14 +6,37 @@ import {
   useMemo,
   useReducer,
   useRef,
+  useState,
   type ReactNode,
 } from 'react'
 import { equipmentById } from '../scheme'
+import {
+  drainActionToken,
+  fuelActionToken,
+  isMiniActionAllowed,
+  levelSetpointToken,
+  protectLevelToken,
+  pumpActionToken,
+  toggleActionToken,
+  utilityActionToken,
+  valveActionToken,
+} from '../miniTraining/actions'
+import {
+  evaluateMiniTraining,
+  getMiniTraining,
+  MINI_TRAININGS,
+  type MiniTraining,
+  type TrainingHint,
+  type TrainingProgress,
+} from '../miniTraining/catalog'
+import { applyMiniPreset } from '../miniTraining/presets'
+import { expandMiniFocusEquipment } from '../miniTraining/focusPath'
 import {
   EMERGENCY_ACTIONS,
   applyFault,
 } from './faultEngine'
 import { appendAudit } from './auditStorage'
+import { processInterlockReason, criticalFailReasonText } from './pazGuards'
 import { sequenceBlockReason, type GuardedAction } from './scenarioGuards'
 import { getAnalogs, getUtilityAlarms, tickProcess } from './processModel'
 import {
@@ -28,6 +51,8 @@ import type {
   ProcessState,
   Role,
   SessionMode,
+  SessionSnapshot,
+  TimeScale,
   TrainerState,
 } from './types'
 import {
@@ -40,10 +65,15 @@ import {
 type Action =
   | { type: 'SET_ROLE'; role: Role }
   | { type: 'SET_NAME'; name: string }
-  | { type: 'SET_EXERCISE'; id: string }
+  | { type: 'SET_EXERCISE'; id: string | null }
   | { type: 'SET_MODE'; mode: SessionMode }
   | { type: 'OPEN_REPORTS' }
-  | { type: 'START_SESSION' }
+  | {
+      type: 'START_SESSION'
+      process?: ProcessState
+      label?: string
+      skipBriefing?: boolean
+    }
   | { type: 'SYNC_ALARM_TIMES'; raisedAt: Record<string, number> }
   | { type: 'SELECT_EQUIP'; id: string | null }
   | { type: 'OPEN_PANEL'; panel: PanelKind }
@@ -56,6 +86,12 @@ type Action =
   | { type: 'FAULT_RESPONDED'; seconds: number; inTime: boolean }
   | { type: 'SET_PAUSED'; paused: boolean }
   | { type: 'ACK_ALARM'; key: string }
+  | { type: 'SET_TIME_SCALE'; timeScale: TimeScale }
+  | { type: 'ACCEPT_BRIEFING' }
+  | { type: 'SET_INSTRUCTOR_LIVE'; open: boolean }
+  | { type: 'SAVE_SNAPSHOT'; snapshot: SessionSnapshot }
+  | { type: 'RESTORE_SNAPSHOT' }
+  | { type: 'SET_CRITICAL_FAIL'; reason: string }
   | {
       type: 'COMPLETE'
       scorePercent: number
@@ -69,6 +105,7 @@ type Action =
       qualified: boolean
       qualificationSummary: string
       finishEvent: { id: string; at: number; description: string }
+      criticalFailReason?: string | null
     }
   | { type: 'RESET_TO_START' }
 
@@ -117,9 +154,12 @@ function reducer(state: TrainerState, action: Action): TrainerState {
     case 'START_SESSION': {
       const startedAt = Date.now()
       const ex = getExercise(state.session.exerciseId)
-      const process = ex?.warmStart
-        ? createWarmProcess()
-        : { ...createInitialProcess(), running: true }
+      const process =
+        action.process ??
+        (ex?.warmStart
+          ? createWarmProcess()
+          : { ...createInitialProcess(), running: true })
+      const label = action.label ?? ex?.name ?? '—'
       return {
         ...state,
         session: {
@@ -135,6 +175,10 @@ function reducer(state: TrainerState, action: Action): TrainerState {
           respondedInTime: null,
           qualified: null,
           qualificationSummary: null,
+          briefingAccepted: Boolean(action.skipBriefing),
+          timeScale: 1,
+          criticalFailReason: null,
+          instructorLiveOpen: false,
         },
         process,
         actionsLog: [],
@@ -142,9 +186,9 @@ function reducer(state: TrainerState, action: Action): TrainerState {
           {
             id: `start-${startedAt}`,
             at: startedAt,
-            description: `Упражнение начато: ${ex?.name ?? '—'} [${
+            description: `Упражнение начато: ${label} [${
               state.session.mode === 'exam' ? 'экзамен' : 'обучение'
-            }]${ex?.warmStart ? ' (нормальный режим, ожидание отказа)' : ''}`,
+            }]${ex?.warmStart && !action.process ? ' (нормальный режим, ожидание отказа)' : ''}`,
           },
         ],
         faultTriggered: false,
@@ -155,6 +199,7 @@ function reducer(state: TrainerState, action: Action): TrainerState {
         analogHistory: [],
         ackedAlarmKeys: [],
         alarmRaisedAt: {},
+        snapshot: null,
       }
     }
     case 'SELECT_EQUIP':
@@ -259,6 +304,10 @@ function reducer(state: TrainerState, action: Action): TrainerState {
           penaltyDetail: action.penaltyDetail,
           qualified: action.qualified,
           qualificationSummary: action.qualificationSummary,
+          criticalFailReason:
+            action.criticalFailReason !== undefined
+              ? action.criticalFailReason
+              : state.session.criticalFailReason,
         },
         process: { ...state.process, running: false },
         systemEvents: [...state.systemEvents, action.finishEvent],
@@ -268,6 +317,59 @@ function reducer(state: TrainerState, action: Action): TrainerState {
       return {
         ...state,
         session: { ...state.session, paused: action.paused },
+      }
+    case 'ACCEPT_BRIEFING':
+      return {
+        ...state,
+        session: { ...state.session, briefingAccepted: true },
+      }
+    case 'SET_TIME_SCALE':
+      return {
+        ...state,
+        session: { ...state.session, timeScale: action.timeScale },
+      }
+    case 'SET_INSTRUCTOR_LIVE':
+      return {
+        ...state,
+        session: { ...state.session, instructorLiveOpen: action.open },
+      }
+    case 'SAVE_SNAPSHOT':
+      return { ...state, snapshot: action.snapshot }
+    case 'RESTORE_SNAPSHOT': {
+      const snap = state.snapshot
+      if (!snap) return state
+      return {
+        ...state,
+        process: snap.process,
+        actionsLog: snap.actionsLog,
+        systemEvents: snap.systemEvents,
+        faultTriggered: snap.faultTriggered,
+        faultResponded: snap.faultResponded,
+        faultAt: snap.faultAt,
+        analogHistory: snap.analogHistory,
+        ackedAlarmKeys: snap.ackedAlarmKeys,
+        alarmRaisedAt: snap.alarmRaisedAt,
+        session: {
+          ...state.session,
+          view: 'exercise',
+          completed: false,
+          scorePercent: 0,
+          penalty: 0,
+          qualified: null,
+          qualificationSummary: null,
+          criticalFailReason: null,
+          responseSeconds: snap.responseSeconds,
+          respondedInTime: snap.respondedInTime,
+        },
+      }
+    }
+    case 'SET_CRITICAL_FAIL':
+      return {
+        ...state,
+        session: {
+          ...state.session,
+          criticalFailReason: action.reason,
+        },
       }
     case 'RESET_TO_START':
       return {
@@ -283,6 +385,7 @@ function reducer(state: TrainerState, action: Action): TrainerState {
         analogHistory: [],
         ackedAlarmKeys: [],
         alarmRaisedAt: {},
+        snapshot: null,
       }
     default:
       return state
@@ -333,7 +436,26 @@ interface TrainerApi {
   setPaused: (paused: boolean) => void
   ackAlarm: (key: string) => void
   injectCurrentFault: () => void
+  acceptBriefing: () => void
+  setTimeScale: (scale: TimeScale) => void
+  setInstructorLiveOpen: (open: boolean) => void
+  saveSnapshot: () => void
+  restoreSnapshot: () => void
   canControl: boolean
+  trainingMode: 'full' | 'mini'
+  setTrainingMode: (mode: 'full' | 'mini') => void
+  miniTrainings: MiniTraining[]
+  selectedMiniTrainingId: string | null
+  setSelectedMiniTraining: (id: string) => void
+  activeMiniTraining: MiniTraining | null
+  miniTrainingProgress: TrainingProgress
+  visibleHint: TrainingHint | null
+  hintsUsed: number
+  requestHint: () => void
+  knowledgeOpen: boolean
+  knowledgeArticleId: string | null
+  openKnowledge: (articleId?: string) => void
+  closeKnowledge: () => void
 }
 
 const TrainerContext = createContext<TrainerApi | null>(null)
@@ -351,6 +473,7 @@ const initialState: TrainerState = {
   analogHistory: [],
   ackedAlarmKeys: [],
   alarmRaisedAt: {},
+  snapshot: null,
 }
 
 export function TrainerProvider({ children }: { children: ReactNode }) {
@@ -360,6 +483,67 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
   const pumpStartTimer = useRef<number | null>(null)
   const recoveryLogged = useRef(false)
   const saltAlarmLogged = useRef(false)
+  const criticalFailHandled = useRef(false)
+
+  const [trainingMode, setTrainingModeState] = useState<'full' | 'mini'>('full')
+  const [selectedMiniTrainingId, setSelectedMiniTrainingId] = useState<
+    string | null
+  >(null)
+  const [hintsUsed, setHintsUsed] = useState(0)
+  const [visibleHint, setVisibleHint] = useState<TrainingHint | null>(null)
+  const [knowledgeOpen, setKnowledgeOpen] = useState(false)
+  const [knowledgeArticleId, setKnowledgeArticleId] = useState<string | null>(
+    null,
+  )
+
+  const activeMiniTraining =
+    trainingMode === 'mini'
+      ? getMiniTraining(MINI_TRAININGS, selectedMiniTrainingId) ?? null
+      : null
+  const miniTrainingProgress = useMemo(
+    () =>
+      activeMiniTraining
+        ? evaluateMiniTraining(activeMiniTraining, state.process)
+        : { checks: [], progressPercent: 0, completed: false },
+    [activeMiniTraining, state.process],
+  )
+
+  const setTrainingMode = useCallback((mode: 'full' | 'mini') => {
+    setTrainingModeState(mode)
+    setVisibleHint(null)
+    setHintsUsed(0)
+    if (mode === 'mini') {
+      dispatch({ type: 'SET_EXERCISE', id: null })
+      dispatch({ type: 'SET_MODE', mode: 'train' })
+    } else {
+      setSelectedMiniTrainingId(null)
+    }
+  }, [])
+
+  const setSelectedMiniTraining = useCallback((id: string) => {
+    setSelectedMiniTrainingId(id)
+    setVisibleHint(null)
+    setHintsUsed(0)
+  }, [])
+
+  const requestHint = useCallback(() => {
+    const training = getMiniTraining(MINI_TRAININGS, selectedMiniTrainingId)
+    if (!training) return
+    setHintsUsed((current) => {
+      const next = Math.min(current + 1, training.hints.length)
+      setVisibleHint(training.hints[Math.max(0, next - 1)] ?? null)
+      return next
+    })
+  }, [selectedMiniTrainingId])
+
+  const openKnowledge = useCallback((articleId?: string) => {
+    setKnowledgeArticleId(articleId ?? null)
+    setKnowledgeOpen(true)
+  }, [])
+
+  const closeKnowledge = useCallback(() => {
+    setKnowledgeOpen(false)
+  }, [])
 
   const pushAction = useCallback((description: string) => {
     dispatch({
@@ -379,13 +563,26 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
+  const assertMiniAction = useCallback(
+    (token: string) => {
+      if (trainingMode !== 'mini' || !activeMiniTraining) return true
+      if (isMiniActionAllowed(activeMiniTraining, token)) return true
+      pushSystem(
+        `Действие ${token} не относится к текущему мини-обучению.`,
+      )
+      return false
+    },
+    [activeMiniTraining, pushSystem, trainingMode],
+  )
+
   // Simulation tick (пауза останавливает модель и таймер отказа)
   useEffect(() => {
     if (state.session.view !== 'exercise') return
     if (!state.session.started || state.session.completed) return
     if (state.session.paused) return
+    if (!state.session.briefingAccepted) return
     const id = window.setInterval(() => {
-      dispatch({ type: 'TICK', dt: 1 })
+      dispatch({ type: 'TICK', dt: state.session.timeScale })
     }, 1000)
     return () => clearInterval(id)
   }, [
@@ -393,6 +590,8 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     state.session.started,
     state.session.completed,
     state.session.paused,
+    state.session.briefingAccepted,
+    state.session.timeScale,
   ])
 
   // Фиксация времени появления тревог (для HMI: время / RTN при исчезновении)
@@ -451,6 +650,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     if (state.session.view !== 'exercise') return
     if (!state.session.started || state.session.completed) return
     if (state.session.paused || state.faultTriggered) return
+    if (trainingMode === 'mini') return
     const ex = getExercise(state.session.exerciseId)
     if (!ex?.faultType || !ex.triggerDelaySeconds) return
     if (state.process.simTimeSec < ex.triggerDelaySeconds) return
@@ -468,6 +668,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     state.session.exerciseId,
     state.faultTriggered,
     state.process.simTimeSec,
+    trainingMode,
     pushSystem,
   ])
 
@@ -563,6 +764,15 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
         pushSystem(`Последовательность: ${reason}`)
         return true
       }
+      const interlock = processInterlockReason(
+        cur.process,
+        action,
+        fuelTarget,
+      )
+      if (interlock) {
+        pushSystem(interlock)
+        return true
+      }
       return false
     },
     [pushSystem],
@@ -570,6 +780,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
 
   const startPumpN1 = useCallback(() => {
     if (!canControl) return
+    if (!assertMiniAction(pumpActionToken('N-1'))) return
     if (blockSequence('start-N1')) return
     const proc = stateRef.current.process
     if (!proc.powerOk) {
@@ -596,10 +807,11 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
         pushSystem('Н-1 вышел на режим (Running).')
       }
     }, 1500)
-  }, [canControl, logAction, pushSystem, blockSequence])
+  }, [canControl, logAction, pushSystem, blockSequence, assertMiniAction])
 
   const stopPumpN1 = useCallback(() => {
     if (!canControl) return
+    if (!assertMiniAction(pumpActionToken('N-1'))) return
     if (blockSequence('shutdown-stop-N1')) return
     if (stateRef.current.process.pumpN1 === 'stopped') return
     logAction("Насос 'Н-1': нажата кнопка 'Стоп'")
@@ -608,7 +820,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
       type: 'SET_PROCESS',
       patch: { pumpN1: 'stopped', pressureN1: 0 },
     })
-  }, [canControl, logAction, blockSequence])
+  }, [canControl, logAction, blockSequence, assertMiniAction])
 
   const startPump = useCallback(
     (id: 'N-1' | 'N-2' | 'N-3') => {
@@ -617,6 +829,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
         return
       }
       if (!canControl) return
+      if (!assertMiniAction(pumpActionToken(id))) return
       if (blockSequence(id === 'N-2' ? 'start-N2' : 'start-N3')) return
       const proc = stateRef.current.process
       if (!proc.powerOk) {
@@ -635,7 +848,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
       logAction(`Насос '${id}': нажата кнопка 'Пуск'`)
       dispatch({ type: 'SET_PROCESS', patch: { [key]: 'running' } })
     },
-    [canControl, logAction, pushSystem, startPumpN1, blockSequence],
+    [canControl, logAction, pushSystem, startPumpN1, blockSequence, assertMiniAction],
   )
 
   const stopPump = useCallback(
@@ -645,18 +858,20 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
         return
       }
       if (!canControl) return
+      if (!assertMiniAction(pumpActionToken(id))) return
       if (blockSequence('shutdown-stop-furnace-pump')) return
       const key = id === 'N-2' ? 'pumpN2' : 'pumpN3'
       if (stateRef.current.process[key] === 'stopped') return
       logAction(`Насос '${id}': нажата кнопка 'Стоп'`)
       dispatch({ type: 'SET_PROCESS', patch: { [key]: 'stopped' } })
     },
-    [canControl, logAction, stopPumpN1, blockSequence],
+    [canControl, logAction, stopPumpN1, blockSequence, assertMiniAction],
   )
 
   const openValve = useCallback(
     (id: 'L-1' | 'L-2' | 'L-3') => {
       if (!canControl) return
+      if (!assertMiniAction(valveActionToken(id))) return
       if (!stateRef.current.process.instrumentAirOk) {
         pushSystem('Привод задвижки недоступен: нет приборного воздуха.')
         return
@@ -680,12 +895,13 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
             : { valveL3Motion: 'opening' }
       dispatch({ type: 'SET_PROCESS', patch })
     },
-    [canControl, logAction, pushSystem, blockSequence],
+    [canControl, logAction, pushSystem, blockSequence, assertMiniAction],
   )
 
   const closeValve = useCallback(
     (id: 'L-1' | 'L-2' | 'L-3') => {
       if (!canControl) return
+      if (!assertMiniAction(valveActionToken(id))) return
       if (!stateRef.current.process.instrumentAirOk) {
         pushSystem('Привод задвижки недоступен: нет приборного воздуха.')
         return
@@ -706,12 +922,13 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
             : { valveL3Motion: 'closing' }
       dispatch({ type: 'SET_PROCESS', patch })
     },
-    [canControl, logAction, pushSystem],
+    [canControl, logAction, pushSystem, assertMiniAction],
   )
 
   const stopValve = useCallback(
     (id: 'L-1' | 'L-2' | 'L-3') => {
       if (!canControl) return
+      if (!assertMiniAction(valveActionToken(id))) return
       const patch: Partial<ProcessState> =
         id === 'L-1'
           ? { valveL1Motion: 'idle' }
@@ -721,45 +938,49 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
       dispatch({ type: 'SET_PROCESS', patch })
       logAction(`Электрозадвижка '${id}': останов привода`)
     },
-    [canControl, logAction],
+    [canControl, logAction, assertMiniAction],
   )
 
   const setDemulsifier = useCallback(
     (on: boolean) => {
       if (!canControl) return
+      if (!assertMiniAction(toggleActionToken('demulsifierOn'))) return
       if (on && blockSequence('elou-demulsifier')) return
       if (on) logAction("ЭЛОУ 'Э-1..Э-6': подача деэмульгатора включена")
       else logAction("ЭЛОУ 'Э-1..Э-6': подача деэмульгатора отключена")
       dispatch({ type: 'SET_PROCESS', patch: { demulsifierOn: on } })
     },
-    [canControl, logAction, blockSequence],
+    [canControl, logAction, blockSequence, assertMiniAction],
   )
 
   const setElectricField = useCallback(
     (on: boolean) => {
       if (!canControl) return
+      if (!assertMiniAction(toggleActionToken('electricFieldOn'))) return
       if (on && blockSequence('elou-field')) return
       if (on) logAction("ЭЛОУ 'Э-1..Э-6': электрическое поле включено")
       else logAction("ЭЛОУ 'Э-1..Э-6': электрическое поле отключено")
       dispatch({ type: 'SET_PROCESS', patch: { electricFieldOn: on } })
     },
-    [canControl, logAction, blockSequence],
+    [canControl, logAction, blockSequence, assertMiniAction],
   )
 
   const setWashWater = useCallback(
     (on: boolean) => {
       if (!canControl) return
+      if (!assertMiniAction(toggleActionToken('washWaterOn'))) return
       if (on && blockSequence('elou-wash')) return
       if (on) logAction("ЭЛОУ 'Э-1..Э-6': промывная вода включена")
       else logAction("ЭЛОУ 'Э-1..Э-6': промывная вода отключена")
       dispatch({ type: 'SET_PROCESS', patch: { washWaterOn: on } })
     },
-    [canControl, logAction, blockSequence],
+    [canControl, logAction, blockSequence, assertMiniAction],
   )
 
   const setLevelSetpoint = useCallback(
     (column: 'K-1' | 'K-2', percent: number) => {
       if (!canControl) return
+      if (!assertMiniAction(levelSetpointToken(column))) return
       const v = Math.max(10, Math.min(90, Math.round(percent)))
       if (column === 'K-1') {
         logAction(`Колонна 'К-1': задан уровень куба ${v}%`)
@@ -769,12 +990,13 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
         dispatch({ type: 'SET_PROCESS', patch: { levelSetpointK2: v } })
       }
     },
-    [canControl, logAction],
+    [canControl, logAction, assertMiniAction],
   )
 
   const drainVesselWater = useCallback(
     (id: 'E-1-vessel' | 'E-2-vessel') => {
       if (!canControl) return
+      if (!assertMiniAction(drainActionToken(id))) return
       const label = id === 'E-1-vessel' ? 'E-1' : 'E-2'
       if (
         !window.confirm(
@@ -791,12 +1013,13 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
         "Авария: скорректирован уровень воды E-1/E-2, предотвращён занос в колонны (SC-11)",
       )
     },
-    [canControl, logAction],
+    [canControl, logAction, assertMiniAction],
   )
 
   const setAvoFan = useCallback(
     (on: boolean) => {
       if (!canControl) return
+      if (!assertMiniAction(toggleActionToken('avoFanOn'))) return
       logAction(
         on
           ? "АВО 'АВЗ-3': вентилятор включён"
@@ -804,7 +1027,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
       )
       dispatch({ type: 'SET_PROCESS', patch: { avoFanOn: on } })
     },
-    [canControl, logAction],
+    [canControl, logAction, assertMiniAction],
   )
 
   const setUtility = useCallback(
@@ -819,6 +1042,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
       ok: boolean,
     ) => {
       if (!canControl) return
+      if (!assertMiniAction(utilityActionToken(key))) return
       const names: Record<typeof key, string> = {
         steamOk: 'Технологический пар',
         powerOk: 'Электропитание 0,4/6 кВ',
@@ -850,12 +1074,13 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
       }
       dispatch({ type: 'SET_PROCESS', patch })
     },
-    [canControl, logAction],
+    [canControl, logAction, assertMiniAction],
   )
 
   const protectColumnLevel = useCallback(
     (column: 'K-1' | 'K-2') => {
       if (!canControl) return
+      if (!assertMiniAction(protectLevelToken(column))) return
       if (
         !window.confirm(
           `Подтвердите разгрузку печи и защиту уровня ${column}?`,
@@ -893,12 +1118,13 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
         })
       }
     },
-    [canControl, logAction],
+    [canControl, logAction, assertMiniAction],
   )
 
   const setFuelGas = useCallback(
     (percent: number) => {
       if (!canControl) return
+      if (!assertMiniAction(fuelActionToken())) return
       const proc = stateRef.current.process
       if (!proc.steamOk && percent > 0) {
         pushSystem(
@@ -915,7 +1141,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
       logAction(`Печь 'П-1': Изменена подача топливного газа на ${p}%`)
       dispatch({ type: 'SET_PROCESS', patch: { fuelGasPercent: p } })
     },
-    [canControl, logAction, pushSystem, blockSequence],
+    [canControl, logAction, pushSystem, blockSequence, assertMiniAction],
   )
 
   const performEmergencyAction = useCallback(
@@ -960,6 +1186,16 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
   )
 
   const openPanelForEquip = useCallback((equipId: string) => {
+    if (trainingMode === 'mini' && activeMiniTraining) {
+      const focus = expandMiniFocusEquipment(activeMiniTraining)
+      if (
+        !focus.has(equipId) &&
+        !activeMiniTraining.zoneIds.includes(equipId)
+      ) {
+        pushSystem('Оборудование вне выбранного сегмента заблокировано.')
+        return
+      }
+    }
     dispatch({ type: 'SELECT_EQUIP', id: equipId })
     const node = equipmentById[equipId]
     if (!node) {
@@ -1012,27 +1248,69 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
         break
     }
     dispatch({ type: 'OPEN_PANEL', panel })
-  }, [])
+  }, [activeMiniTraining, pushSystem, trainingMode])
 
   const completeExercise = useCallback(() => {
     const cur = stateRef.current
     if (cur.session.view !== 'exercise' || cur.session.completed) return
 
-    const ex = getExercise(cur.session.exerciseId)
-    const scored = scoreExercise({
-      exercise: ex,
-      process: cur.process,
-      actionsLog: cur.actionsLog,
-      faultTriggered: cur.faultTriggered,
-      faultResponded: cur.faultResponded,
-      respondedInTime: cur.session.respondedInTime,
-      responseSeconds: cur.session.responseSeconds,
-    })
+    const training =
+      trainingMode === 'mini'
+        ? getMiniTraining(MINI_TRAININGS, selectedMiniTrainingId)
+        : undefined
+    const ex = training ? undefined : getExercise(cur.session.exerciseId)
+
+    let scorePercent: number
+    let penalty: number
+    let penaltyDetail:
+      | { unsafe: number; late: number; extra: number; missed: number }
+      | undefined
+    let qualified: boolean
+    let summary: string
+    let criticalFailReason: string | null =
+      cur.session.criticalFailReason ?? null
+    let outcomeOk = true
+
+    if (training) {
+      const progress = evaluateMiniTraining(training, cur.process)
+      scorePercent = Math.max(0, progress.progressPercent - hintsUsed * 5)
+      penalty = hintsUsed
+      penaltyDetail = {
+        unsafe: 0,
+        late: 0,
+        extra: hintsUsed,
+        missed: progress.checks.filter((ok) => !ok).length,
+      }
+      qualified = progress.completed && scorePercent >= 70
+      summary = progress.completed
+        ? `Мини-урок выполнен (${scorePercent}%, подсказок: ${hintsUsed}).`
+        : `Мини-урок не завершён (${progress.progressPercent}% целей, подсказок: ${hintsUsed}).`
+      outcomeOk = progress.completed
+    } else {
+      const scored = scoreExercise({
+        exercise: ex,
+        process: cur.process,
+        actionsLog: cur.actionsLog,
+        faultTriggered: cur.faultTriggered,
+        faultResponded: cur.faultResponded,
+        respondedInTime: cur.session.respondedInTime,
+        responseSeconds: cur.session.responseSeconds,
+      })
+      scorePercent = scored.scorePercent
+      penalty = scored.penalty
+      penaltyDetail = scored.penaltyDetail
+      qualified = scored.qualified
+      summary = scored.summary
+      outcomeOk = scored.outcomeOk
+      criticalFailReason =
+        cur.session.criticalFailReason ??
+        criticalFailReasonText(cur.process, ex, cur.actionsLog)
+    }
 
     const finishEvent = {
       id: uid(),
       at: Date.now(),
-      description: `Упражнение завершено. ${scored.summary}`,
+      description: `Упражнение завершено. ${summary}`,
     }
     const systemEvents = [...cur.systemEvents, finishEvent]
 
@@ -1044,19 +1322,19 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
       saveReport({
         id: uid(),
         userName: cur.session.userName.trim(),
-        exerciseId: cur.session.exerciseId ?? '',
-        exerciseName: ex?.name ?? '—',
+        exerciseId: cur.session.exerciseId ?? training?.id ?? '',
+        exerciseName: training?.title ?? ex?.name ?? '—',
         completedAt: finishEvent.at,
-        scorePercent: scored.scorePercent,
-        penalty: scored.penalty,
-        penaltyDetail: scored.penaltyDetail,
+        scorePercent,
+        penalty,
+        penaltyDetail,
         responseSeconds: cur.session.responseSeconds,
         respondedInTime: cur.session.respondedInTime,
         simTimeSec: cur.process.simTimeSec,
-        qualified: scored.qualified,
-        qualificationSummary: scored.summary,
-        criticalFail: scored.criticalFail,
-        outcomeOk: scored.outcomeOk,
+        qualified,
+        qualificationSummary: summary,
+        criticalFail: Boolean(criticalFailReason) || !outcomeOk,
+        outcomeOk,
         protocolVersion: PROTOCOL_VERSION,
         modelVersion: MODEL_VERSION,
         scenarioVersion: SCENARIO_VERSION,
@@ -1075,22 +1353,65 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
         actor: cur.session.userName.trim(),
         role: 'trainee',
         action: 'complete_exercise',
-        detail: `${ex?.id ?? '?'} · ${cur.session.mode} · ${
-          scored.qualified ? 'PASS' : 'FAIL'
-        } · ${scored.scorePercent}%`,
+        detail: `${cur.session.exerciseId ?? training?.id ?? '?'} · ${
+          cur.session.mode
+        } · ${qualified ? 'PASS' : 'FAIL'} · ${scorePercent}%`,
       })
     }
 
     dispatch({
       type: 'COMPLETE',
-      scorePercent: scored.scorePercent,
-      penalty: scored.penalty,
-      penaltyDetail: scored.penaltyDetail,
-      qualified: scored.qualified,
-      qualificationSummary: scored.summary,
+      scorePercent,
+      penalty,
+      penaltyDetail: penaltyDetail ?? {
+        unsafe: 0,
+        late: 0,
+        extra: 0,
+        missed: 0,
+      },
+      qualified,
+      qualificationSummary: summary,
       finishEvent,
+      criticalFailReason,
     })
-  }, [])
+  }, [hintsUsed, selectedMiniTrainingId, trainingMode])
+
+  // Экзамен: критический fail → автозавершение
+  useEffect(() => {
+    if (state.session.view !== 'exercise') return
+    if (!state.session.started || state.session.completed) return
+    if (state.session.mode !== 'exam') return
+    if (trainingMode === 'mini') return
+    if (!state.session.briefingAccepted) return
+    if (criticalFailHandled.current) return
+
+    const ex = getExercise(state.session.exerciseId)
+    const reason = criticalFailReasonText(
+      state.process,
+      ex,
+      state.actionsLog,
+    )
+    if (!reason) return
+    if (state.session.criticalFailReason) return
+
+    criticalFailHandled.current = true
+    dispatch({ type: 'SET_CRITICAL_FAIL', reason })
+    pushSystem(reason)
+    completeExercise()
+  }, [
+    state.session.view,
+    state.session.started,
+    state.session.completed,
+    state.session.mode,
+    state.session.briefingAccepted,
+    state.session.criticalFailReason,
+    state.session.exerciseId,
+    state.process,
+    state.actionsLog,
+    trainingMode,
+    pushSystem,
+    completeExercise,
+  ])
 
   const setPaused = useCallback(
     (paused: boolean) => {
@@ -1110,11 +1431,38 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
   const startSession = useCallback(() => {
     recoveryLogged.current = false
     saltAlarmLogged.current = false
+    criticalFailHandled.current = false
     if (pumpStartTimer.current) {
       clearTimeout(pumpStartTimer.current)
       pumpStartTimer.current = null
     }
     const cur = stateRef.current.session
+    const training =
+      trainingMode === 'mini'
+        ? getMiniTraining(MINI_TRAININGS, selectedMiniTrainingId)
+        : undefined
+    if (trainingMode === 'mini' && !training) return
+    if (trainingMode === 'full' && !getExercise(cur.exerciseId)) return
+
+    if (training) {
+      dispatch({ type: 'SET_EXERCISE', id: training.id })
+      appendAudit({
+        actor: cur.userName || 'trainee',
+        role: 'trainee',
+        action: 'start_session',
+        detail: `${training.id} · mini`,
+      })
+      setHintsUsed(0)
+      setVisibleHint(null)
+      dispatch({
+        type: 'START_SESSION',
+        process: applyMiniPreset(training.id),
+        label: training.title,
+        skipBriefing: true,
+      })
+      return
+    }
+
     appendAudit({
       actor: cur.userName || 'trainee',
       role: 'trainee',
@@ -1122,15 +1470,22 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
       detail: `${cur.exerciseId ?? '?'} · ${cur.mode}`,
     })
     dispatch({ type: 'START_SESSION' })
-  }, [])
+  }, [selectedMiniTrainingId, trainingMode])
 
   const resetToStart = useCallback(() => {
     recoveryLogged.current = false
     saltAlarmLogged.current = false
+    criticalFailHandled.current = false
     if (pumpStartTimer.current) {
       clearTimeout(pumpStartTimer.current)
       pumpStartTimer.current = null
     }
+    setTrainingModeState('full')
+    setSelectedMiniTrainingId(null)
+    setHintsUsed(0)
+    setVisibleHint(null)
+    setKnowledgeOpen(false)
+    setKnowledgeArticleId(null)
     dispatch({ type: 'RESET_TO_START' })
   }, [])
 
@@ -1155,13 +1510,64 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'SET_PROCESS', patch: applied.patch })
     for (const msg of applied.messages) pushSystem(msg)
     dispatch({ type: 'FAULT_TRIGGERED' })
-    pushSystem(`Инструктор ввёл событие: «${ex.name}»`)
+    pushSystem(`--- Нештатная ситуация: «${ex.name}» ---`)
     appendAudit({
       actor: 'instructor',
       role: 'instructor',
       action: 'inject_fault',
       detail: ex.faultType,
     })
+  }, [pushSystem])
+
+  const acceptBriefing = useCallback(() => {
+    dispatch({ type: 'ACCEPT_BRIEFING' })
+    pushSystem('Брифинг принят. Симуляция запущена.')
+  }, [pushSystem])
+
+  const setTimeScale = useCallback(
+    (timeScale: TimeScale) => {
+      dispatch({ type: 'SET_TIME_SCALE', timeScale })
+      pushSystem(`Масштаб времени: ${timeScale}×`)
+    },
+    [pushSystem],
+  )
+
+  const setInstructorLiveOpen = useCallback((open: boolean) => {
+    dispatch({ type: 'SET_INSTRUCTOR_LIVE', open })
+  }, [])
+
+  const saveSnapshot = useCallback(() => {
+    const cur = stateRef.current
+    if (cur.session.view !== 'exercise' || !cur.session.started) return
+    const snapshot: SessionSnapshot = {
+      savedAt: Date.now(),
+      label: `t=${cur.process.simTimeSec.toFixed(0)}с`,
+      process: { ...cur.process },
+      actionsLog: [...cur.actionsLog],
+      systemEvents: [...cur.systemEvents],
+      faultTriggered: cur.faultTriggered,
+      faultResponded: cur.faultResponded,
+      faultAt: cur.faultAt,
+      analogHistory: [...cur.analogHistory],
+      ackedAlarmKeys: [...cur.ackedAlarmKeys],
+      alarmRaisedAt: { ...cur.alarmRaisedAt },
+      responseSeconds: cur.session.responseSeconds,
+      respondedInTime: cur.session.respondedInTime,
+    }
+    dispatch({ type: 'SAVE_SNAPSHOT', snapshot })
+    pushSystem('Снимок состояния сохранён.')
+  }, [pushSystem])
+
+  const restoreSnapshot = useCallback(() => {
+    const cur = stateRef.current
+    if (!cur.snapshot) {
+      pushSystem('Нет сохранённого снимка.')
+      return
+    }
+    recoveryLogged.current = cur.snapshot.faultResponded
+    criticalFailHandled.current = false
+    dispatch({ type: 'RESTORE_SNAPSHOT' })
+    pushSystem('Состояние восстановлено из снимка.')
   }, [pushSystem])
 
   const analogs = useMemo(() => getAnalogs(state.process), [state.process])
@@ -1201,7 +1607,26 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     setPaused,
     ackAlarm,
     injectCurrentFault,
+    acceptBriefing,
+    setTimeScale,
+    setInstructorLiveOpen,
+    saveSnapshot,
+    restoreSnapshot,
     canControl,
+    trainingMode,
+    setTrainingMode,
+    miniTrainings: MINI_TRAININGS,
+    selectedMiniTrainingId,
+    setSelectedMiniTraining,
+    activeMiniTraining,
+    miniTrainingProgress,
+    visibleHint,
+    hintsUsed,
+    requestHint,
+    knowledgeOpen,
+    knowledgeArticleId,
+    openKnowledge,
+    closeKnowledge,
   }
 
   return (

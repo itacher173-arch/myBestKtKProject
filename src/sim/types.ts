@@ -4,6 +4,8 @@ export type Role = 'instructor' | 'trainee'
 
 export type SessionMode = 'train' | 'exam'
 
+export type TimeScale = 0.25 | 0.5 | 1 | 2 | 4
+
 export type PumpState = 'stopped' | 'starting' | 'running' | 'tripped'
 
 export type ValveMotion = 'idle' | 'opening' | 'closing'
@@ -60,12 +62,16 @@ export interface ProcessState {
   pressureN1: number
   tempElouIn: number
   saltMgL: number
+  /** Остаточная вода после ЭЛОУ, % масс. */
+  waterAfterElou: number
   pressureAfterElou: number
   tempK1In: number
   tempK1Bottom: number
   pressureK1: number
   tempFurnaceOut: number
   pressureK2: number
+  /** Модельная загазованность, % НКПР */
+  gasPercent: number
 
   feedFlow: number
   running: boolean
@@ -134,6 +140,14 @@ export interface SessionState {
   qualified: boolean | null
   /** Краткое обоснование вердикта */
   qualificationSummary: string | null
+  /** Масштаб времени симуляции */
+  timeScale: TimeScale
+  /** Брифинг перед упражнением принят */
+  briefingAccepted: boolean
+  /** Причина критического fail (экзамен) */
+  criticalFailReason: string | null
+  /** Панель инструктора (live) открыта */
+  instructorLiveOpen: boolean
   /** Типизированные штрафы (после завершения) */
   penaltyDetail?: {
     unsafe: number
@@ -141,6 +155,34 @@ export interface SessionState {
     extra: number
     missed: number
   }
+}
+
+export interface AnalogHistorySample {
+  t: number
+  pressureN1: number
+  tempFurnaceOut: number
+  saltMgL: number
+  pressureK1: number
+  levelK1: number
+  levelK2: number
+  feedFlow: number
+  pressureAfterElou: number
+}
+
+export interface SessionSnapshot {
+  savedAt: number
+  label: string
+  process: ProcessState
+  actionsLog: LogEntry[]
+  systemEvents: LogEntry[]
+  faultTriggered: boolean
+  faultResponded: boolean
+  faultAt: number | null
+  analogHistory: AnalogHistorySample[]
+  ackedAlarmKeys: string[]
+  alarmRaisedAt: Record<string, number>
+  responseSeconds: number | null
+  respondedInTime: boolean | null
 }
 
 export interface TrainerState {
@@ -159,18 +201,8 @@ export interface TrainerState {
   ackedAlarmKeys: string[]
   /** Время первого появления активной тревоги (key → ms) */
   alarmRaisedAt: Record<string, number>
-}
-
-export interface AnalogHistorySample {
-  t: number
-  pressureN1: number
-  tempFurnaceOut: number
-  saltMgL: number
-  pressureK1: number
-  levelK1: number
-  levelK2: number
-  feedFlow: number
-  pressureAfterElou: number
+  /** Снимок для restore (один слот) */
+  snapshot: SessionSnapshot | null
 }
 
 export function createInitialProcess(): ProcessState {
@@ -196,12 +228,14 @@ export function createInitialProcess(): ProcessState {
     pressureN1: 0,
     tempElouIn: 25,
     saltMgL: 50,
+    waterAfterElou: 0.4,
     pressureAfterElou: 0,
     tempK1In: 25,
     tempK1Bottom: 25,
     pressureK1: 0.6,
     tempFurnaceOut: 25,
     pressureK2: 0.25,
+    gasPercent: 4,
     feedFlow: 0,
     running: false,
     simTimeSec: 0,
@@ -244,12 +278,14 @@ export function createWarmProcess(): ProcessState {
     feedFlow: 113,
     tempElouIn: 113,
     saltMgL: 3,
+    waterAfterElou: 0.1,
     pressureAfterElou: 7,
     tempK1In: 135,
     tempK1Bottom: 175,
     pressureK1: 1.45,
     tempFurnaceOut: 308,
     pressureK2: 0.52,
+    gasPercent: 4,
     levelK1: 50,
     levelK2: 50,
     levelSetpointK1: 50,
@@ -277,6 +313,10 @@ export function createInitialSession(): SessionState {
     respondedInTime: null,
     qualified: null,
     qualificationSummary: null,
+    timeScale: 1,
+    briefingAccepted: false,
+    criticalFailReason: null,
+    instructorLiveOpen: false,
   }
 }
 

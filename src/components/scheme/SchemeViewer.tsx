@@ -1,10 +1,10 @@
 import {
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
-  type WheelEvent as ReactWheelEvent,
 } from 'react'
 import {
   VIEWBOX,
@@ -19,6 +19,13 @@ import {
   zoneById,
 } from '../../scheme/zones'
 import { useTrainer } from '../../sim/TrainerContext'
+import { getUtilityAlarms } from '../../sim/processModel'
+import { highlightEquipIdsForAlarms } from '../../sim/pazGuards'
+import {
+  expandMiniFocusPath,
+  isPipeOnMiniFocus,
+  type MiniFocusPath,
+} from '../../miniTraining/focusPath'
 import { EquipmentNodeView } from './EquipmentNodeView'
 import { EquipmentSymbolDefs } from './symbols/EquipmentSymbols'
 
@@ -32,7 +39,13 @@ const PIPE_COLORS: Record<PipeKind, string> = {
 const ZONE_SEPARATORS = [300, 620, 1040, 1500, 1940, 2460, 2980]
 
 export function SchemeViewer() {
-  const { state, selectEquip, openPanelForEquip, closePanel } = useTrainer()
+  const {
+    state,
+    selectEquip,
+    openPanelForEquip,
+    closePanel,
+    activeMiniTraining,
+  } = useTrainer()
   const selectedId = state.selectedEquipId
   const containerRef = useRef<HTMLDivElement>(null)
   const [hoveredId, setHoveredId] = useState<string | null>(null)
@@ -55,6 +68,12 @@ export function SchemeViewer() {
     () => equipment.filter((e) => e.type !== 'group'),
     [],
   )
+  const alarmHighlightIds = useMemo(() => {
+    const keys = getUtilityAlarms(state.process)
+      .filter((a) => a.priority === 1)
+      .map((a) => a.key)
+    return highlightEquipIdsForAlarms(keys)
+  }, [state.process])
 
   const focusZone = useCallback((zoneId: string) => {
     const zone = zoneById[zoneId]
@@ -81,8 +100,70 @@ export function SchemeViewer() {
     setActiveZoneId(zoneId)
   }, [])
 
+  useEffect(() => {
+    if (!activeMiniTraining) return
+    const focused = equipment.filter((node) =>
+      activeMiniTraining.equipmentIds.includes(node.id),
+    )
+    const el = containerRef.current
+    if (!focused.length || !el) return
+    const minX = Math.min(...focused.map((node) => node.x))
+    const minY = Math.min(...focused.map((node) => node.y))
+    const maxX = Math.max(...focused.map((node) => node.x + node.w))
+    const maxY = Math.max(...focused.map((node) => node.y + node.h))
+    const rect = el.getBoundingClientRect()
+    const nextScale = Math.min(
+      1.3,
+      Math.max(
+        0.5,
+        Math.min(
+          (rect.width * 0.62) / Math.max(maxX - minX, 220),
+          (rect.height * 0.72) / Math.max(maxY - minY, 220),
+        ),
+      ),
+    )
+    setScale(nextScale)
+    setPan({
+      x: rect.width * 0.65 - ((minX + maxX) / 2) * nextScale,
+      y: rect.height * 0.52 - ((minY + maxY) / 2) * nextScale,
+    })
+  }, [activeMiniTraining])
+
+  const focusPath = useMemo((): MiniFocusPath | null => {
+    if (!activeMiniTraining) return null
+    return expandMiniFocusPath(activeMiniTraining)
+  }, [activeMiniTraining])
+
+  const inMiniFocus = useCallback(
+    (id: string) =>
+      !activeMiniTraining ||
+      Boolean(focusPath?.equipmentIds.has(id)) ||
+      activeMiniTraining.zoneIds.includes(id),
+    [activeMiniTraining, focusPath],
+  )
+
+  const interactiveEquipIds = useMemo(() => {
+    if (!activeMiniTraining) return null
+    return new Set(activeMiniTraining.equipmentIds)
+  }, [activeMiniTraining])
+
+  const showControlFor = useCallback(
+    (id: string) =>
+      !interactiveEquipIds || interactiveEquipIds.has(id),
+    [interactiveEquipIds],
+  )
+
+  const pipeInFocus = useCallback(
+    (from: string, to: string) => {
+      if (!focusPath) return true
+      return isPipeOnMiniFocus(from, to, focusPath)
+    },
+    [focusPath],
+  )
+
   const handleNodeSelect = useCallback(
     (id: string) => {
+      if (activeMiniTraining && !inMiniFocus(id)) return
       if (isZoneBanner(id)) {
         selectEquip(id)
         closePanel()
@@ -93,7 +174,7 @@ export function SchemeViewer() {
       closePanel()
       selectEquip(id)
     },
-    [closePanel, focusZone, selectEquip],
+    [activeMiniTraining, closePanel, focusZone, inMiniFocus, selectEquip],
   )
 
   const handleNodeActivate = useCallback(
@@ -121,11 +202,18 @@ export function SchemeViewer() {
     [closePanel, handleNodeSelect, selectEquip],
   )
 
-  const onWheel = useCallback((e: ReactWheelEvent) => {
+  const onWheel = useCallback((e: WheelEvent) => {
     e.preventDefault()
     const delta = e.deltaY > 0 ? 0.92 : 1.08
     setScale((s) => Math.min(2.2, Math.max(0.25, s * delta)))
   }, [])
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [onWheel])
 
   const onPointerDown = useCallback(
     (e: ReactPointerEvent) => {
@@ -173,7 +261,6 @@ export function SchemeViewer() {
     <div
       ref={containerRef}
       className="scheme-viewer"
-      onWheel={onWheel}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
@@ -273,18 +360,21 @@ export function SchemeViewer() {
 
           <g className="pipes-layer">
             {pipes.map((pipe) => {
+              const focused = pipeInFocus(pipe.from, pipe.to)
               const d = pipe.points
                 .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p[0]} ${p[1]}`)
                 .join(' ')
               const marker =
-                pipe.kind === 'oil'
-                  ? 'url(#arrow-oil)'
-                  : pipe.kind === 'steam'
-                    ? 'url(#arrow-steam)'
-                    : 'url(#arrow-product)'
+                !focused
+                  ? undefined
+                  : pipe.kind === 'oil'
+                    ? 'url(#arrow-oil)'
+                    : pipe.kind === 'steam'
+                      ? 'url(#arrow-steam)'
+                      : 'url(#arrow-product)'
               const mid = pipe.points[Math.floor(pipe.points.length / 2)]
               return (
-                <g key={pipe.id}>
+                <g key={pipe.id} opacity={focused ? 0.9 : 0.12}>
                   <path
                     d={d}
                     fill="none"
@@ -293,9 +383,8 @@ export function SchemeViewer() {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     markerEnd={marker}
-                    opacity={0.9}
                   />
-                  {pipe.label && mid && (
+                  {focused && pipe.label && mid && (
                     <text
                       x={mid[0] + 4}
                       y={mid[1] - 6}
@@ -314,12 +403,19 @@ export function SchemeViewer() {
 
           <g className="groups-layer">
             {groups.map((node) => (
-              <g key={node.id} data-equip={node.id}>
+              <g
+                key={node.id}
+                data-equip={node.id}
+                opacity={inMiniFocus(node.id) ? 1 : 0.12}
+                pointerEvents={inMiniFocus(node.id) ? 'auto' : 'none'}
+              >
                 <EquipmentNodeView
                   node={node}
                   selected={selectedId === node.id}
                   hovered={hoveredId === node.id}
                   process={state.process}
+                  alarmHighlight={alarmHighlightIds.has(node.id)}
+                  showControlRing={showControlFor(node.id)}
                   onSelect={handleNodeSelect}
                   onActivate={handleNodeActivate}
                   onHover={setHoveredId}
@@ -330,7 +426,12 @@ export function SchemeViewer() {
 
           <g className="nodes-layer">
             {nodes.map((node) => (
-              <g key={node.id} data-equip={node.id}>
+              <g
+                key={node.id}
+                data-equip={node.id}
+                opacity={inMiniFocus(node.id) ? 1 : 0.12}
+                pointerEvents={inMiniFocus(node.id) ? 'auto' : 'none'}
+              >
                 <EquipmentNodeView
                   node={node}
                   selected={
@@ -338,6 +439,8 @@ export function SchemeViewer() {
                   }
                   hovered={hoveredId === node.id}
                   process={state.process}
+                  alarmHighlight={alarmHighlightIds.has(node.id)}
+                  showControlRing={showControlFor(node.id)}
                   onSelect={handleNodeSelect}
                   onActivate={handleNodeActivate}
                   onHover={setHoveredId}

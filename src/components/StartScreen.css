@@ -2,162 +2,214 @@
   min-height: 100%;
   display: grid;
   place-items: center;
-  padding: 24px;
+  padding: 30px;
   background:
-    radial-gradient(ellipse at 20% 0%, #1a3044 0%, transparent 55%),
-    radial-gradient(ellipse at 80% 100%, #243018 0%, transparent 50%),
-    #0d1318;
+    linear-gradient(135deg, rgba(0, 59, 111, 0.96), rgba(0, 121, 194, 0.9) 52%, rgba(0, 174, 239, 0.72)),
+    #003b6f;
 }
 
 .start-card {
-  width: min(640px, 100%);
-  background: #152028;
-  border: 1px solid #3a556c;
-  border-radius: 12px;
-  padding: 28px 28px 24px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+  width: min(1040px, 100%);
+  max-height: calc(100vh - 60px);
+  overflow: auto;
+  padding: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.97);
+  color: var(--gpn-ink);
+  box-shadow: 0 22px 65px rgba(0, 31, 55, 0.35);
+}
+
+.corporate-mark {
+  margin-bottom: 4px;
+  color: var(--gpn-blue);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
 }
 
 .start-card h1 {
   margin: 0;
-  font-size: 24px;
-  color: #f0c14b;
+  color: var(--gpn-deep);
+  font-size: 30px;
 }
 
 .start-lead {
-  margin: 6px 0 12px;
-  color: #9db4c7;
+  margin: 6px 0 14px;
+  color: var(--gpn-muted);
   font-size: 13px;
 }
 
 .spec-badge {
-  margin: 0 0 18px;
-  padding: 8px 10px;
+  margin: 0 0 10px;
+  padding: 9px 11px;
+  border: 1px solid #c6e0ee;
   border-radius: 8px;
-  border: 1px solid #3a556c;
-  background: #0f171e;
-  color: #9db4c7;
+  background: var(--gpn-pale);
+  color: #41697f;
   font-size: 12px;
-  line-height: 1.35;
 }
 
-.spec-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  max-height: 180px;
-  overflow: auto;
-  border: 1px solid #2c3f50;
+.knowledge-start-btn {
+  width: 100%;
+  margin-bottom: 20px;
+  padding: 10px 14px;
+  border: 1px solid var(--gpn-blue);
   border-radius: 8px;
-  background: #0f171e;
+  background: white;
+  color: var(--gpn-blue);
+  font-weight: 700;
+  cursor: pointer;
 }
 
-.spec-list li {
-  display: grid;
-  grid-template-columns: 52px 1fr auto;
-  gap: 8px;
-  align-items: baseline;
-  padding: 6px 10px;
-  border-bottom: 1px solid #1e2a36;
-  font-size: 11px;
+.knowledge-start-btn:hover {
+  background: var(--gpn-pale);
 }
 
-.spec-list li:last-child {
-  border-bottom: none;
-}
-
-.spec-list .spec-id {
-  font-family: 'IBM Plex Mono', monospace;
-  color: #7ec8f0;
-  font-weight: 600;
-}
-
-.spec-list .spec-event {
-  color: #c5d4e0;
-}
-
-.spec-list .spec-status {
-  color: #7f97ab;
-  white-space: nowrap;
-}
-
-.spec-list li.playable .spec-status {
-  color: #3ecf9a;
-}
-
-.spec-list li.planned {
-  opacity: 0.72;
-}
-
-.start-card section {
-  margin-bottom: 18px;
-}
+.start-card section { margin-bottom: 18px; }
 
 .start-card h2 {
   margin: 0 0 8px;
-  font-size: 12px;
+  color: #52758a;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: #7f97ab;
 }
 
-.role-row {
-  display: flex;
+.role-row,
+.training-mode-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
 }
 
 .role-row button,
+.training-mode-row button,
 .start-btn {
-  border: 1px solid #3a556c;
-  background: #1e2a36;
-  color: #e8eef4;
-  border-radius: 8px;
   padding: 10px 14px;
+  border: 1px solid #aacbde;
+  border-radius: 8px;
+  background: #f7fbfd;
+  color: var(--gpn-ink);
   cursor: pointer;
   font: inherit;
 }
 
-.role-row button {
-  flex: 1;
-}
-
-.role-row button.active {
-  border-color: #f0c14b;
-  background: #2a3a28;
-  color: #f0c14b;
+.role-row button.active,
+.training-mode-row button.active {
+  border-color: var(--gpn-blue);
+  background: var(--gpn-blue);
+  color: white;
 }
 
 .start-card input,
 .start-card select {
   width: 100%;
   padding: 10px 12px;
+  border: 1px solid #aacbde;
   border-radius: 8px;
-  border: 1px solid #3a556c;
-  background: #0f171e;
-  color: #e8eef4;
-  font: inherit;
+  outline: none;
+  background: white;
+  color: var(--gpn-ink);
+}
+
+.start-card input:focus,
+.start-card select:focus {
+  border-color: var(--gpn-sky);
+  box-shadow: 0 0 0 3px rgba(0, 174, 239, 0.14);
 }
 
 .hint {
   margin: 8px 0 0;
+  color: var(--gpn-muted);
   font-size: 12px;
-  line-height: 1.4;
-  color: #9db4c7;
+  line-height: 1.45;
+}
+
+.mini-training-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  max-height: 420px;
+  overflow: auto;
+  padding: 2px;
+}
+
+.mini-training-cards button {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  min-height: 96px;
+  padding: 11px 12px;
+  border: 1px solid #c5dce8;
+  border-radius: 9px;
+  text-align: left;
+  background: #f9fcfe;
+  color: var(--gpn-ink);
+  cursor: pointer;
+}
+
+.mini-training-cards button:hover {
+  border-color: var(--gpn-sky);
+}
+
+.mini-training-cards button.active {
+  border-color: var(--gpn-blue);
+  background: #e3f4fc;
+  box-shadow: inset 4px 0 var(--gpn-sky);
+}
+
+.mini-training-cards span {
+  color: var(--gpn-blue);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.mini-training-cards small {
+  color: var(--gpn-muted);
+  line-height: 1.35;
 }
 
 .start-btn {
   width: 100%;
   margin-top: 8px;
-  background: #2d5a3d;
-  border-color: #3d7a52;
-  font-weight: 600;
+  border-color: var(--gpn-blue);
+  background: linear-gradient(90deg, var(--gpn-deep), var(--gpn-blue));
+  color: white;
+  font-weight: 700;
 }
 
-.start-btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
+.start-btn:disabled { opacity: 0.42; cursor: not-allowed; }
+.start-btn:not(:disabled):hover { background: linear-gradient(90deg, var(--gpn-blue), var(--gpn-sky)); }
+
+.spec-list {
+  max-height: 180px;
+  overflow: auto;
+  margin: 0;
+  padding: 0;
+  border: 1px solid #c9dfe9;
+  border-radius: 8px;
+  list-style: none;
+  background: #f8fbfd;
 }
 
-.start-btn:not(:disabled):hover {
-  background: #367049;
+.spec-list li {
+  display: grid;
+  grid-template-columns: 54px 1fr auto;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid #dceaf1;
+  font-size: 11px;
+}
+
+.spec-list .spec-id { color: var(--gpn-blue); font-weight: 700; }
+.spec-list .spec-status { color: #7891a0; }
+.spec-list li.playable .spec-status { color: var(--gpn-success); }
+.spec-list li.planned { opacity: 0.7; }
+
+@media (max-width: 720px) {
+  .start-screen { padding: 0; }
+  .start-card { max-height: 100vh; border-radius: 0; padding: 20px; }
+  .mini-training-cards { grid-template-columns: 1fr; }
 }

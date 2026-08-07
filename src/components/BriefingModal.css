@@ -1,0 +1,78 @@
+.briefing-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(6, 10, 14, 0.72);
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+
+.briefing-card {
+  width: min(520px, 100%);
+  background: #152028;
+  border: 1px solid #3a556c;
+  border-radius: 12px;
+  padding: 22px 24px;
+  color: #d7e3ee;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+}
+
+.briefing-mode {
+  margin: 0 0 6px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #f0c14b;
+}
+
+.briefing-card h2 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  color: #f4f7fa;
+}
+
+.briefing-desc {
+  margin: 0 0 14px;
+  font-size: 13px;
+  color: #9db4c7;
+  line-height: 1.4;
+}
+
+.briefing-card h3 {
+  margin: 12px 0 6px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #7f97ab;
+}
+
+.briefing-card ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.briefing-tip {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: #7ec8f0;
+}
+
+.briefing-go {
+  margin-top: 18px;
+  width: 100%;
+  border: 1px solid #c9a227;
+  background: #3a3218;
+  color: #ffe9a0;
+  border-radius: 8px;
+  padding: 12px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.briefing-go:hover {
+  background: #4a4020;
+}

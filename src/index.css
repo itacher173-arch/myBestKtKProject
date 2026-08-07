@@ -1,5 +1,19 @@
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap');
 
+:root {
+  --gpn-deep: #003b6f;
+  --gpn-blue: #0079c2;
+  --gpn-sky: #00aeef;
+  --gpn-pale: #e8f5fb;
+  --gpn-bg: #f3f8fc;
+  --gpn-white: #ffffff;
+  --gpn-ink: #102f44;
+  --gpn-muted: #5f7d90;
+  --gpn-border: #79b8d9;
+  --gpn-success: #1c9c76;
+  --gpn-danger: #d64545;
+}
+
 *,
 *::before,
 *::after {
@@ -15,7 +29,13 @@ body,
 
 body {
   font-family: 'IBM Plex Sans', 'Segoe UI', sans-serif;
-  background: #0d1318;
-  color: #e8eef4;
+  background: #06243a;
+  color: #eaf5fb;
   -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+select {
+  font-family: inherit;
 }

@@ -1,4 +1,5 @@
 import { EQUIPMENT_TYPE_LABELS, equipmentById } from '../scheme'
+import { EQUIPMENT_ARTICLES } from '../knowledge/links'
 import { isAnalogAlarm } from '../sim/processModel'
 import { useTrainer } from '../sim/TrainerContext'
 import './ControlPanel.css'
@@ -23,6 +24,7 @@ export function ControlPanel() {
     setAvoFan,
     setUtility,
     protectColumnLevel,
+    openKnowledge,
   } = useTrainer()
 
   const panel = state.activePanel
@@ -30,6 +32,7 @@ export function ControlPanel() {
 
   const p = state.process
   const node = equipmentById[panel.id]
+  const articleId = EQUIPMENT_ARTICLES[panel.id]
   const title =
     panel.type === 'desalter'
       ? 'ЭЛОУ (Э-1…Э-6)'
@@ -99,6 +102,15 @@ export function ControlPanel() {
         <div className="ctrl-body">
           {node?.meta?.description && (
             <p className="ctrl-desc">{node.meta.description}</p>
+          )}
+          {articleId && (
+            <button
+              type="button"
+              className="ctrl-knowledge-btn"
+              onClick={() => openKnowledge(articleId)}
+            >
+              Открыть связанную статью
+            </button>
           )}
 
           {panel.type === 'pump' && controllablePump && pumpId && pumpState && (

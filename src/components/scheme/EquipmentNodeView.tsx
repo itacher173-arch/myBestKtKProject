@@ -10,6 +10,9 @@ interface Props {
   selected: boolean
   hovered: boolean
   process: ProcessState
+  alarmHighlight?: boolean
+  /** Зелёный контур управления; в мини-уроке — только для сегмента */
+  showControlRing?: boolean
   onSelect: (id: string) => void
   onActivate?: (id: string) => void
   onHover: (id: string | null) => void
@@ -147,6 +150,8 @@ export function EquipmentNodeView({
   selected,
   hovered,
   process,
+  alarmHighlight = false,
+  showControlRing = true,
   onSelect,
   onActivate,
   onHover,
@@ -155,6 +160,7 @@ export function EquipmentNodeView({
   const isBackground = node.type === 'group'
   const overlay = overlayText(node.id, process)
   const controllable = isControllableEquip(node.id)
+  const highlightControl = controllable && showControlRing
   const zoneBanner = isZoneBanner(node.id)
   const pad = 3
   const fontSize = zoneBanner
@@ -166,6 +172,7 @@ export function EquipmentNodeView({
         : 11
 
   const vs = visualState(node, process)
+  const alarm = Boolean(vs.alarm || alarmHighlight)
 
   return (
     <g
@@ -173,7 +180,7 @@ export function EquipmentNodeView({
       className={
         zoneBanner
           ? 'equip-zone-banner'
-          : controllable
+          : highlightControl
             ? 'equip-controllable'
             : undefined
       }
@@ -190,7 +197,21 @@ export function EquipmentNodeView({
       onMouseLeave={() => onHover(null)}
       opacity={isBackground && !selected && !hovered ? 0.88 : 1}
     >
-      {controllable && (
+      {alarmHighlight && (
+        <rect
+          className="equip-alarm-pulse"
+          x={-pad - 2}
+          y={-pad - 2}
+          width={node.w + (pad + 2) * 2}
+          height={node.h + (pad + 2) * 2}
+          rx={6}
+          fill="none"
+          stroke="#e07070"
+          strokeWidth={2}
+          pointerEvents="none"
+        />
+      )}
+      {highlightControl && (
         <rect
           className="equip-control-ring"
           x={-pad}
@@ -211,12 +232,12 @@ export function EquipmentNodeView({
         h={node.h}
         selected={selected}
         hovered={hovered}
-        controllable={controllable}
+        controllable={highlightControl}
         zoneBanner={zoneBanner}
         clipId={node.id.replace(/[^a-zA-Z0-9_-]/g, '_')}
         fillLevel={vs.fillLevel}
         active={vs.active}
-        alarm={vs.alarm}
+        alarm={alarm}
       />
       <text
         x={zoneBanner ? node.w / 2 + 2 : node.w / 2}
@@ -234,7 +255,7 @@ export function EquipmentNodeView({
               : '#d5e6f2'
             : selected
               ? '#fff6d6'
-              : vs.alarm
+              : alarm
                 ? '#ffc9c9'
                 : '#e8eef4'
         }
@@ -267,7 +288,7 @@ export function EquipmentNodeView({
               : node.h + 12
           }
           textAnchor="middle"
-          fill={vs.alarm ? '#f0a0a0' : '#9fd0ff'}
+          fill={alarm ? '#f0a0a0' : '#9fd0ff'}
           fontSize={9}
           fontFamily="IBM Plex Mono, monospace"
           fontWeight={600}
