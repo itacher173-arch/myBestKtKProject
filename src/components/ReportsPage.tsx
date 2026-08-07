@@ -10,6 +10,7 @@ import { useTrainer } from '../sim/TrainerContext'
 import {
   clearReports,
   deleteReport,
+  downloadSessionProtocol,
   loadReports,
   type TraineeReport,
 } from '../sim/reportsStorage'
@@ -73,6 +74,16 @@ export function ReportsPage() {
     setAudit(loadAudit())
   }
 
+  const onDownloadProtocol = (r: TraineeReport) => {
+    downloadSessionProtocol(r)
+    appendAudit({
+      actor: 'instructor',
+      role: 'instructor',
+      action: 'download_protocol',
+      detail: r.id,
+    })
+  }
+
   const onExit = () => {
     setInstructorAuthed(false)
     appendAudit({
@@ -88,7 +99,7 @@ export function ReportsPage() {
       <header className="reports-header">
         <div>
           <h1>Кабинет инструктора</h1>
-          <p>Отчёты квалификации · аудит ИБ · localStorage</p>
+          <p>Отчёты квалификации · протокол JSON · аудит ИБ</p>
         </div>
         <div className="reports-header-actions">
           <button
@@ -169,7 +180,8 @@ export function ReportsPage() {
                         : r.qualified
                           ? 'PASS'
                           : '—'}{' '}
-                      · {r.scorePercent}% · {formatDate(r.completedAt)}
+                      · {r.sessionMode === 'exam' ? 'экзамен' : 'обучение'} ·{' '}
+                      {r.scorePercent}% · {formatDate(r.completedAt)}
                     </span>
                   </button>
                 </li>
@@ -188,13 +200,22 @@ export function ReportsPage() {
                     <h2>{selected.userName}</h2>
                     <p>{selected.exerciseName}</p>
                   </div>
-                  <button
-                    type="button"
-                    className="hdr-btn ghost"
-                    onClick={() => onDelete(selected.id)}
-                  >
-                    Удалить
-                  </button>
+                  <div className="reports-detail-actions">
+                    <button
+                      type="button"
+                      className="hdr-btn"
+                      onClick={() => onDownloadProtocol(selected)}
+                    >
+                      Скачать протокол JSON
+                    </button>
+                    <button
+                      type="button"
+                      className="hdr-btn ghost"
+                      onClick={() => onDelete(selected.id)}
+                    >
+                      Удалить
+                    </button>
+                  </div>
                 </div>
 
                 <dl className="reports-meta">
@@ -205,16 +226,39 @@ export function ReportsPage() {
                     </dd>
                   </div>
                   <div>
+                    <dt>Режим</dt>
+                    <dd>
+                      {selected.sessionMode === 'exam' ? 'Экзамен' : 'Обучение'}
+                    </dd>
+                  </div>
+                  <div>
                     <dt>Дата</dt>
                     <dd>{formatDate(selected.completedAt)}</dd>
                   </div>
                   <div>
-                    <dt>Выполнение эталона</dt>
+                    <dt>Выполнение / исход</dt>
                     <dd>{selected.scorePercent}%</dd>
                   </div>
                   <div>
-                    <dt>Лишние действия</dt>
-                    <dd>{selected.penalty}</dd>
+                    <dt>Штрафы</dt>
+                    <dd>
+                      {selected.penalty}
+                      {selected.penaltyDetail
+                        ? ` (u${selected.penaltyDetail.unsafe}/l${selected.penaltyDetail.late}/e${selected.penaltyDetail.extra}/m${selected.penaltyDetail.missed})`
+                        : ''}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Версии</dt>
+                    <dd>
+                      {[
+                        selected.protocolVersion,
+                        selected.modelVersion,
+                        selected.scenarioVersion,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ') || '—'}
+                    </dd>
                   </div>
                   <div>
                     <dt>Время симуляции</dt>
@@ -239,20 +283,6 @@ export function ReportsPage() {
                 {selected.qualificationSummary && (
                   <p className="hint">{selected.qualificationSummary}</p>
                 )}
-                {selected.recommendReason && (
-                  <p className="hint">ИИ: {selected.recommendReason}</p>
-                )}
-
-                <h3>Находки ИИ</h3>
-                <ul className="reports-log">
-                  {(selected.aiFindings ?? []).map((e, i) => (
-                    <li key={`${e.at}-${i}`}>
-                      <time>{new Date(e.at).toLocaleTimeString('ru-RU')}</time>
-                      [{e.severity}] {e.class}: {e.title} — {e.why}
-                    </li>
-                  ))}
-                  {!(selected.aiFindings ?? []).length && <li>Замечаний нет</li>}
-                </ul>
 
                 <h3>Журнал действий</h3>
                 <ul className="reports-log">
@@ -275,6 +305,15 @@ export function ReportsPage() {
                   ))}
                   {!selected.systemEvents.length && <li>Пусто</li>}
                 </ul>
+
+                {selected.analogSample && selected.analogSample.length > 0 && (
+                  <>
+                    <h3>Тренды (выборка)</h3>
+                    <p className="hint">
+                      {selected.analogSample.length} точек в протоколе JSON
+                    </p>
+                  </>
+                )}
               </>
             )}
           </section>

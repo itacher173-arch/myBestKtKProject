@@ -1,4 +1,3 @@
-import { AiCoachPanel } from './components/AiCoachPanel'
 import { ControlPanel } from './components/ControlPanel'
 import { EmergencyPanel } from './components/EmergencyPanel'
 import { ScenarioChecklist } from './components/ScenarioChecklist'
@@ -80,7 +79,7 @@ function TrainerApp() {
           }
         >
           {session.qualified ? 'КВАЛИФИЦИРОВАН' : 'НЕ КВАЛИФИЦИРОВАН'} ·
-          выполнение {session.scorePercent}% · лишних: {session.penalty}
+          выполнение {session.scorePercent}% · штрафы: {session.penalty}
           {session.responseSeconds != null && (
             <>
               {' '}
@@ -88,7 +87,9 @@ function TrainerApp() {
               {session.respondedInTime === false ? ' (сверх нормы)' : ''}
             </>
           )}
-          {session.recommendReason ? ` · ${session.recommendReason}` : ''}
+          {session.qualificationSummary
+            ? ` · ${session.qualificationSummary}`
+            : ''}
         </div>
       )}
 
@@ -99,7 +100,6 @@ function TrainerApp() {
           <EmergencyPanel />
           <ScenarioChecklist />
           <SchemeQuickBar />
-          <AiCoachPanel />
         </div>
         <EquipmentPanel />
       </main>

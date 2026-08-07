@@ -1,6 +1,20 @@
+import type { SessionMode } from './types'
+
 export interface StoredLogEntry {
   at: number
   description: string
+}
+
+export interface AnalogSample {
+  t: number
+  pressureN1: number
+  tempFurnaceOut: number
+  saltMgL: number
+  pressureK1: number
+  levelK1: number
+  levelK2?: number
+  feedFlow?: number
+  pressureAfterElou?: number
 }
 
 export interface TraineeReport {
@@ -16,19 +30,24 @@ export interface TraineeReport {
   simTimeSec: number
   qualified: boolean
   qualificationSummary: string
-  recommendExerciseId: string | null
-  recommendReason: string | null
-  aiFindings: {
-    at: number
-    class: string
-    title: string
-    why: string
-    severity: string
-    relatedTag?: string
-  }[]
+  protocolVersion?: string
+  modelVersion?: string
+  scenarioVersion?: string
+  sessionMode?: SessionMode
+  criticalFail?: boolean
+  outcomeOk?: boolean
+  penaltyDetail?: {
+    unsafe: number
+    late: number
+    extra: number
+    missed: number
+  }
+  analogSample?: AnalogSample[]
   actionsLog: StoredLogEntry[]
   systemEvents: StoredLogEntry[]
 }
+
+export const PROTOCOL_VERSION = 'session-protocol-1.0'
 
 const STORAGE_KEY = 'ktk-elou-avt-trainee-reports'
 
@@ -65,4 +84,59 @@ export function deleteReport(id: string): void {
 
 export function clearReports(): void {
   localStorage.removeItem(STORAGE_KEY)
+}
+
+/** JSON-пакет протокола сессии для скачивания / доказуемости */
+export function buildSessionProtocol(report: TraineeReport): object {
+  return {
+    protocolVersion: report.protocolVersion ?? PROTOCOL_VERSION,
+    modelVersion: report.modelVersion ?? null,
+    scenarioVersion: report.scenarioVersion ?? null,
+    sessionMode: report.sessionMode ?? 'train',
+    meta: {
+      reportId: report.id,
+      userName: report.userName,
+      exerciseId: report.exerciseId,
+      exerciseName: report.exerciseName,
+      completedAt: report.completedAt,
+      completedAtIso: new Date(report.completedAt).toISOString(),
+      simTimeSec: report.simTimeSec,
+    },
+    verdict: {
+      qualified: report.qualified,
+      scorePercent: report.scorePercent,
+      penalty: report.penalty,
+      penaltyDetail: report.penaltyDetail ?? null,
+      criticalFail: report.criticalFail ?? false,
+      outcomeOk: report.outcomeOk ?? null,
+      summary: report.qualificationSummary,
+      responseSeconds: report.responseSeconds,
+      respondedInTime: report.respondedInTime,
+    },
+    timeline: {
+      actions: report.actionsLog,
+      systemEvents: report.systemEvents,
+    },
+    trends: {
+      sampleIntervalHint: '1s sim tick subsample',
+      points: report.analogSample ?? [],
+    },
+  }
+}
+
+export function downloadSessionProtocol(report: TraineeReport): void {
+  const payload = buildSessionProtocol(report)
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {
+    type: 'application/json',
+  })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  const stamp = new Date(report.completedAt)
+    .toISOString()
+    .slice(0, 19)
+    .replace(/[:T]/g, '-')
+  a.href = url
+  a.download = `ktk-protocol-${report.exerciseId}-${stamp}.json`
+  a.click()
+  URL.revokeObjectURL(url)
 }

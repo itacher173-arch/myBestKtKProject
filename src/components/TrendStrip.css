@@ -4,8 +4,8 @@
   top: 12px;
   z-index: 5;
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  flex-direction: column;
+  gap: 6px;
   max-width: min(560px, calc(100% - 320px));
   padding: 8px;
   border-radius: 8px;
@@ -16,6 +16,35 @@
 .trend-empty {
   font-size: 11px;
   color: #7f97ab;
+}
+
+.trend-pick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #2a3c4c;
+}
+
+.trend-pick-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  color: #9db4c7;
+  cursor: pointer;
+  user-select: none;
+}
+
+.trend-pick-item input {
+  margin: 0;
+  accent-color: #6ec1ff;
+}
+
+.trend-charts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .trend-item {

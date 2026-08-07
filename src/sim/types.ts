@@ -2,6 +2,8 @@ import type { FaultType } from './faultEngine'
 
 export type Role = 'instructor' | 'trainee'
 
+export type SessionMode = 'train' | 'exam'
+
 export type PumpState = 'stopped' | 'starting' | 'running' | 'tripped'
 
 export type ValveMotion = 'idle' | 'opening' | 'closing'
@@ -117,6 +119,8 @@ export interface SessionState {
   role: Role | null
   userName: string
   exerciseId: string | null
+  /** Обучение: подсказки и эталон; экзамен: без подсказок до завершения */
+  mode: SessionMode
   view: 'start' | 'exercise' | 'reports'
   started: boolean
   completed: boolean
@@ -126,10 +130,17 @@ export interface SessionState {
   penalty: number
   responseSeconds: number | null
   respondedInTime: boolean | null
-  /** Вердикт квалификации по эталону + ИИ */
+  /** Вердикт квалификации по эталону и исходу процесса */
   qualified: boolean | null
-  recommendExerciseId: string | null
-  recommendReason: string | null
+  /** Краткое обоснование вердикта */
+  qualificationSummary: string | null
+  /** Типизированные штрафы (после завершения) */
+  penaltyDetail?: {
+    unsafe: number
+    late: number
+    extra: number
+    missed: number
+  }
 }
 
 export interface TrainerState {
@@ -142,21 +153,24 @@ export interface TrainerState {
   faultTriggered: boolean
   faultResponded: boolean
   faultAt: number | null
-  /** Находки модуля разбора в текущей сессии */
-  aiFindings: import('./aiCoach').AiFinding[]
-  /** Текущий прогноз риска (до ошибки) */
-  aiRisk: import('./aiCoach').AiRiskWarning | null
   /** История ключевых тегов для трендов */
-  analogHistory: {
-    t: number
-    pressureN1: number
-    tempFurnaceOut: number
-    saltMgL: number
-    pressureK1: number
-    levelK1: number
-  }[]
+  analogHistory: AnalogHistorySample[]
   /** Квитированные ключи тревог */
   ackedAlarmKeys: string[]
+  /** Время первого появления активной тревоги (key → ms) */
+  alarmRaisedAt: Record<string, number>
+}
+
+export interface AnalogHistorySample {
+  t: number
+  pressureN1: number
+  tempFurnaceOut: number
+  saltMgL: number
+  pressureK1: number
+  levelK1: number
+  levelK2: number
+  feedFlow: number
+  pressureAfterElou: number
 }
 
 export function createInitialProcess(): ProcessState {
@@ -252,6 +266,7 @@ export function createInitialSession(): SessionState {
     role: null,
     userName: '',
     exerciseId: null,
+    mode: 'train',
     view: 'start',
     started: false,
     completed: false,
@@ -261,7 +276,9 @@ export function createInitialSession(): SessionState {
     responseSeconds: null,
     respondedInTime: null,
     qualified: null,
-    recommendExerciseId: null,
-    recommendReason: null,
+    qualificationSummary: null,
   }
 }
+
+/** Версия модели процесса для протокола сессии */
+export const MODEL_VERSION = 'processModel-1.2'

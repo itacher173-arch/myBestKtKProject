@@ -7,6 +7,9 @@ export function ScenarioChecklist() {
   const ex = getExercise(state.session.exerciseId)
   if (!ex || state.session.view !== 'exercise') return null
 
+  const isExam = state.session.mode === 'exam'
+  const showEtalon = !isExam || state.session.completed
+
   const done = new Set(state.actionsLog.map((a) => a.description))
   const steps = ex.scenarioSteps
   const doneCount = steps.filter((s) => {
@@ -20,10 +23,27 @@ export function ScenarioChecklist() {
     return false
   }).length
 
+  if (!showEtalon) {
+    return (
+      <aside className="sc-check exam">
+        <header>
+          <strong>Экзамен</strong>
+          <span>эталон скрыт</span>
+        </header>
+        <p className="sc-exam-note">
+          Действий в журнале: {state.actionsLog.length}. Эталон — после
+          «Завершить».
+        </p>
+      </aside>
+    )
+  }
+
   return (
     <aside className="sc-check">
       <header>
-        <strong>Шаги сценария</strong>
+        <strong>
+          {isExam && state.session.completed ? 'Эталон (после экзамена)' : 'Шаги сценария'}
+        </strong>
         <span>
           {doneCount}/{steps.length}
         </span>

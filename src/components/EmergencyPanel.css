@@ -43,9 +43,57 @@
   color: #f0a0a0;
   font-weight: 600;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
+}
+
+.emerg-alarm-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 6px;
+  min-width: 0;
+}
+
+.emerg-alarm-msg {
+  flex: 1 1 auto;
+  line-height: 1.25;
+}
+
+.emerg-alarm-time {
+  font-size: 10px;
+  font-weight: 500;
+  color: #a89090;
+  font-variant-numeric: tabular-nums;
+}
+
+.prio {
+  flex-shrink: 0;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 1px 4px;
+  border-radius: 3px;
+  border: 1px solid;
+}
+
+.prio-1 {
+  color: #ffb0b0;
+  border-color: #c05050;
+  background: #3a1818;
+}
+
+.prio-2 {
+  color: #ffd090;
+  border-color: #a07830;
+  background: #2a2410;
+}
+
+.prio-3 {
+  color: #c0d0e0;
+  border-color: #4a6070;
+  background: #1a2430;
 }
 
 .emerg-alarms li.acked {

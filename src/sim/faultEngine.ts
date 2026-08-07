@@ -165,26 +165,59 @@ export interface EmergencyActionDef {
   label: string
   /** Строка для журнала действий и эталона */
   logDescription: string
-  /** Какие отказы закрывает (OR) */
+  /** Какие отказы закрывает этот шаг (финальный) */
   clearsFaults: FaultType[]
+  /** Показывать при активном отказе как шаг процедуры (даже без clear) */
+  procedureFor?: FaultType[]
   apply?: (p: ProcessState) => Partial<ProcessState>
 }
 
 export const EMERGENCY_ACTIONS: EmergencyActionDef[] = [
+  // ——— SC-02 многошагово ———
+  {
+    id: 'sc02-ack-flameout',
+    label: '1. Подтвердить погасание / запрет топлива',
+    logDescription:
+      "Авария: подтверждено погасание горелок, запрет подачи топлива (SC-02)",
+    clearsFaults: [],
+    procedureFor: ['steamLoss'],
+    apply: () => ({ fuelGasPercent: 0 }),
+  },
   {
     id: 'cut-fuel-steam',
-    label: 'Исключить топливо (потеря пара)',
+    label: '2. Отсечь топливный газ',
     logDescription:
       "Авария: исключена подача топлива при потере пара (SC-02)",
+    clearsFaults: [],
+    procedureFor: ['steamLoss'],
+    apply: () => ({ fuelGasPercent: 0 }),
+  },
+  {
+    id: 'sc02-safe-stop',
+    label: '3. Безопасный останов (пар)',
+    logDescription:
+      "Авария: инициирован безопасный останов при потере пара (SC-02)",
     clearsFaults: ['steamLoss'],
+    procedureFor: ['steamLoss'],
     apply: () => ({ fuelGasPercent: 0, safeShutdownInitiated: true }),
+  },
+  // ——— SC-03 многошагово ———
+  {
+    id: 'sc03-cut-load',
+    label: '1. Снять тепловую нагрузку / топливо',
+    logDescription:
+      "Авария: снята тепловая нагрузка при потере электропитания (SC-03)",
+    clearsFaults: [],
+    procedureFor: ['powerLoss'],
+    apply: () => ({ fuelGasPercent: 0 }),
   },
   {
     id: 'safe-stop-power',
-    label: 'Безопасный останов (потеря питания)',
+    label: '2. Безопасный останов (питание)',
     logDescription:
       "Авария: инициирован безопасный останов при потере электропитания (SC-03)",
     clearsFaults: ['powerLoss'],
+    procedureFor: ['powerLoss'],
     apply: (p) => ({
       safeShutdownInitiated: true,
       fuelGasPercent: 0,
@@ -222,12 +255,38 @@ export const EMERGENCY_ACTIONS: EmergencyActionDef[] = [
       valveL1: 0,
     }),
   },
+  // ——— SC-07 многошагово ———
+  {
+    id: 'sc07-cut-fuel',
+    label: '1. Немедленно отсечь топливо',
+    logDescription:
+      "Авария: немедленное отсечение топливного газа (SC-07)",
+    clearsFaults: [],
+    procedureFor: ['coilRupture'],
+    apply: () => ({ fuelGasPercent: 0, furnaceEsd: true }),
+  },
+  {
+    id: 'sc07-isolate-feed',
+    label: '2. Отсечь сырьё / остановить Н-1',
+    logDescription:
+      "Авария: отсечение сырья и останов Н-1 (SC-07)",
+    clearsFaults: [],
+    procedureFor: ['coilRupture'],
+    apply: () => ({
+      valveL1: 0,
+      pumpN1: 'stopped',
+      pressureN1: 0,
+      fuelGasPercent: 0,
+      furnaceEsd: true,
+    }),
+  },
   {
     id: 'esd-coil',
-    label: 'ESD печи: отсечение / прекратить нагрев',
+    label: '3. ESD печи / оповещение',
     logDescription:
       "Авария: ESD печи — отсечение, прекращение нагрева, оповещение (SC-07)",
     clearsFaults: ['coilRupture'],
+    procedureFor: ['coilRupture'],
     apply: () => ({
       fuelGasPercent: 0,
       furnaceEsd: true,
@@ -236,12 +295,35 @@ export const EMERGENCY_ACTIONS: EmergencyActionDef[] = [
       pumpN1: 'stopped',
     }),
   },
+  // ——— SC-08 многошагово ———
+  {
+    id: 'sc08-stop-pump',
+    label: '1. Остановить Н-1',
+    logDescription:
+      "Авария: останов Н-1 при разгерметизации (SC-08)",
+    clearsFaults: [],
+    procedureFor: ['pumpLeak'],
+    apply: () => ({
+      pumpN1: 'stopped',
+      pressureN1: 0,
+    }),
+  },
+  {
+    id: 'sc08-close-feed',
+    label: '2. Закрыть Л-1 / исключить приток',
+    logDescription:
+      "Авария: закрыта Л-1, исключён приток к месту утечки (SC-08)",
+    clearsFaults: [],
+    procedureFor: ['pumpLeak'],
+    apply: () => ({ valveL1: 0, pumpN1: 'stopped', pressureN1: 0 }),
+  },
   {
     id: 'isolate-leak',
-    label: 'Остановить Н-1 / локализовать утечку',
+    label: '3. Локализовать / оповестить',
     logDescription:
       "Авария: останов Н-1 и локализация разгерметизации (SC-08)",
     clearsFaults: ['pumpLeak'],
+    procedureFor: ['pumpLeak'],
     apply: () => ({
       pumpN1: 'stopped',
       pressureN1: 0,
@@ -318,5 +400,9 @@ export function emergencyActionsForFault(
   fault: FaultType | null | undefined,
 ): EmergencyActionDef[] {
   if (!fault) return []
-  return EMERGENCY_ACTIONS.filter((a) => a.clearsFaults.includes(fault))
+  return EMERGENCY_ACTIONS.filter(
+    (a) =>
+      a.clearsFaults.includes(fault) ||
+      (a.procedureFor?.includes(fault) ?? false),
+  )
 }

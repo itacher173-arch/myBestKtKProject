@@ -1,9 +1,23 @@
-import { getUtilityAlarms } from '../sim/processModel'
 import { emergencyActionsForFault } from '../sim/faultEngine'
+import { getUtilityAlarms } from '../sim/processModel'
 import { getExercise } from '../sim/scenarios'
 import { isInstructorAuthed } from '../sim/auditStorage'
 import { useTrainer } from '../sim/TrainerContext'
 import './EmergencyPanel.css'
+
+function formatAlarmTime(ms: number) {
+  return new Date(ms).toLocaleTimeString('ru-RU', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  })
+}
+
+function priorityLabel(p: 1 | 2 | 3) {
+  if (p === 1) return 'P1'
+  if (p === 2) return 'P2'
+  return 'P3'
+}
 
 export function EmergencyPanel() {
   const {
@@ -19,6 +33,7 @@ export function EmergencyPanel() {
     state.faultTriggered ? ex?.faultType : null,
   )
   const instructor = isInstructorAuthed()
+  const isExam = state.session.mode === 'exam' && !state.session.completed
 
   if (state.session.view !== 'exercise' || !state.session.started) return null
 
@@ -31,12 +46,23 @@ export function EmergencyPanel() {
       {alarms.length > 0 && (
         <ul className="emerg-alarms">
           {alarms.map((a) => {
-            const acked = state.ackedAlarmKeys.includes(a)
+            const acked = state.ackedAlarmKeys.includes(a.key)
+            const raised = state.alarmRaisedAt[a.key]
             return (
-              <li key={a} className={acked ? 'acked' : ''}>
-                <span>{a}</span>
+              <li key={a.key} className={acked ? 'acked' : ''}>
+                <div className="emerg-alarm-main">
+                  <span className={`prio prio-${a.priority}`}>
+                    {priorityLabel(a.priority)}
+                  </span>
+                  <span className="emerg-alarm-msg">{a.message}</span>
+                  {raised != null && (
+                    <time className="emerg-alarm-time">
+                      {formatAlarmTime(raised)}
+                    </time>
+                  )}
+                </div>
                 {!acked && (
-                  <button type="button" onClick={() => ackAlarm(a)}>
+                  <button type="button" onClick={() => ackAlarm(a.key)}>
                     Квит.
                   </button>
                 )}
@@ -48,7 +74,7 @@ export function EmergencyPanel() {
       {state.faultTriggered && !state.faultResponded && (
         <p className="emerg-hint">
           Нештатная ситуация активна
-          {ex?.normResponseSeconds != null
+          {!isExam && ex?.normResponseSeconds != null
             ? ` · норма реакции ${ex.normResponseSeconds} с`
             : ''}
         </p>
@@ -66,16 +92,21 @@ export function EmergencyPanel() {
         <>
           <h3>Аварийные действия</h3>
           <div className="emerg-actions">
-            {actions.map((a) => (
-              <button
-                key={a.id}
-                type="button"
-                disabled={!canControl || state.faultResponded}
-                onClick={() => performEmergencyAction(a.id)}
-              >
-                {a.label}
-              </button>
-            ))}
+            {actions.map((a) => {
+              const done = state.actionsLog.some(
+                (e) => e.description === a.logDescription,
+              )
+              return (
+                <button
+                  key={a.id}
+                  type="button"
+                  disabled={!canControl || state.faultResponded || done}
+                  onClick={() => performEmergencyAction(a.id)}
+                >
+                  {a.label}
+                </button>
+              )
+            })}
           </div>
         </>
       )}

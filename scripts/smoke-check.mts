@@ -12,12 +12,7 @@ import {
   type FaultType,
 } from '../src/sim/faultEngine'
 import { sequenceBlockReason } from '../src/sim/scenarioGuards'
-import {
-  predictRisk,
-  analyzeAction,
-  evaluateQualification,
-  recommendRetrain,
-} from '../src/sim/aiCoach'
+import { scoreExercise } from '../src/sim/scoring'
 import { CONTROLLABLE_EQUIP_IDS } from '../src/sim/controllable'
 import { equipmentById, equipment } from '../src/scheme'
 
@@ -173,48 +168,28 @@ r = sequenceBlockReason({
 if (!r) fail('guard shutdown', 'should block stop N-2 with fuel on')
 else ok('guard blocks stop N-2 while fuel on')
 
-const risk = predictRisk(
-  { ...createWarmProcess(), levelWaterE1: 90, levelWaterE2: 90 },
-  null,
-)
-if (!risk) fail('ai risk', 'expected water carry risk')
-else ok(`ai risk: ${risk.title}`)
-
-const finding = analyzeAction({
-  description: "Насос 'Н-1': нажата кнопка 'Пуск'",
-  at: Date.now(),
-  actionsSoFar: [],
-  exercise: startup,
-  process: { ...createInitialProcess(), valveL1: 0 },
-})
-if (!finding) fail('ai analyze', 'expected unsafe')
-else ok(`ai analyze: ${finding.class}`)
-
-const qual = evaluateQualification({
-  scorePercent: 100,
-  penalty: 0,
-  findings: [],
-  faultTriggered: false,
-  respondedInTime: null,
-})
-if (!qual.qualified) fail('ai qual', qual.summary)
-else ok('ai qualification pass path')
-
-const rec = recommendRetrain(
-  [
-    {
-      id: '1',
-      at: 0,
-      class: 'missed_critical',
-      title: 'x',
-      why: 'деэмульгатор соли',
-      severity: 'high',
+{
+  const scored = scoreExercise({
+    exercise: startup,
+    process: {
+      ...createWarmProcess(),
+      pumpN1: 'running',
+      feedFlow: 100,
+      demulsifierOn: true,
+      washWaterOn: true,
+      fuelGasPercent: 60,
     },
-  ],
-  'startup',
-)
-if (!rec) fail('ai retrain', 'no recommend')
-else ok(`ai retrain -> ${rec.exerciseId}`)
+    actionsLog: (startup.scenarioSteps ?? []).map((description) => ({
+      description,
+    })),
+    faultTriggered: false,
+    faultResponded: false,
+    respondedInTime: null,
+    responseSeconds: null,
+  })
+  if (!scored.qualified) fail('scoring startup', scored.summary)
+  else ok(`scoring startup PASS ${scored.scorePercent}%`)
+}
 
 let d = {
   ...createInitialProcess(),
@@ -234,8 +209,40 @@ if (!(a.pressureK1 > 1.8)) fail('avo', `PK1=${a.pressureK1}`)
 else ok(`avo off raises PK1=${a.pressureK1.toFixed(2)}`)
 
 const alarms = getUtilityAlarms({ ...createWarmProcess(), steamOk: false })
-if (!alarms.some((x) => x.includes('Пар'))) fail('alarms', 'no steam alarm')
+if (!alarms.some((x) => x.message.includes('Пар')))
+  fail('alarms', 'no steam alarm')
 else ok(`utility alarms ok (${alarms.length})`)
+
+// Multistep SC-02…08
+for (const id of ['sc02-steam', 'sc03-power', 'sc07-coil', 'sc08-leak'] as const) {
+  const ex = getExercise(id)
+  const n = ex?.expectedResponseActions?.length ?? 0
+  if (n < 2) fail(id, `expected multistep, got ${n}`)
+  else ok(`${id} steps=${n}`)
+}
+
+{
+  const ex = getExercise('sc02-steam')!
+  const p = {
+    ...createWarmProcess(),
+    steamOk: false,
+    fuelGasPercent: 0,
+    safeShutdownInitiated: true,
+  }
+  const r = scoreExercise({
+    exercise: ex,
+    process: p,
+    actionsLog: (ex.expectedResponseActions ?? []).map((description) => ({
+      description,
+    })),
+    faultTriggered: true,
+    faultResponded: true,
+    respondedInTime: true,
+    responseSeconds: 30,
+  })
+  if (!r.outcomeOk) fail('scoring', r.summary)
+  else ok(`scoring outcomeOk=${r.outcomeOk} score=${r.scorePercent}`)
+}
 
 console.log('\n==== SUMMARY ====')
 if (errors.length) {

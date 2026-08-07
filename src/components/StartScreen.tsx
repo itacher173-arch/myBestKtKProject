@@ -17,10 +17,11 @@ export function StartScreen() {
     setRole,
     setName,
     setExercise,
+    setSessionMode,
     startSession,
     openReports,
   } = useTrainer()
-  const { role, userName, exerciseId } = state.session
+  const { role, userName, exerciseId, mode } = state.session
   const selected = getExercise(exerciseId)
   const canStart =
     role === 'trainee' && userName.trim().length >= 2 && !!exerciseId
@@ -72,7 +73,7 @@ export function StartScreen() {
         </p>
         <p className="spec-badge">
           Сценарии SC-01…SC-15 ({playable}/{playable + planned}) · пуск /
-          останов · журнал · разбор действий
+          останов · журнал · оценка
         </p>
 
         <section>
@@ -95,7 +96,7 @@ export function StartScreen() {
           </div>
           <p className="hint">
             {role === 'trainee'
-              ? 'Упражнение на мнемосхеме, оценка квалификации и разбор ИИ.'
+              ? 'Упражнение на мнемосхеме и оценка квалификации по эталону.'
               : role === 'instructor'
                 ? 'Доступ к отчётам по PIN (разграничение ролей / ИБ).'
                 : 'Выберите роль.'}
@@ -130,6 +131,31 @@ export function StartScreen() {
                 placeholder="Например: Иванов И.И."
                 maxLength={80}
               />
+            </section>
+
+            <section>
+              <h2>Режим</h2>
+              <div className="role-row">
+                <button
+                  type="button"
+                  className={mode === 'train' ? 'active' : ''}
+                  onClick={() => setSessionMode('train')}
+                >
+                  Обучение
+                </button>
+                <button
+                  type="button"
+                  className={mode === 'exam' ? 'active' : ''}
+                  onClick={() => setSessionMode('exam')}
+                >
+                  Экзамен
+                </button>
+              </div>
+              <p className="hint">
+                {mode === 'exam'
+                  ? 'Эталон скрыт до завершения.'
+                  : 'Доступен чек-лист эталона сценария.'}
+              </p>
             </section>
 
             <section>

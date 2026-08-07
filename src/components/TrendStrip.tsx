@@ -1,12 +1,9 @@
+import { useMemo, useState } from 'react'
 import { useTrainer } from '../sim/TrainerContext'
+import type { AnalogHistorySample } from '../sim/types'
 import './TrendStrip.css'
 
-type HistKey =
-  | 'pressureN1'
-  | 'tempFurnaceOut'
-  | 'saltMgL'
-  | 'pressureK1'
-  | 'levelK1'
+type HistKey = keyof Omit<AnalogHistorySample, 't'>
 
 const SERIES: { key: HistKey; label: string; color: string }[] = [
   { key: 'pressureN1', label: 'PRA351', color: '#6ec1ff' },
@@ -14,6 +11,15 @@ const SERIES: { key: HistKey; label: string; color: string }[] = [
   { key: 'saltMgL', label: 'Q-ELOU', color: '#c0a0ff' },
   { key: 'pressureK1', label: 'PRSA204', color: '#80d090' },
   { key: 'levelK1', label: 'LRCA602', color: '#e0c060' },
+  { key: 'levelK2', label: 'LRCA604', color: '#90c0c8' },
+  { key: 'feedFlow', label: 'F-feed', color: '#d080a0' },
+  { key: 'pressureAfterElou', label: 'PRA312', color: '#a0b8ff' },
+]
+
+const DEFAULT_KEYS: HistKey[] = [
+  'pressureN1',
+  'tempFurnaceOut',
+  'saltMgL',
 ]
 
 function spark(values: number[], w: number, h: number): string {
@@ -30,10 +36,23 @@ function spark(values: number[], w: number, h: number): string {
     .join(' ')
 }
 
+function decimals(key: HistKey): number {
+  if (key === 'pressureK1' || key === 'pressureAfterElou') return 2
+  if (key === 'feedFlow') return 0
+  return 1
+}
+
 export function TrendStrip() {
   const { state } = useTrainer()
-  if (state.session.view !== 'exercise' || !state.session.started) return null
+  const [selected, setSelected] = useState<HistKey[]>(DEFAULT_KEYS)
+
   const hist = state.analogHistory
+  const visible = useMemo(
+    () => SERIES.filter((s) => selected.includes(s.key)),
+    [selected],
+  )
+
+  if (state.session.view !== 'exercise' || !state.session.started) return null
   if (hist.length < 2) {
     return (
       <div className="trend-strip">
@@ -44,30 +63,53 @@ export function TrendStrip() {
     )
   }
 
+  const toggle = (key: HistKey) => {
+    setSelected((prev) => {
+      if (prev.includes(key)) {
+        if (prev.length <= 1) return prev
+        return prev.filter((k) => k !== key)
+      }
+      if (prev.length >= 5) return prev
+      return [...prev, key]
+    })
+  }
+
   return (
     <div className="trend-strip">
-      {SERIES.map((s) => {
-        const vals = hist.map((h) => h[s.key])
-        const last = vals[vals.length - 1]
-        return (
-          <div key={s.key} className="trend-item">
-            <div className="trend-label">
-              <span style={{ color: s.color }}>{s.label}</span>
-              <strong>
-                {last.toFixed(s.key === 'pressureK1' ? 2 : 1)}
-              </strong>
+      <div className="trend-pick">
+        {SERIES.map((s) => (
+          <label key={s.key} className="trend-pick-item">
+            <input
+              type="checkbox"
+              checked={selected.includes(s.key)}
+              onChange={() => toggle(s.key)}
+            />
+            <span style={{ color: s.color }}>{s.label}</span>
+          </label>
+        ))}
+      </div>
+      <div className="trend-charts">
+        {visible.map((s) => {
+          const vals = hist.map((h) => h[s.key])
+          const last = vals[vals.length - 1]
+          return (
+            <div key={s.key} className="trend-item">
+              <div className="trend-label">
+                <span style={{ color: s.color }}>{s.label}</span>
+                <strong>{last.toFixed(decimals(s.key))}</strong>
+              </div>
+              <svg viewBox="0 0 120 28" width="120" height="28" aria-hidden>
+                <path
+                  d={spark(vals, 120, 28)}
+                  fill="none"
+                  stroke={s.color}
+                  strokeWidth="1.5"
+                />
+              </svg>
             </div>
-            <svg viewBox="0 0 120 28" width="120" height="28" aria-hidden>
-              <path
-                d={spark(vals, 120, 28)}
-                fill="none"
-                stroke={s.color}
-                strokeWidth="1.5"
-              />
-            </svg>
-          </div>
-        )
-      })}
+          )
+        })}
+      </div>
     </div>
   )
 }

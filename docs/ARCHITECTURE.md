@@ -13,7 +13,7 @@
 │ Scheme SVG  │     │ processModel     │  ← цифровой двойник (упрощ.)
 │ Controls    │     │ faultEngine      │
 │ Emergency   │     │ scenarios        │
-│ AiCoach     │     │ aiCoach          │  ← ИИ-модуль
+│ Checklist   │     │ scoring          │
 └─────────────┘     │ reports/audit    │
                     └──────────────────┘
 ```
@@ -25,7 +25,7 @@
 | UI | `TrainerContext` | `TrainerApi` (пуск, клапаны, пауза, complete…) |
 | Context | `processModel` | `tickProcess(state, dt)`, `getAnalogs` |
 | Context | `faultEngine` | `applyFault`, `EMERGENCY_ACTIONS` |
-| Context | `aiCoach` | `predictRisk`, `analyzeAction`, `recommendRetrain` |
+| Context | `scoring` | `scoreExercise` |
 | Context | storage | `saveReport`, `appendAudit` |
 | Scheme | equipment catalog | статичный граф узлов/труб |
 
@@ -33,11 +33,11 @@
 
 - **React + TS** — быстрый интерактивный UI оператора, строгая типизация модели.
 - **SVG мнемосхема** — лёгкая визуализация КТС без тяжёлого 3D на этапе прототипа.
-- **Эвристический ИИ-модуль** — интерпретируемость для инструктора (требование «почему неверно»), без зависимости от внешнего GPU; архитектура допускает замену на ML-сервис.
+- **Детерминированная оценка** — эталон шагов + исход `ProcessState` + typed penalties.
 - **Electron** — поставка portable EXE на АРМ без браузерных ограничений.
 
 ## Масштабирование / модернизация
 
 - Новый SC: запись в `scenarios` + `faultEngine` без изменения UI схемы.
 - Углубление модели: замена `processModel` на внешний solver при том же `ProcessState`.
-- Вынос отчётов/ИИ на сервер: storage и `aiCoach` за HTTP API без пересборки мнемосхемы.
+- Вынос отчётов на сервер: storage за HTTP API без пересборки мнемосхемы.

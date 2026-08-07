@@ -64,15 +64,14 @@ export function sequenceBlockReason(opts: {
     }
     if (opts.action === 'fuel') {
       const target = opts.fuelTarget ?? 0
+      // Снижение топлива всегда можно; рост — только с подачей в печи
       if (target > p.fuelGasPercent + 1) {
         if (p.pumpN2 !== 'running' && p.pumpN3 !== 'running') {
           return 'Нельзя поднимать топливо без работающих Н-2/Н-3 (риск перегрева змеевика).'
         }
-        if (p.tempFurnaceOut < 80 && target - p.fuelGasPercent > 25) {
-          return 'Ускоренный прогрев запрещён: повышайте топливо ступенями не более +25%.'
-        }
-        if (p.tempElouIn < 60 && target > 40) {
-          return 'Слишком ранний набор топлива: дождитесь прогрева тракта (TR41-2).'
+        // Запрет только совсем аварийного скачка 0→>70 без промежуточного режима
+        if (p.fuelGasPercent < 5 && target > 70) {
+          return 'Слишком резкий набор топлива: сначала выведите на 40–60%.'
         }
       }
     }

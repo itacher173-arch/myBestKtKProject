@@ -13,33 +13,38 @@ import {
   EMERGENCY_ACTIONS,
   applyFault,
 } from './faultEngine'
-import {
-  analyzeAction,
-  analyzeCompletion,
-  evaluateQualification,
-  predictRisk,
-  recommendRetrain,
-  type AiFinding,
-  type AiRiskWarning,
-} from './aiCoach'
 import { appendAudit } from './auditStorage'
 import { sequenceBlockReason, type GuardedAction } from './scenarioGuards'
-import { getAnalogs, tickProcess } from './processModel'
-import { saveReport } from './reportsStorage'
-import { exercises, getExercise } from './scenarios'
-import type { AnalogTag, PanelKind, ProcessState, Role, TrainerState } from './types'
+import { getAnalogs, getUtilityAlarms, tickProcess } from './processModel'
+import {
+  PROTOCOL_VERSION,
+  saveReport,
+} from './reportsStorage'
+import { exercises, getExercise, SCENARIO_VERSION } from './scenarios'
+import { scoreExercise } from './scoring'
+import type {
+  AnalogTag,
+  PanelKind,
+  ProcessState,
+  Role,
+  SessionMode,
+  TrainerState,
+} from './types'
 import {
   createInitialProcess,
   createInitialSession,
   createWarmProcess,
+  MODEL_VERSION,
 } from './types'
 
 type Action =
   | { type: 'SET_ROLE'; role: Role }
   | { type: 'SET_NAME'; name: string }
   | { type: 'SET_EXERCISE'; id: string }
+  | { type: 'SET_MODE'; mode: SessionMode }
   | { type: 'OPEN_REPORTS' }
   | { type: 'START_SESSION' }
+  | { type: 'SYNC_ALARM_TIMES'; raisedAt: Record<string, number> }
   | { type: 'SELECT_EQUIP'; id: string | null }
   | { type: 'OPEN_PANEL'; panel: PanelKind }
   | { type: 'CLOSE_PANEL' }
@@ -50,25 +55,22 @@ type Action =
   | { type: 'FAULT_TRIGGERED' }
   | { type: 'FAULT_RESPONDED'; seconds: number; inTime: boolean }
   | { type: 'SET_PAUSED'; paused: boolean }
-  | { type: 'ADD_AI_FINDING'; finding: AiFinding }
-  | { type: 'SET_AI_RISK'; risk: AiRiskWarning | null }
   | { type: 'ACK_ALARM'; key: string }
   | {
       type: 'COMPLETE'
       scorePercent: number
       penalty: number
+      penaltyDetail: {
+        unsafe: number
+        late: number
+        extra: number
+        missed: number
+      }
       qualified: boolean
-      recommendExerciseId: string | null
-      recommendReason: string | null
+      qualificationSummary: string
       finishEvent: { id: string; at: number; description: string }
-      aiFindings: AiFinding[]
     }
   | { type: 'RESET_TO_START' }
-  | {
-      type: 'START_RETRAIN'
-      userName: string
-      exerciseId: string
-    }
 
 function uid() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
@@ -91,6 +93,13 @@ function reducer(state: TrainerState, action: Action): TrainerState {
         ...state,
         session: { ...state.session, exerciseId: action.id },
       }
+    case 'SET_MODE':
+      return {
+        ...state,
+        session: { ...state.session, mode: action.mode },
+      }
+    case 'SYNC_ALARM_TIMES':
+      return { ...state, alarmRaisedAt: action.raisedAt }
     case 'OPEN_REPORTS':
       return {
         ...state,
@@ -125,8 +134,7 @@ function reducer(state: TrainerState, action: Action): TrainerState {
           responseSeconds: null,
           respondedInTime: null,
           qualified: null,
-          recommendExerciseId: null,
-          recommendReason: null,
+          qualificationSummary: null,
         },
         process,
         actionsLog: [],
@@ -134,9 +142,9 @@ function reducer(state: TrainerState, action: Action): TrainerState {
           {
             id: `start-${startedAt}`,
             at: startedAt,
-            description: `Упражнение начато: ${ex?.name ?? '—'}${
-              ex?.warmStart ? ' (нормальный режим, ожидание отказа)' : ''
-            }`,
+            description: `Упражнение начато: ${ex?.name ?? '—'} [${
+              state.session.mode === 'exam' ? 'экзамен' : 'обучение'
+            }]${ex?.warmStart ? ' (нормальный режим, ожидание отказа)' : ''}`,
           },
         ],
         faultTriggered: false,
@@ -144,10 +152,9 @@ function reducer(state: TrainerState, action: Action): TrainerState {
         faultAt: null,
         activePanel: null,
         selectedEquipId: null,
-        aiFindings: [],
-        aiRisk: null,
         analogHistory: [],
         ackedAlarmKeys: [],
+        alarmRaisedAt: {},
       }
     }
     case 'SELECT_EQUIP':
@@ -209,6 +216,9 @@ function reducer(state: TrainerState, action: Action): TrainerState {
         saltMgL: process.saltMgL,
         pressureK1: process.pressureK1,
         levelK1: process.levelK1,
+        levelK2: process.levelK2,
+        feedFlow: process.feedFlow,
+        pressureAfterElou: process.pressureAfterElou,
       }
       return {
         ...state,
@@ -246,13 +256,12 @@ function reducer(state: TrainerState, action: Action): TrainerState {
           paused: true,
           scorePercent: action.scorePercent,
           penalty: action.penalty,
+          penaltyDetail: action.penaltyDetail,
           qualified: action.qualified,
-          recommendExerciseId: action.recommendExerciseId,
-          recommendReason: action.recommendReason,
+          qualificationSummary: action.qualificationSummary,
         },
         process: { ...state.process, running: false },
         systemEvents: [...state.systemEvents, action.finishEvent],
-        aiFindings: action.aiFindings,
       }
     }
     case 'SET_PAUSED':
@@ -260,19 +269,6 @@ function reducer(state: TrainerState, action: Action): TrainerState {
         ...state,
         session: { ...state.session, paused: action.paused },
       }
-    case 'ADD_AI_FINDING': {
-      const last = state.aiFindings[state.aiFindings.length - 1]
-      if (
-        last &&
-        last.title === action.finding.title &&
-        action.finding.at - last.at < 1500
-      ) {
-        return state
-      }
-      return { ...state, aiFindings: [...state.aiFindings, action.finding] }
-    }
-    case 'SET_AI_RISK':
-      return { ...state, aiRisk: action.risk }
     case 'RESET_TO_START':
       return {
         session: createInitialSession(),
@@ -284,47 +280,10 @@ function reducer(state: TrainerState, action: Action): TrainerState {
         faultTriggered: false,
         faultResponded: false,
         faultAt: null,
-        aiFindings: [],
-        aiRisk: null,
         analogHistory: [],
         ackedAlarmKeys: [],
+        alarmRaisedAt: {},
       }
-    case 'START_RETRAIN': {
-      const startedAt = Date.now()
-      const ex = getExercise(action.exerciseId)
-      const process = ex?.warmStart
-        ? createWarmProcess()
-        : { ...createInitialProcess(), running: true }
-      return {
-        session: {
-          ...createInitialSession(),
-          role: 'trainee',
-          userName: action.userName,
-          exerciseId: action.exerciseId,
-          view: 'exercise',
-          started: true,
-          paused: false,
-        },
-        process,
-        actionsLog: [],
-        systemEvents: [
-          {
-            id: `retrain-${startedAt}`,
-            at: startedAt,
-            description: `Повтор упражнения: ${ex?.name ?? action.exerciseId}`,
-          },
-        ],
-        faultTriggered: false,
-        faultResponded: false,
-        faultAt: null,
-        activePanel: null,
-        selectedEquipId: null,
-        aiFindings: [],
-        aiRisk: null,
-        analogHistory: [],
-        ackedAlarmKeys: [],
-      }
-    }
     default:
       return state
   }
@@ -337,6 +296,7 @@ interface TrainerApi {
   setRole: (role: Role) => void
   setName: (name: string) => void
   setExercise: (id: string) => void
+  setSessionMode: (mode: SessionMode) => void
   openReports: () => void
   startSession: () => void
   selectEquip: (id: string | null) => void
@@ -371,7 +331,6 @@ interface TrainerApi {
   resetToStart: () => void
   performEmergencyAction: (actionId: string) => void
   setPaused: (paused: boolean) => void
-  startAdaptiveRetrain: () => void
   ackAlarm: (key: string) => void
   injectCurrentFault: () => void
   canControl: boolean
@@ -389,10 +348,9 @@ const initialState: TrainerState = {
   faultTriggered: false,
   faultResponded: false,
   faultAt: null,
-  aiFindings: [],
-  aiRisk: null,
   analogHistory: [],
   ackedAlarmKeys: [],
+  alarmRaisedAt: {},
 }
 
 export function TrainerProvider({ children }: { children: ReactNode }) {
@@ -437,18 +395,33 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     state.session.paused,
   ])
 
-  // Прогноз риска ИИ по текущему состоянию (до ошибки)
+  // Фиксация времени появления тревог (для HMI: время / RTN при исчезновении)
   useEffect(() => {
     if (state.session.view !== 'exercise' || !state.session.started) return
-    if (state.session.completed || state.session.paused) return
-    const risk = predictRisk(state.process, null)
-    dispatch({ type: 'SET_AI_RISK', risk })
+    const alarms = getUtilityAlarms(state.process)
+    const keys = new Set(alarms.map((a) => a.key))
+    const prev = state.alarmRaisedAt
+    const next: Record<string, number> = {}
+    let changed = false
+    const now = Date.now()
+    for (const a of alarms) {
+      if (prev[a.key] != null) next[a.key] = prev[a.key]
+      else {
+        next[a.key] = now
+        changed = true
+      }
+    }
+    for (const k of Object.keys(prev)) {
+      if (!keys.has(k)) changed = true
+    }
+    if (changed || Object.keys(prev).length !== Object.keys(next).length) {
+      dispatch({ type: 'SYNC_ALARM_TIMES', raisedAt: next })
+    }
   }, [
     state.session.view,
     state.session.started,
-    state.session.completed,
-    state.session.paused,
     state.process,
+    state.alarmRaisedAt,
   ])
 
   // Salt alarm (норма обучения ≤5 мг/л)
@@ -527,20 +500,6 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
 
   const logAction = useCallback(
     (description: string) => {
-      const before = stateRef.current
-      const ex = getExercise(before.session.exerciseId)
-      const finding = analyzeAction({
-        description,
-        at: Date.now(),
-        actionsSoFar: before.actionsLog.map((a) => a.description),
-        exercise: ex,
-        process: before.process,
-      })
-      if (finding) {
-        dispatch({ type: 'ADD_AI_FINDING', finding })
-        pushSystem(`ИИ: ${finding.title} — ${finding.why}`)
-      }
-
       pushAction(description)
 
       const cur = stateRef.current
@@ -549,11 +508,22 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
       const exercise = getExercise(cur.session.exerciseId)
       if (!exercise) return
 
-      let matched =
-        exercise.expectedResponseActions?.includes(description) ?? false
-      if (!matched && exercise.faultType === 'fuelGas') {
-        const m = description.match(/топливного газа на (\d+)%/)
-        if (m && Number(m[1]) >= 40) matched = true
+      const done = new Set([
+        ...cur.actionsLog.map((a) => a.description),
+        description,
+      ])
+      const expected = exercise.expectedResponseActions ?? []
+
+      let matched = false
+      if (expected.length === 0) {
+        matched = false
+      } else if (exercise.faultType === 'fuelGas') {
+        matched = [...done].some((d) => {
+          const m = d.match(/топливного газа на (\d+)%/)
+          return m != null && Number(m[1]) >= 40
+        })
+      } else {
+        matched = expected.every((s) => done.has(s))
       }
       if (!matched) return
 
@@ -608,12 +578,12 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     }
     const p = proc.pumpN1
     if (p === 'running' || p === 'starting') return
-    const risk = predictRisk(proc, 'pump-n1-start')
-    if (risk) dispatch({ type: 'SET_AI_RISK', risk })
-    const confirmMsg = risk
-      ? `Прогноз риска: ${risk.title}\n${risk.detail}\n\nВсё равно пустить Н-1?`
-      : 'Подтвердите пуск сырьевого насоса Н-1 (критическая операция).'
-    if (!window.confirm(confirmMsg)) return
+    if (
+      !window.confirm(
+        'Подтвердите пуск сырьевого насоса Н-1 (критическая операция).',
+      )
+    )
+      return
     logAction("Насос 'Н-1': нажата кнопка 'Пуск'")
     dispatch({ type: 'SET_PROCESS', patch: { pumpN1: 'starting' } })
     if (pumpStartTimer.current) clearTimeout(pumpStartTimer.current)
@@ -657,17 +627,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
       if (proc[key] === 'running' || proc[key] === 'starting') return
       if (
         !window.confirm(
-          (() => {
-            const risk = predictRisk(
-              proc,
-              id === 'N-2' ? 'pump-n2-start' : 'pump-n3-start',
-            )
-            if (risk) {
-              dispatch({ type: 'SET_AI_RISK', risk })
-              return `Прогноз риска: ${risk.title}\n${risk.detail}\n\nВсё равно пустить ${id}?`
-            }
-            return `Подтвердите пуск насоса ${id} (подача в печной тракт).`
-          })(),
+          `Подтвердите пуск насоса ${id} (подача в печной тракт).`,
         )
       ) {
         return
@@ -965,10 +925,14 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
       if (!def) return
       const cur = stateRef.current
       const ex = getExercise(cur.session.exerciseId)
+      const fault = ex?.faultType
       if (
         !cur.faultTriggered ||
-        !ex?.faultType ||
-        !def.clearsFaults.includes(ex.faultType)
+        !fault ||
+        !(
+          def.clearsFaults.includes(fault) ||
+          (def.procedureFor?.includes(fault) ?? false)
+        )
       ) {
         return
       }
@@ -977,6 +941,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
         actionId === 'safe-stop-power' ||
         actionId === 'safe-stop-air' ||
         actionId === 'cut-fuel-steam' ||
+        actionId === 'sc02-safe-stop' ||
         actionId === 'isolate-leak'
       if (
         needsConfirm &&
@@ -1054,62 +1019,26 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     if (cur.session.view !== 'exercise' || cur.session.completed) return
 
     const ex = getExercise(cur.session.exerciseId)
-    const needed = ex?.scenarioSteps ?? []
-    const doneDescs = cur.actionsLog.map((a) => a.description)
-    const done = new Set(doneDescs)
-
-    const stepDone = (s: string) => {
-      if (done.has(s)) return true
-      if (s.includes('топливного газа')) {
-        return doneDescs.some((d) => {
-          const m = d.match(/топливного газа на (\d+)%/)
-          return m != null && Number(m[1]) >= 40
-        })
-      }
-      return false
-    }
-
-    const countDone = needed.filter(stepDone).length
-    const score = needed.length === 0 ? 0 : (countDone / needed.length) * 100
-    const scorePercent = Math.round(score * 10) / 10
-    const penaltyClean = cur.actionsLog.filter((a) => {
-      if (needed.includes(a.description)) return false
-      if (
-        needed.some((s) => s.includes('топливного')) &&
-        /топливного газа на (\d+)%/.test(a.description)
-      ) {
-        const m = a.description.match(/на (\d+)%/)
-        if (m && Number(m[1]) >= 40) return false
-      }
-      return true
-    }).length
-
-    const completionFindings = analyzeCompletion({
+    const scored = scoreExercise({
       exercise: ex,
+      process: cur.process,
       actionsLog: cur.actionsLog,
       faultTriggered: cur.faultTriggered,
       faultResponded: cur.faultResponded,
       respondedInTime: cur.session.respondedInTime,
       responseSeconds: cur.session.responseSeconds,
     })
-    const allFindings = [...cur.aiFindings, ...completionFindings]
-    const retrain = recommendRetrain(allFindings, cur.session.exerciseId)
-    const { qualified, summary } = evaluateQualification({
-      scorePercent,
-      penalty: penaltyClean,
-      findings: allFindings,
-      faultTriggered: cur.faultTriggered,
-      respondedInTime: cur.session.respondedInTime,
-    })
 
     const finishEvent = {
       id: uid(),
       at: Date.now(),
-      description: `Упражнение завершено. ${summary} Выполнение: ${scorePercent.toFixed(0)}%, лишних: ${penaltyClean}.${
-        retrain ? ` Рекомендация ИИ: ${retrain.reason}` : ''
-      }`,
+      description: `Упражнение завершено. ${scored.summary}`,
     }
     const systemEvents = [...cur.systemEvents, finishEvent]
+
+    const analogSample = cur.analogHistory.filter(
+      (_, i) => i % 5 === 0 || i === cur.analogHistory.length - 1,
+    )
 
     if (cur.session.role === 'trainee' && cur.session.userName.trim()) {
       saveReport({
@@ -1118,23 +1047,21 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
         exerciseId: cur.session.exerciseId ?? '',
         exerciseName: ex?.name ?? '—',
         completedAt: finishEvent.at,
-        scorePercent,
-        penalty: penaltyClean,
+        scorePercent: scored.scorePercent,
+        penalty: scored.penalty,
+        penaltyDetail: scored.penaltyDetail,
         responseSeconds: cur.session.responseSeconds,
         respondedInTime: cur.session.respondedInTime,
         simTimeSec: cur.process.simTimeSec,
-        qualified,
-        qualificationSummary: summary,
-        recommendExerciseId: retrain?.exerciseId ?? null,
-        recommendReason: retrain?.reason ?? null,
-        aiFindings: allFindings.map((f) => ({
-          at: f.at,
-          class: f.class,
-          title: f.title,
-          why: f.why,
-          severity: f.severity,
-          relatedTag: f.relatedTag,
-        })),
+        qualified: scored.qualified,
+        qualificationSummary: scored.summary,
+        criticalFail: scored.criticalFail,
+        outcomeOk: scored.outcomeOk,
+        protocolVersion: PROTOCOL_VERSION,
+        modelVersion: MODEL_VERSION,
+        scenarioVersion: SCENARIO_VERSION,
+        sessionMode: cur.session.mode,
+        analogSample,
         actionsLog: cur.actionsLog.map(({ at, description }) => ({
           at,
           description,
@@ -1148,19 +1075,20 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
         actor: cur.session.userName.trim(),
         role: 'trainee',
         action: 'complete_exercise',
-        detail: `${ex?.id ?? '?'} · ${qualified ? 'PASS' : 'FAIL'} · ${scorePercent}%`,
+        detail: `${ex?.id ?? '?'} · ${cur.session.mode} · ${
+          scored.qualified ? 'PASS' : 'FAIL'
+        } · ${scored.scorePercent}%`,
       })
     }
 
     dispatch({
       type: 'COMPLETE',
-      scorePercent,
-      penalty: penaltyClean,
-      qualified,
-      recommendExerciseId: retrain?.exerciseId ?? null,
-      recommendReason: retrain?.reason ?? null,
+      scorePercent: scored.scorePercent,
+      penalty: scored.penalty,
+      penaltyDetail: scored.penaltyDetail,
+      qualified: scored.qualified,
+      qualificationSummary: scored.summary,
       finishEvent,
-      aiFindings: allFindings,
     })
   }, [])
 
@@ -1191,7 +1119,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
       actor: cur.userName || 'trainee',
       role: 'trainee',
       action: 'start_session',
-      detail: cur.exerciseId ?? undefined,
+      detail: `${cur.exerciseId ?? '?'} · ${cur.mode}`,
     })
     dispatch({ type: 'START_SESSION' })
   }, [])
@@ -1204,28 +1132,6 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
       pumpStartTimer.current = null
     }
     dispatch({ type: 'RESET_TO_START' })
-  }, [])
-
-  const startAdaptiveRetrain = useCallback(() => {
-    const cur = stateRef.current.session
-    if (!cur.recommendExerciseId) return
-    recoveryLogged.current = false
-    saltAlarmLogged.current = false
-    if (pumpStartTimer.current) {
-      clearTimeout(pumpStartTimer.current)
-      pumpStartTimer.current = null
-    }
-    appendAudit({
-      actor: cur.userName || 'trainee',
-      role: 'trainee',
-      action: 'adaptive_retrain',
-      detail: cur.recommendExerciseId,
-    })
-    dispatch({
-      type: 'START_RETRAIN',
-      userName: cur.userName,
-      exerciseId: cur.recommendExerciseId,
-    })
   }, [])
 
   const ackAlarm = useCallback((key: string) => {
@@ -1267,6 +1173,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     setRole: (role) => dispatch({ type: 'SET_ROLE', role }),
     setName: (name) => dispatch({ type: 'SET_NAME', name }),
     setExercise: (id) => dispatch({ type: 'SET_EXERCISE', id }),
+    setSessionMode: (mode) => dispatch({ type: 'SET_MODE', mode }),
     openReports: () => dispatch({ type: 'OPEN_REPORTS' }),
     startSession,
     selectEquip: (id) => dispatch({ type: 'SELECT_EQUIP', id }),
@@ -1292,7 +1199,6 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     resetToStart,
     performEmergencyAction,
     setPaused,
-    startAdaptiveRetrain,
     ackAlarm,
     injectCurrentFault,
     canControl,

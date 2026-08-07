@@ -32,6 +32,14 @@ function emergencyLog(fault: FaultType): string {
   return a?.logDescription ?? `Авария: реакция на ${fault}`
 }
 
+function procedureLogs(fault: FaultType): string[] {
+  return EMERGENCY_ACTIONS.filter(
+    (a) =>
+      a.clearsFaults.includes(fault) ||
+      (a.procedureFor?.includes(fault) ?? false),
+  ).map((a) => a.logDescription)
+}
+
 function scExercise(opts: {
   id: string
   specId: string
@@ -42,7 +50,11 @@ function scExercise(opts: {
   norm?: number
   extraSteps?: string[]
 }): Exercise {
-  const response = emergencyLog(opts.faultType)
+  const proc = procedureLogs(opts.faultType)
+  const steps = [
+    ...(opts.extraSteps ?? []),
+    ...(proc.length ? proc : [emergencyLog(opts.faultType)]),
+  ]
   return {
     id: opts.id,
     specId: opts.specId,
@@ -52,10 +64,13 @@ function scExercise(opts: {
     normResponseSeconds: opts.norm ?? 60,
     warmStart: true,
     faultType: opts.faultType,
-    scenarioSteps: [...(opts.extraSteps ?? []), response],
-    expectedResponseActions: [response],
+    scenarioSteps: steps,
+    expectedResponseActions: steps.filter((s) => s.startsWith('Авария:')),
   }
 }
+
+/** Версия каталога сценариев для протокола сессии */
+export const SCENARIO_VERSION = 'scenarios-1.1'
 
 export const exercises: Exercise[] = [
   {

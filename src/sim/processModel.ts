@@ -430,44 +430,58 @@ export function isAnalogAlarm(tag: {
 
 export const SALT_NORM_MG_L = 5
 
-export function getUtilityAlarms(p: ProcessState): string[] {
-  const a: string[] = []
-  if (!p.steamOk) a.push('Пар: НЕТ')
-  if (!p.powerOk) a.push('Питание 0,4/6 кВ: НЕТ')
+/** Приоритет: 1 — критический, 2 — высокий, 3 — предупреждение */
+export type AlarmPriority = 1 | 2 | 3
+
+export interface UtilityAlarm {
+  key: string
+  message: string
+  priority: AlarmPriority
+}
+
+export function getUtilityAlarms(p: ProcessState): UtilityAlarm[] {
+  const a: UtilityAlarm[] = []
+  const push = (key: string, message: string, priority: AlarmPriority) => {
+    a.push({ key, message, priority })
+  }
+  if (!p.steamOk) push('steam', 'Пар: НЕТ', 1)
+  if (!p.powerOk) push('power', 'Питание 0,4/6 кВ: НЕТ', 1)
   if (!p.opsPowerOk)
-    a.push(
+    push(
+      'opsPower',
       p.opsPowerOnBattery
         ? `Операторная: АКБ ${p.batteryMinutesLeft.toFixed(0)} мин`
         : 'Операторная: НЕТ питания',
+      p.opsPowerOnBattery ? 2 : 1,
     )
-  if (!p.coolingWaterOk) a.push('Оборотная вода: НЕТ')
-  if (!p.instrumentAirOk) a.push('Приборный воздух: НЕТ')
-  if (!p.ventOpsOk) a.push('Вентиляция РУ: НЕТ')
-  if (!p.ventElouOk) a.push('Вентиляция ЭЛОУ: НЕТ')
-  if (!p.h2GasOk) a.push('H₂-газ K-12: НЕТ')
-  if (p.coilRupture) a.push('Змеевик печи: РАЗРЫВ')
-  if (p.pumpLeak) a.push('Утечка насоса/фланца')
-  if (p.levelWaterE1 > 85) a.push(`E-1 вода ${p.levelWaterE1.toFixed(0)}%`)
-  if (p.levelWaterE2 > 85) a.push(`E-2 вода ${p.levelWaterE2.toFixed(0)}%`)
-  if (p.levelReflux < 15) a.push(`Рефлюкс ${p.levelReflux.toFixed(0)}%`)
-  if (p.levelK1 < 20) a.push(`K-1 уровень ${p.levelK1.toFixed(0)}%`)
-  if (!p.avoFanOn) a.push('АВО: вентилятор ВЫКЛ')
+  if (!p.coolingWaterOk) push('cooling', 'Оборотная вода: НЕТ', 1)
+  if (!p.instrumentAirOk) push('air', 'Приборный воздух: НЕТ', 1)
+  if (!p.ventOpsOk) push('ventOps', 'Вентиляция РУ: НЕТ', 2)
+  if (!p.ventElouOk) push('ventElou', 'Вентиляция ЭЛОУ: НЕТ', 2)
+  if (!p.h2GasOk) push('h2', 'H₂-газ K-12: НЕТ', 2)
+  if (p.coilRupture) push('coil', 'Змеевик печи: РАЗРЫВ', 1)
+  if (p.pumpLeak) push('leak', 'Утечка насоса/фланца', 1)
+  if (p.levelWaterE1 > 85)
+    push('e1water', `E-1 вода ${p.levelWaterE1.toFixed(0)}%`, 2)
+  if (p.levelWaterE2 > 85)
+    push('e2water', `E-2 вода ${p.levelWaterE2.toFixed(0)}%`, 2)
+  if (p.levelReflux < 15)
+    push('reflux', `Рефлюкс ${p.levelReflux.toFixed(0)}%`, 3)
+  if (p.levelK1 < 20)
+    push('k1level', `K-1 уровень ${p.levelK1.toFixed(0)}%`, 2)
+  if (!p.avoFanOn) push('avo', 'АВО: вентилятор ВЫКЛ', 3)
   if (
     p.pumpN2 !== 'running' &&
     p.pumpN3 !== 'running' &&
     p.fuelGasPercent > 5
   ) {
-    a.push('Н-2/Н-3: нет подачи в печи')
+    push('n23', 'Н-2/Н-3: нет подачи в печи', 1)
   }
-  if (
-    p.pumpN1 === 'running' &&
-    p.valveL1 < 3 &&
-    p.pressureN1 > 20
-  ) {
-    a.push('Н-1: работа на закрытую задвижку')
+  if (p.pumpN1 === 'running' && p.valveL1 < 3 && p.pressureN1 > 20) {
+    push('n1deadhead', 'Н-1: работа на закрытую задвижку', 1)
   }
   if (p.levelK1 < 22 && p.fuelGasPercent > 20) {
-    a.push('Риск перегрева змеевика (низкий уровень К-1)')
+    push('coilOverheat', 'Риск перегрева змеевика (низкий уровень К-1)', 1)
   }
-  return a
+  return a.sort((x, y) => x.priority - y.priority)
 }
