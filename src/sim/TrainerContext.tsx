@@ -13,6 +13,17 @@ import {
   EMERGENCY_ACTIONS,
   applyFault,
 } from './faultEngine'
+import {
+  analyzeAction,
+  analyzeCompletion,
+  evaluateQualification,
+  predictRisk,
+  recommendRetrain,
+  type AiFinding,
+  type AiRiskWarning,
+} from './aiCoach'
+import { appendAudit } from './auditStorage'
+import { sequenceBlockReason, type GuardedAction } from './scenarioGuards'
 import { getAnalogs, tickProcess } from './processModel'
 import { saveReport } from './reportsStorage'
 import { exercises, getExercise } from './scenarios'
@@ -38,13 +49,26 @@ type Action =
   | { type: 'SET_PROCESS'; patch: Partial<ProcessState> }
   | { type: 'FAULT_TRIGGERED' }
   | { type: 'FAULT_RESPONDED'; seconds: number; inTime: boolean }
+  | { type: 'SET_PAUSED'; paused: boolean }
+  | { type: 'ADD_AI_FINDING'; finding: AiFinding }
+  | { type: 'SET_AI_RISK'; risk: AiRiskWarning | null }
+  | { type: 'ACK_ALARM'; key: string }
   | {
       type: 'COMPLETE'
       scorePercent: number
       penalty: number
+      qualified: boolean
+      recommendExerciseId: string | null
+      recommendReason: string | null
       finishEvent: { id: string; at: number; description: string }
+      aiFindings: AiFinding[]
     }
   | { type: 'RESET_TO_START' }
+  | {
+      type: 'START_RETRAIN'
+      userName: string
+      exerciseId: string
+    }
 
 function uid() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
@@ -95,10 +119,14 @@ function reducer(state: TrainerState, action: Action): TrainerState {
           view: 'exercise',
           started: true,
           completed: false,
+          paused: false,
           scorePercent: 0,
           penalty: 0,
           responseSeconds: null,
           respondedInTime: null,
+          qualified: null,
+          recommendExerciseId: null,
+          recommendReason: null,
         },
         process,
         actionsLog: [],
@@ -116,6 +144,10 @@ function reducer(state: TrainerState, action: Action): TrainerState {
         faultAt: null,
         activePanel: null,
         selectedEquipId: null,
+        aiFindings: [],
+        aiRisk: null,
+        analogHistory: [],
+        ackedAlarmKeys: [],
       }
     }
     case 'SELECT_EQUIP':
@@ -168,8 +200,28 @@ function reducer(state: TrainerState, action: Action): TrainerState {
         ],
       }
     }
-    case 'TICK':
-      return { ...state, process: tickProcess(state.process, action.dt) }
+    case 'TICK': {
+      const process = tickProcess(state.process, action.dt)
+      const sample = {
+        t: process.simTimeSec,
+        pressureN1: process.pressureN1,
+        tempFurnaceOut: process.tempFurnaceOut,
+        saltMgL: process.saltMgL,
+        pressureK1: process.pressureK1,
+        levelK1: process.levelK1,
+      }
+      return {
+        ...state,
+        process,
+        analogHistory: [...state.analogHistory, sample].slice(-90),
+      }
+    }
+    case 'ACK_ALARM':
+      if (state.ackedAlarmKeys.includes(action.key)) return state
+      return {
+        ...state,
+        ackedAlarmKeys: [...state.ackedAlarmKeys, action.key],
+      }
     case 'SET_PROCESS':
       return { ...state, process: { ...state.process, ...action.patch } }
     case 'FAULT_TRIGGERED':
@@ -191,13 +243,36 @@ function reducer(state: TrainerState, action: Action): TrainerState {
         session: {
           ...state.session,
           completed: true,
+          paused: true,
           scorePercent: action.scorePercent,
           penalty: action.penalty,
+          qualified: action.qualified,
+          recommendExerciseId: action.recommendExerciseId,
+          recommendReason: action.recommendReason,
         },
         process: { ...state.process, running: false },
         systemEvents: [...state.systemEvents, action.finishEvent],
+        aiFindings: action.aiFindings,
       }
     }
+    case 'SET_PAUSED':
+      return {
+        ...state,
+        session: { ...state.session, paused: action.paused },
+      }
+    case 'ADD_AI_FINDING': {
+      const last = state.aiFindings[state.aiFindings.length - 1]
+      if (
+        last &&
+        last.title === action.finding.title &&
+        action.finding.at - last.at < 1500
+      ) {
+        return state
+      }
+      return { ...state, aiFindings: [...state.aiFindings, action.finding] }
+    }
+    case 'SET_AI_RISK':
+      return { ...state, aiRisk: action.risk }
     case 'RESET_TO_START':
       return {
         session: createInitialSession(),
@@ -209,7 +284,47 @@ function reducer(state: TrainerState, action: Action): TrainerState {
         faultTriggered: false,
         faultResponded: false,
         faultAt: null,
+        aiFindings: [],
+        aiRisk: null,
+        analogHistory: [],
+        ackedAlarmKeys: [],
       }
+    case 'START_RETRAIN': {
+      const startedAt = Date.now()
+      const ex = getExercise(action.exerciseId)
+      const process = ex?.warmStart
+        ? createWarmProcess()
+        : { ...createInitialProcess(), running: true }
+      return {
+        session: {
+          ...createInitialSession(),
+          role: 'trainee',
+          userName: action.userName,
+          exerciseId: action.exerciseId,
+          view: 'exercise',
+          started: true,
+          paused: false,
+        },
+        process,
+        actionsLog: [],
+        systemEvents: [
+          {
+            id: `retrain-${startedAt}`,
+            at: startedAt,
+            description: `Повтор упражнения: ${ex?.name ?? action.exerciseId}`,
+          },
+        ],
+        faultTriggered: false,
+        faultResponded: false,
+        faultAt: null,
+        activePanel: null,
+        selectedEquipId: null,
+        aiFindings: [],
+        aiRisk: null,
+        analogHistory: [],
+        ackedAlarmKeys: [],
+      }
+    }
     default:
       return state
   }
@@ -255,6 +370,10 @@ interface TrainerApi {
   completeExercise: () => void
   resetToStart: () => void
   performEmergencyAction: (actionId: string) => void
+  setPaused: (paused: boolean) => void
+  startAdaptiveRetrain: () => void
+  ackAlarm: (key: string) => void
+  injectCurrentFault: () => void
   canControl: boolean
 }
 
@@ -270,6 +389,10 @@ const initialState: TrainerState = {
   faultTriggered: false,
   faultResponded: false,
   faultAt: null,
+  aiFindings: [],
+  aiRisk: null,
+  analogHistory: [],
+  ackedAlarmKeys: [],
 }
 
 export function TrainerProvider({ children }: { children: ReactNode }) {
@@ -298,19 +421,40 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
-  // Simulation tick
+  // Simulation tick (пауза останавливает модель и таймер отказа)
   useEffect(() => {
     if (state.session.view !== 'exercise') return
     if (!state.session.started || state.session.completed) return
+    if (state.session.paused) return
     const id = window.setInterval(() => {
       dispatch({ type: 'TICK', dt: 1 })
     }, 1000)
     return () => clearInterval(id)
-  }, [state.session.view, state.session.started, state.session.completed])
+  }, [
+    state.session.view,
+    state.session.started,
+    state.session.completed,
+    state.session.paused,
+  ])
+
+  // Прогноз риска ИИ по текущему состоянию (до ошибки)
+  useEffect(() => {
+    if (state.session.view !== 'exercise' || !state.session.started) return
+    if (state.session.completed || state.session.paused) return
+    const risk = predictRisk(state.process, null)
+    dispatch({ type: 'SET_AI_RISK', risk })
+  }, [
+    state.session.view,
+    state.session.started,
+    state.session.completed,
+    state.session.paused,
+    state.process,
+  ])
 
   // Salt alarm (норма обучения ≤5 мг/л)
   useEffect(() => {
     if (state.session.view !== 'exercise' || !state.session.started) return
+    if (state.session.paused) return
     if (state.process.feedFlow > 5 && state.process.saltMgL > 5) {
       if (saltAlarmLogged.current) return
       saltAlarmLogged.current = true
@@ -323,38 +467,34 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
   }, [
     state.session.view,
     state.session.started,
+    state.session.paused,
     state.process.feedFlow,
     state.process.saltMgL,
     pushSystem,
   ])
 
-  // Fault trigger by exercise delay
+  // Отказ по simTimeSec (корректно работает с паузой)
   useEffect(() => {
     if (state.session.view !== 'exercise') return
     if (!state.session.started || state.session.completed) return
+    if (state.session.paused || state.faultTriggered) return
     const ex = getExercise(state.session.exerciseId)
     if (!ex?.faultType || !ex.triggerDelaySeconds) return
-    if (state.faultTriggered) return
+    if (state.process.simTimeSec < ex.triggerDelaySeconds) return
 
-    const t = window.setTimeout(() => {
-      const cur = stateRef.current
-      const exercise = getExercise(cur.session.exerciseId)
-      if (!exercise?.faultType || cur.faultTriggered) return
-
-      const applied = applyFault(exercise.faultType)
-      dispatch({ type: 'SET_PROCESS', patch: applied.patch })
-      for (const msg of applied.messages) pushSystem(msg)
-      dispatch({ type: 'FAULT_TRIGGERED' })
-      pushSystem(`--- Запущена нештатная ситуация: «${exercise.name}» ---`)
-    }, ex.triggerDelaySeconds * 1000)
-
-    return () => clearTimeout(t)
+    const applied = applyFault(ex.faultType)
+    dispatch({ type: 'SET_PROCESS', patch: applied.patch })
+    for (const msg of applied.messages) pushSystem(msg)
+    dispatch({ type: 'FAULT_TRIGGERED' })
+    pushSystem(`--- Запущена нештатная ситуация: «${ex.name}» ---`)
   }, [
     state.session.view,
     state.session.started,
     state.session.completed,
+    state.session.paused,
     state.session.exerciseId,
     state.faultTriggered,
+    state.process.simTimeSec,
     pushSystem,
   ])
 
@@ -387,23 +527,47 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
 
   const logAction = useCallback(
     (description: string) => {
+      const before = stateRef.current
+      const ex = getExercise(before.session.exerciseId)
+      const finding = analyzeAction({
+        description,
+        at: Date.now(),
+        actionsSoFar: before.actionsLog.map((a) => a.description),
+        exercise: ex,
+        process: before.process,
+      })
+      if (finding) {
+        dispatch({ type: 'ADD_AI_FINDING', finding })
+        pushSystem(`ИИ: ${finding.title} — ${finding.why}`)
+      }
+
       pushAction(description)
 
       const cur = stateRef.current
       if (!cur.faultTriggered || cur.faultResponded || !cur.faultAt) return
       if (recoveryLogged.current) return
-      const ex = getExercise(cur.session.exerciseId)
-      if (!ex?.expectedResponseActions?.includes(description)) return
+      const exercise = getExercise(cur.session.exerciseId)
+      if (!exercise) return
+
+      let matched =
+        exercise.expectedResponseActions?.includes(description) ?? false
+      if (!matched && exercise.faultType === 'fuelGas') {
+        const m = description.match(/топливного газа на (\d+)%/)
+        if (m && Number(m[1]) >= 40) matched = true
+      }
+      if (!matched) return
 
       recoveryLogged.current = true
       const sec = (Date.now() - cur.faultAt) / 1000
       const inTime =
-        ex.normResponseSeconds != null ? sec <= ex.normResponseSeconds : true
+        exercise.normResponseSeconds != null
+          ? sec <= exercise.normResponseSeconds
+          : true
       dispatch({ type: 'FAULT_RESPONDED', seconds: sec, inTime })
       pushSystem(
         inTime
-          ? `Нештатная ситуация устранена за ${sec.toFixed(1)} с (норма ${ex.normResponseSeconds} с).`
-          : `Реакция ${sec.toFixed(1)} с — сверх нормы ${ex.normResponseSeconds} с.`,
+          ? `Нештатная ситуация устранена за ${sec.toFixed(1)} с (норма ${exercise.normResponseSeconds} с).`
+          : `Реакция ${sec.toFixed(1)} с — сверх нормы ${exercise.normResponseSeconds} с.`,
       )
     },
     [pushAction, pushSystem],
@@ -412,10 +576,31 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     state.session.view === 'exercise' &&
     state.session.started &&
     !state.session.completed &&
+    !state.session.paused &&
     state.session.role === 'trainee'
+
+  const blockSequence = useCallback(
+    (action: GuardedAction, fuelTarget?: number) => {
+      const cur = stateRef.current
+      const reason = sequenceBlockReason({
+        exercise: getExercise(cur.session.exerciseId),
+        process: cur.process,
+        actionLogs: cur.actionsLog.map((a) => a.description),
+        action,
+        fuelTarget,
+      })
+      if (reason) {
+        pushSystem(`Последовательность: ${reason}`)
+        return true
+      }
+      return false
+    },
+    [pushSystem],
+  )
 
   const startPumpN1 = useCallback(() => {
     if (!canControl) return
+    if (blockSequence('start-N1')) return
     const proc = stateRef.current.process
     if (!proc.powerOk) {
       pushSystem('Пуск Н-1 невозможен: нет электропитания.')
@@ -423,13 +608,12 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     }
     const p = proc.pumpN1
     if (p === 'running' || p === 'starting') return
-    if (
-      !window.confirm(
-        'Подтвердите пуск сырьевого насоса Н-1 (критическая операция).',
-      )
-    ) {
-      return
-    }
+    const risk = predictRisk(proc, 'pump-n1-start')
+    if (risk) dispatch({ type: 'SET_AI_RISK', risk })
+    const confirmMsg = risk
+      ? `Прогноз риска: ${risk.title}\n${risk.detail}\n\nВсё равно пустить Н-1?`
+      : 'Подтвердите пуск сырьевого насоса Н-1 (критическая операция).'
+    if (!window.confirm(confirmMsg)) return
     logAction("Насос 'Н-1': нажата кнопка 'Пуск'")
     dispatch({ type: 'SET_PROCESS', patch: { pumpN1: 'starting' } })
     if (pumpStartTimer.current) clearTimeout(pumpStartTimer.current)
@@ -442,10 +626,11 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
         pushSystem('Н-1 вышел на режим (Running).')
       }
     }, 1500)
-  }, [canControl, logAction, pushSystem])
+  }, [canControl, logAction, pushSystem, blockSequence])
 
   const stopPumpN1 = useCallback(() => {
     if (!canControl) return
+    if (blockSequence('shutdown-stop-N1')) return
     if (stateRef.current.process.pumpN1 === 'stopped') return
     logAction("Насос 'Н-1': нажата кнопка 'Стоп'")
     if (pumpStartTimer.current) clearTimeout(pumpStartTimer.current)
@@ -453,7 +638,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
       type: 'SET_PROCESS',
       patch: { pumpN1: 'stopped', pressureN1: 0 },
     })
-  }, [canControl, logAction])
+  }, [canControl, logAction, blockSequence])
 
   const startPump = useCallback(
     (id: 'N-1' | 'N-2' | 'N-3') => {
@@ -462,6 +647,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
         return
       }
       if (!canControl) return
+      if (blockSequence(id === 'N-2' ? 'start-N2' : 'start-N3')) return
       const proc = stateRef.current.process
       if (!proc.powerOk) {
         pushSystem(`Пуск ${id} невозможен: нет электропитания.`)
@@ -470,14 +656,26 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
       const key = id === 'N-2' ? 'pumpN2' : 'pumpN3'
       if (proc[key] === 'running' || proc[key] === 'starting') return
       if (
-        !window.confirm(`Подтвердите пуск насоса ${id} (подача в печной тракт).`)
+        !window.confirm(
+          (() => {
+            const risk = predictRisk(
+              proc,
+              id === 'N-2' ? 'pump-n2-start' : 'pump-n3-start',
+            )
+            if (risk) {
+              dispatch({ type: 'SET_AI_RISK', risk })
+              return `Прогноз риска: ${risk.title}\n${risk.detail}\n\nВсё равно пустить ${id}?`
+            }
+            return `Подтвердите пуск насоса ${id} (подача в печной тракт).`
+          })(),
+        )
       ) {
         return
       }
       logAction(`Насос '${id}': нажата кнопка 'Пуск'`)
       dispatch({ type: 'SET_PROCESS', patch: { [key]: 'running' } })
     },
-    [canControl, logAction, pushSystem, startPumpN1],
+    [canControl, logAction, pushSystem, startPumpN1, blockSequence],
   )
 
   const stopPump = useCallback(
@@ -487,12 +685,13 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
         return
       }
       if (!canControl) return
+      if (blockSequence('shutdown-stop-furnace-pump')) return
       const key = id === 'N-2' ? 'pumpN2' : 'pumpN3'
       if (stateRef.current.process[key] === 'stopped') return
       logAction(`Насос '${id}': нажата кнопка 'Стоп'`)
       dispatch({ type: 'SET_PROCESS', patch: { [key]: 'stopped' } })
     },
-    [canControl, logAction, stopPumpN1],
+    [canControl, logAction, stopPumpN1, blockSequence],
   )
 
   const openValve = useCallback(
@@ -502,6 +701,9 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
         pushSystem('Привод задвижки недоступен: нет приборного воздуха.')
         return
       }
+      const guard: GuardedAction =
+        id === 'L-1' ? 'open-L1' : id === 'L-2' ? 'open-L2' : 'open-L3'
+      if (blockSequence(guard)) return
       const names = {
         'L-1': "Электрозадвижка 'Л-1 (вход сырья)' нажата кнопка 'Открыть'",
         'L-2':
@@ -518,7 +720,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
             : { valveL3Motion: 'opening' }
       dispatch({ type: 'SET_PROCESS', patch })
     },
-    [canControl, logAction, pushSystem],
+    [canControl, logAction, pushSystem, blockSequence],
   )
 
   const closeValve = useCallback(
@@ -565,31 +767,34 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
   const setDemulsifier = useCallback(
     (on: boolean) => {
       if (!canControl) return
+      if (on && blockSequence('elou-demulsifier')) return
       if (on) logAction("ЭЛОУ 'Э-1..Э-6': подача деэмульгатора включена")
       else logAction("ЭЛОУ 'Э-1..Э-6': подача деэмульгатора отключена")
       dispatch({ type: 'SET_PROCESS', patch: { demulsifierOn: on } })
     },
-    [canControl, logAction],
+    [canControl, logAction, blockSequence],
   )
 
   const setElectricField = useCallback(
     (on: boolean) => {
       if (!canControl) return
+      if (on && blockSequence('elou-field')) return
       if (on) logAction("ЭЛОУ 'Э-1..Э-6': электрическое поле включено")
       else logAction("ЭЛОУ 'Э-1..Э-6': электрическое поле отключено")
       dispatch({ type: 'SET_PROCESS', patch: { electricFieldOn: on } })
     },
-    [canControl, logAction],
+    [canControl, logAction, blockSequence],
   )
 
   const setWashWater = useCallback(
     (on: boolean) => {
       if (!canControl) return
+      if (on && blockSequence('elou-wash')) return
       if (on) logAction("ЭЛОУ 'Э-1..Э-6': промывная вода включена")
       else logAction("ЭЛОУ 'Э-1..Э-6': промывная вода отключена")
       dispatch({ type: 'SET_PROCESS', patch: { washWaterOn: on } })
     },
-    [canControl, logAction],
+    [canControl, logAction, blockSequence],
   )
 
   const setLevelSetpoint = useCallback(
@@ -746,10 +951,11 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
         return
       }
       const p = Math.max(0, Math.min(100, Math.round(percent)))
+      if (blockSequence('fuel', p)) return
       logAction(`Печь 'П-1': Изменена подача топливного газа на ${p}%`)
       dispatch({ type: 'SET_PROCESS', patch: { fuelGasPercent: p } })
     },
-    [canControl, logAction, pushSystem],
+    [canControl, logAction, pushSystem, blockSequence],
   )
 
   const performEmergencyAction = useCallback(
@@ -849,17 +1055,59 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
 
     const ex = getExercise(cur.session.exerciseId)
     const needed = ex?.scenarioSteps ?? []
-    const done = new Set(cur.actionsLog.map((a) => a.description))
-    const countDone = needed.filter((s) => done.has(s)).length
+    const doneDescs = cur.actionsLog.map((a) => a.description)
+    const done = new Set(doneDescs)
+
+    const stepDone = (s: string) => {
+      if (done.has(s)) return true
+      if (s.includes('топливного газа')) {
+        return doneDescs.some((d) => {
+          const m = d.match(/топливного газа на (\d+)%/)
+          return m != null && Number(m[1]) >= 40
+        })
+      }
+      return false
+    }
+
+    const countDone = needed.filter(stepDone).length
     const score = needed.length === 0 ? 0 : (countDone / needed.length) * 100
     const scorePercent = Math.round(score * 10) / 10
-    const penalty = cur.actionsLog.filter(
-      (a) => !needed.includes(a.description),
-    ).length
+    const penaltyClean = cur.actionsLog.filter((a) => {
+      if (needed.includes(a.description)) return false
+      if (
+        needed.some((s) => s.includes('топливного')) &&
+        /топливного газа на (\d+)%/.test(a.description)
+      ) {
+        const m = a.description.match(/на (\d+)%/)
+        if (m && Number(m[1]) >= 40) return false
+      }
+      return true
+    }).length
+
+    const completionFindings = analyzeCompletion({
+      exercise: ex,
+      actionsLog: cur.actionsLog,
+      faultTriggered: cur.faultTriggered,
+      faultResponded: cur.faultResponded,
+      respondedInTime: cur.session.respondedInTime,
+      responseSeconds: cur.session.responseSeconds,
+    })
+    const allFindings = [...cur.aiFindings, ...completionFindings]
+    const retrain = recommendRetrain(allFindings, cur.session.exerciseId)
+    const { qualified, summary } = evaluateQualification({
+      scorePercent,
+      penalty: penaltyClean,
+      findings: allFindings,
+      faultTriggered: cur.faultTriggered,
+      respondedInTime: cur.session.respondedInTime,
+    })
+
     const finishEvent = {
       id: uid(),
       at: Date.now(),
-      description: `Упражнение завершено. Выполнение: ${score.toFixed(0)}%, лишних действий: ${penalty}`,
+      description: `Упражнение завершено. ${summary} Выполнение: ${scorePercent.toFixed(0)}%, лишних: ${penaltyClean}.${
+        retrain ? ` Рекомендация ИИ: ${retrain.reason}` : ''
+      }`,
     }
     const systemEvents = [...cur.systemEvents, finishEvent]
 
@@ -871,10 +1119,22 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
         exerciseName: ex?.name ?? '—',
         completedAt: finishEvent.at,
         scorePercent,
-        penalty,
+        penalty: penaltyClean,
         responseSeconds: cur.session.responseSeconds,
         respondedInTime: cur.session.respondedInTime,
         simTimeSec: cur.process.simTimeSec,
+        qualified,
+        qualificationSummary: summary,
+        recommendExerciseId: retrain?.exerciseId ?? null,
+        recommendReason: retrain?.reason ?? null,
+        aiFindings: allFindings.map((f) => ({
+          at: f.at,
+          class: f.class,
+          title: f.title,
+          why: f.why,
+          severity: f.severity,
+          relatedTag: f.relatedTag,
+        })),
         actionsLog: cur.actionsLog.map(({ at, description }) => ({
           at,
           description,
@@ -884,10 +1144,40 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
           description,
         })),
       })
+      appendAudit({
+        actor: cur.session.userName.trim(),
+        role: 'trainee',
+        action: 'complete_exercise',
+        detail: `${ex?.id ?? '?'} · ${qualified ? 'PASS' : 'FAIL'} · ${scorePercent}%`,
+      })
     }
 
-    dispatch({ type: 'COMPLETE', scorePercent, penalty, finishEvent })
+    dispatch({
+      type: 'COMPLETE',
+      scorePercent,
+      penalty: penaltyClean,
+      qualified,
+      recommendExerciseId: retrain?.exerciseId ?? null,
+      recommendReason: retrain?.reason ?? null,
+      finishEvent,
+      aiFindings: allFindings,
+    })
   }, [])
+
+  const setPaused = useCallback(
+    (paused: boolean) => {
+      if (stateRef.current.session.view !== 'exercise') return
+      if (stateRef.current.session.completed) return
+      dispatch({ type: 'SET_PAUSED', paused })
+      pushSystem(paused ? 'Симуляция на паузе.' : 'Симуляция продолжена.')
+      appendAudit({
+        actor: stateRef.current.session.userName || 'trainee',
+        role: 'trainee',
+        action: paused ? 'pause' : 'resume',
+      })
+    },
+    [pushSystem],
+  )
 
   const startSession = useCallback(() => {
     recoveryLogged.current = false
@@ -896,6 +1186,13 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
       clearTimeout(pumpStartTimer.current)
       pumpStartTimer.current = null
     }
+    const cur = stateRef.current.session
+    appendAudit({
+      actor: cur.userName || 'trainee',
+      role: 'trainee',
+      action: 'start_session',
+      detail: cur.exerciseId ?? undefined,
+    })
     dispatch({ type: 'START_SESSION' })
   }, [])
 
@@ -908,6 +1205,58 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     }
     dispatch({ type: 'RESET_TO_START' })
   }, [])
+
+  const startAdaptiveRetrain = useCallback(() => {
+    const cur = stateRef.current.session
+    if (!cur.recommendExerciseId) return
+    recoveryLogged.current = false
+    saltAlarmLogged.current = false
+    if (pumpStartTimer.current) {
+      clearTimeout(pumpStartTimer.current)
+      pumpStartTimer.current = null
+    }
+    appendAudit({
+      actor: cur.userName || 'trainee',
+      role: 'trainee',
+      action: 'adaptive_retrain',
+      detail: cur.recommendExerciseId,
+    })
+    dispatch({
+      type: 'START_RETRAIN',
+      userName: cur.userName,
+      exerciseId: cur.recommendExerciseId,
+    })
+  }, [])
+
+  const ackAlarm = useCallback((key: string) => {
+    dispatch({ type: 'ACK_ALARM', key })
+    pushSystem(`Тревога квитирована: ${key}`)
+  }, [pushSystem])
+
+  const injectCurrentFault = useCallback(() => {
+    const cur = stateRef.current
+    if (cur.session.view !== 'exercise' || cur.session.completed) return
+    if (cur.faultTriggered) {
+      pushSystem('Отказ уже активен.')
+      return
+    }
+    const ex = getExercise(cur.session.exerciseId)
+    if (!ex?.faultType) {
+      pushSystem('У текущего упражнения нет отказа для ввода.')
+      return
+    }
+    const applied = applyFault(ex.faultType)
+    dispatch({ type: 'SET_PROCESS', patch: applied.patch })
+    for (const msg of applied.messages) pushSystem(msg)
+    dispatch({ type: 'FAULT_TRIGGERED' })
+    pushSystem(`Инструктор ввёл событие: «${ex.name}»`)
+    appendAudit({
+      actor: 'instructor',
+      role: 'instructor',
+      action: 'inject_fault',
+      detail: ex.faultType,
+    })
+  }, [pushSystem])
 
   const analogs = useMemo(() => getAnalogs(state.process), [state.process])
 
@@ -942,6 +1291,10 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     completeExercise,
     resetToStart,
     performEmergencyAction,
+    setPaused,
+    startAdaptiveRetrain,
+    ackAlarm,
+    injectCurrentFault,
     canControl,
   }
 

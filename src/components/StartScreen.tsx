@@ -1,3 +1,10 @@
+import { useState } from 'react'
+import {
+  appendAudit,
+  isInstructorAuthed,
+  setInstructorAuthed,
+  verifyInstructorPin,
+} from '../sim/auditStorage'
 import { useTrainer } from '../sim/TrainerContext'
 import { SPEC_SCENARIOS } from '../sim/scenarioCatalog'
 import { getExercise } from '../sim/scenarios'
@@ -19,6 +26,42 @@ export function StartScreen() {
     role === 'trainee' && userName.trim().length >= 2 && !!exerciseId
   const playable = SPEC_SCENARIOS.filter((s) => s.status === 'playable').length
   const planned = SPEC_SCENARIOS.filter((s) => s.status === 'planned').length
+  const [pin, setPin] = useState('')
+  const [pinError, setPinError] = useState('')
+
+  const goInstructor = () => {
+    if (isInstructorAuthed()) {
+      appendAudit({
+        actor: 'instructor',
+        role: 'instructor',
+        action: 'open_reports',
+        detail: 'session already authed',
+      })
+      openReports()
+      return
+    }
+    setRole('instructor')
+  }
+
+  const submitPin = () => {
+    if (!verifyInstructorPin(pin)) {
+      setPinError('Неверный PIN. Учебный PIN по умолчанию: 2026')
+      appendAudit({
+        actor: 'unknown',
+        role: 'instructor',
+        action: 'auth_failed',
+      })
+      return
+    }
+    setInstructorAuthed(true)
+    appendAudit({
+      actor: 'instructor',
+      role: 'instructor',
+      action: 'auth_ok',
+    })
+    setPinError('')
+    openReports()
+  }
 
   return (
     <div className="start-screen">
@@ -28,8 +71,8 @@ export function StartScreen() {
           Компьютерный тренажёрный комплекс · кейс Ч2026/ГПН
         </p>
         <p className="spec-badge">
-          MVP по отчёту требований · каталог SC-01…SC-15 доступен в симуляции (
-          {playable}/{playable + planned})
+          Сценарии SC-01…SC-15 ({playable}/{playable + planned}) · пуск /
+          останов · журнал · разбор действий
         </p>
 
         <section>
@@ -45,17 +88,36 @@ export function StartScreen() {
             <button
               type="button"
               className={role === 'instructor' ? 'active' : ''}
-              onClick={() => openReports()}
+              onClick={goInstructor}
             >
               Инструктор
             </button>
           </div>
           <p className="hint">
             {role === 'trainee'
-              ? 'Выполните упражнение на мнемосхеме. Результат сохранится для инструктора.'
-              : 'Инструктор сразу переходит к отчётам обучаемых (ФИО не требуется).'}
+              ? 'Упражнение на мнемосхеме, оценка квалификации и разбор ИИ.'
+              : role === 'instructor'
+                ? 'Доступ к отчётам по PIN (разграничение ролей / ИБ).'
+                : 'Выберите роль.'}
           </p>
         </section>
+
+        {role === 'instructor' && !isInstructorAuthed() && (
+          <section>
+            <h2>PIN инструктора</h2>
+            <input
+              type="password"
+              value={pin}
+              onChange={(e) => setPin(e.target.value)}
+              placeholder="PIN"
+              maxLength={12}
+            />
+            {pinError && <p className="hint" style={{ color: '#e09090' }}>{pinError}</p>}
+            <button type="button" className="start-btn" onClick={submitPin}>
+              Войти в отчёты
+            </button>
+          </section>
+        )}
 
         {role === 'trainee' && (
           <>
@@ -107,10 +169,6 @@ export function StartScreen() {
                   </li>
                 ))}
               </ul>
-              <p className="hint">
-                Источник: docs/Отчет_по_требованиям_и_спецификации.docx §8.
-                Эталоны подлежат утверждению владельцем процесса.
-              </p>
             </section>
 
             <button
@@ -122,12 +180,6 @@ export function StartScreen() {
               Начать упражнение
             </button>
           </>
-        )}
-
-        {!role && (
-          <p className="hint" style={{ marginTop: 8 }}>
-            Выберите роль, чтобы продолжить.
-          </p>
         )}
       </div>
     </div>

@@ -1,0 +1,64 @@
+.sc-check {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  width: min(320px, calc(100% - 24px));
+  max-height: 38vh;
+  overflow: auto;
+  z-index: 5;
+  border-radius: 10px;
+  border: 1px solid #3a556c;
+  background: rgba(16, 26, 36, 0.94);
+  padding: 10px 12px;
+  color: #d7e3ee;
+  font-size: 11px;
+}
+
+.sc-check header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  color: #9db4c7;
+}
+
+.sc-check ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.sc-check li {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  opacity: 0.75;
+}
+
+.sc-check li.done {
+  opacity: 1;
+  color: #a8d4b0;
+}
+
+.sc-check .mark {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid #4a6780;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+}
+
+.sc-check li.done .mark {
+  border-color: #3d8a55;
+  background: #1e3a28;
+}
+
+.sc-check .txt {
+  line-height: 1.3;
+}

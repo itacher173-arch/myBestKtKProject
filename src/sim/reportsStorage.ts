@@ -14,6 +14,18 @@ export interface TraineeReport {
   responseSeconds: number | null
   respondedInTime: boolean | null
   simTimeSec: number
+  qualified: boolean
+  qualificationSummary: string
+  recommendExerciseId: string | null
+  recommendReason: string | null
+  aiFindings: {
+    at: number
+    class: string
+    title: string
+    why: string
+    severity: string
+    relatedTag?: string
+  }[]
   actionsLog: StoredLogEntry[]
   systemEvents: StoredLogEntry[]
 }

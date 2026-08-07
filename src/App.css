@@ -73,6 +73,18 @@
   font-size: 13px;
 }
 
+.result-banner.pass {
+  background: #1e3a28;
+  border-bottom-color: #3d5a40;
+  color: #c8e0c8;
+}
+
+.result-banner.fail {
+  background: #3a2222;
+  border-bottom-color: #5a3030;
+  color: #f0c0c0;
+}
+
 .live-strip ul,
 .log-list {
   list-style: none;

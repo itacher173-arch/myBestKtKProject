@@ -1,16 +1,24 @@
 import { getUtilityAlarms } from '../sim/processModel'
 import { emergencyActionsForFault } from '../sim/faultEngine'
 import { getExercise } from '../sim/scenarios'
+import { isInstructorAuthed } from '../sim/auditStorage'
 import { useTrainer } from '../sim/TrainerContext'
 import './EmergencyPanel.css'
 
 export function EmergencyPanel() {
-  const { state, canControl, performEmergencyAction } = useTrainer()
+  const {
+    state,
+    canControl,
+    performEmergencyAction,
+    ackAlarm,
+    injectCurrentFault,
+  } = useTrainer()
   const ex = getExercise(state.session.exerciseId)
   const alarms = getUtilityAlarms(state.process)
   const actions = emergencyActionsForFault(
     state.faultTriggered ? ex?.faultType : null,
   )
+  const instructor = isInstructorAuthed()
 
   if (state.session.view !== 'exercise' || !state.session.started) return null
 
@@ -22,9 +30,19 @@ export function EmergencyPanel() {
       )}
       {alarms.length > 0 && (
         <ul className="emerg-alarms">
-          {alarms.map((a) => (
-            <li key={a}>{a}</li>
-          ))}
+          {alarms.map((a) => {
+            const acked = state.ackedAlarmKeys.includes(a)
+            return (
+              <li key={a} className={acked ? 'acked' : ''}>
+                <span>{a}</span>
+                {!acked && (
+                  <button type="button" onClick={() => ackAlarm(a)}>
+                    Квит.
+                  </button>
+                )}
+              </li>
+            )
+          })}
         </ul>
       )}
       {state.faultTriggered && !state.faultResponded && (
@@ -60,6 +78,15 @@ export function EmergencyPanel() {
             ))}
           </div>
         </>
+      )}
+
+      {instructor && ex?.faultType && !state.faultTriggered && (
+        <div className="emerg-inject">
+          <h3>Инструктор</h3>
+          <button type="button" onClick={injectCurrentFault}>
+            Ввести отказ сейчас
+          </button>
+        </div>
       )}
     </aside>
   )

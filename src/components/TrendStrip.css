@@ -1,0 +1,38 @@
+.trend-strip {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: min(560px, calc(100% - 320px));
+  padding: 8px;
+  border-radius: 8px;
+  background: rgba(14, 22, 30, 0.88);
+  border: 1px solid #3a556c;
+}
+
+.trend-empty {
+  font-size: 11px;
+  color: #7f97ab;
+}
+
+.trend-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.trend-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 10px;
+  color: #9db4c7;
+}
+
+.trend-label strong {
+  color: #e8eef4;
+  font-variant-numeric: tabular-nums;
+}

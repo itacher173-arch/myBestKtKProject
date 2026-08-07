@@ -10,8 +10,21 @@ const startUpSequence = (): string[] => [
   "ЭЛОУ 'Э-1..Э-6': электрическое поле включено",
   "ЭЛОУ 'Э-1..Э-6': промывная вода включена",
   "Насос 'Н-2': нажата кнопка 'Пуск'",
+  "Печь 'П-1': Изменена подача топливного газа на 60%",
   "Электрозадвижка 'Л-2 (вывод бензина НК-180°С)' нажата кнопка 'Открыть'",
   "Электрозадвижка 'Л-3 (вывод товарного мазута)' нажата кнопка 'Открыть'",
+]
+
+const shutdownSequence = (): string[] => [
+  "Печь 'П-1': Изменена подача топливного газа на 0%",
+  "Насос 'Н-2': нажата кнопка 'Стоп'",
+  "Насос 'Н-3': нажата кнопка 'Стоп'",
+  "Электрозадвижка 'Л-2 (вывод бензина НК-180°С)' нажата кнопка 'Закрыть'",
+  "Электрозадвижка 'Л-3 (вывод товарного мазута)' нажата кнопка 'Закрыть'",
+  "Насос 'Н-1': нажата кнопка 'Стоп'",
+  "Электрозадвижка 'Л-1 (вход сырья)' нажата кнопка 'Закрыть'",
+  "ЭЛОУ 'Э-1..Э-6': электрическое поле отключено",
+  "ЭЛОУ 'Э-1..Э-6': подача деэмульгатора отключена",
 ]
 
 function emergencyLog(fault: FaultType): string {
@@ -39,11 +52,7 @@ function scExercise(opts: {
     normResponseSeconds: opts.norm ?? 60,
     warmStart: true,
     faultType: opts.faultType,
-    scenarioSteps: [
-      ...startUpSequence(),
-      ...(opts.extraSteps ?? []),
-      response,
-    ],
+    scenarioSteps: [...(opts.extraSteps ?? []), response],
     expectedResponseActions: [response],
   }
 }
@@ -52,13 +61,24 @@ export const exercises: Exercise[] = [
   {
     id: 'startup',
     specId: 'SC-14',
-    name: 'SC-14 · Пуск установки (штатный режим)',
+    name: 'SC-14 · Пуск установки (последовательность)',
     description:
-      'Пуск ЭЛОУ-АВТ без осложнений (SC-14). Соблюдайте последовательность шагов.',
+      'Штатный пуск с выдержками. Неверная последовательность и ускоренный прогрев блокируются.',
     triggerDelaySeconds: 0,
     scenarioSteps: startUpSequence(),
     faultType: null,
     warmStart: false,
+  },
+  {
+    id: 'shutdown',
+    specId: 'SC-STOP',
+    name: 'Плановый останов установки',
+    description:
+      'Снимите нагрузку в правильном порядке: топливо → печные насосы → продукт → сырьё → ЭЛОУ.',
+    triggerDelaySeconds: 0,
+    scenarioSteps: shutdownSequence(),
+    faultType: null,
+    warmStart: true,
   },
   {
     id: 'demulsifier',
@@ -69,10 +89,7 @@ export const exercises: Exercise[] = [
     triggerDelaySeconds: 25,
     normResponseSeconds: 60,
     warmStart: true,
-    scenarioSteps: [
-      ...startUpSequence(),
-      "ЭЛОУ 'Э-1..Э-6': подача деэмульгатора включена",
-    ],
+    scenarioSteps: ["ЭЛОУ 'Э-1..Э-6': подача деэмульгатора включена"],
     expectedResponseActions: [
       "ЭЛОУ 'Э-1..Э-6': подача деэмульгатора включена",
     ],
@@ -88,7 +105,9 @@ export const exercises: Exercise[] = [
     normResponseSeconds: 45,
     warmStart: true,
     scenarioSteps: [
-      ...startUpSequence(),
+      "Печь 'П-1': Изменена подача топливного газа на 60%",
+    ],
+    expectedResponseActions: [
       "Печь 'П-1': Изменена подача топливного газа на 60%",
     ],
     faultType: 'fuelGas',
@@ -102,10 +121,7 @@ export const exercises: Exercise[] = [
     triggerDelaySeconds: 20,
     normResponseSeconds: 40,
     warmStart: true,
-    scenarioSteps: [
-      ...startUpSequence(),
-      "Насос 'Н-1': нажата кнопка 'Пуск'",
-    ],
+    scenarioSteps: ["Насос 'Н-1': нажата кнопка 'Пуск'"],
     expectedResponseActions: ["Насос 'Н-1': нажата кнопка 'Пуск'"],
     faultType: 'pumpTrip',
   },

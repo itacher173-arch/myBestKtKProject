@@ -120,10 +120,16 @@ export interface SessionState {
   view: 'start' | 'exercise' | 'reports'
   started: boolean
   completed: boolean
+  /** Пауза симуляции (тик и отказы не идут) */
+  paused: boolean
   scorePercent: number
   penalty: number
   responseSeconds: number | null
   respondedInTime: boolean | null
+  /** Вердикт квалификации по эталону + ИИ */
+  qualified: boolean | null
+  recommendExerciseId: string | null
+  recommendReason: string | null
 }
 
 export interface TrainerState {
@@ -136,6 +142,21 @@ export interface TrainerState {
   faultTriggered: boolean
   faultResponded: boolean
   faultAt: number | null
+  /** Находки модуля разбора в текущей сессии */
+  aiFindings: import('./aiCoach').AiFinding[]
+  /** Текущий прогноз риска (до ошибки) */
+  aiRisk: import('./aiCoach').AiRiskWarning | null
+  /** История ключевых тегов для трендов */
+  analogHistory: {
+    t: number
+    pressureN1: number
+    tempFurnaceOut: number
+    saltMgL: number
+    pressureK1: number
+    levelK1: number
+  }[]
+  /** Квитированные ключи тревог */
+  ackedAlarmKeys: string[]
 }
 
 export function createInitialProcess(): ProcessState {
@@ -207,13 +228,13 @@ export function createWarmProcess(): ProcessState {
     fuelGasPercent: 60,
     pressureN1: 17.3,
     feedFlow: 113,
-    tempElouIn: 118,
+    tempElouIn: 113,
     saltMgL: 3,
     pressureAfterElou: 7,
     tempK1In: 135,
-    tempK1Bottom: 170,
-    pressureK1: 1.5,
-    tempFurnaceOut: 300,
+    tempK1Bottom: 175,
+    pressureK1: 1.45,
+    tempFurnaceOut: 308,
     pressureK2: 0.52,
     levelK1: 50,
     levelK2: 50,
@@ -223,11 +244,6 @@ export function createWarmProcess(): ProcessState {
     levelWaterE1: 55,
     levelWaterE2: 52,
     levelReflux: 65,
-    tempElouIn: 113,
-    tempK1In: 135,
-    tempK1Bottom: 175,
-    pressureK1: 1.45,
-    tempFurnaceOut: 308,
   }
 }
 
@@ -239,9 +255,13 @@ export function createInitialSession(): SessionState {
     view: 'start',
     started: false,
     completed: false,
+    paused: false,
     scorePercent: 0,
     penalty: 0,
     responseSeconds: null,
     respondedInTime: null,
+    qualified: null,
+    recommendExerciseId: null,
+    recommendReason: null,
   }
 }
