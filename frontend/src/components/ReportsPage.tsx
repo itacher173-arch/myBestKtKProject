@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ApiError } from '../api/client'
+import { ApiError, apiGet } from '../api/client'
+import { ScenarioJsonEditor } from './ScenarioJsonEditor'
 import { getAuthedUser, logoutUser, redirectToAuthPortal } from '../sim/authApi'
 import {
   presenceBus,
@@ -39,7 +40,7 @@ function formatDate(ts: number) {
   return new Date(ts).toLocaleString('ru-RU')
 }
 
-type Tab = 'reports' | 'groups' | 'audit'
+type Tab = 'reports' | 'groups' | 'audit' | 'scenarios'
 
 export function ReportsPage() {
   const { resetToStart } = useTrainer()
@@ -62,6 +63,8 @@ export function ReportsPage() {
   const [groupBusy, setGroupBusy] = useState(false)
   const presence = usePresenceMap()
   const [groupPanel, setGroupPanel] = useState<'members' | 'reports'>('members')
+  const [auditIntegrity, setAuditIntegrity] = useState<string>('')
+  const [metricsHint, setMetricsHint] = useState('')
 
 
   const refresh = async () => {
@@ -352,6 +355,14 @@ export function ReportsPage() {
               <dd>{selectedReport.scorePercent}%</dd>
             </div>
             <div>
+              <dt>LCS / эталон</dt>
+              <dd>
+                {selectedReport.lcsTotal != null
+                  ? `${selectedReport.lcsMatched ?? 0}/${selectedReport.lcsTotal}`
+                  : '—'}
+              </dd>
+            </div>
+            <div>
               <dt>Штрафы</dt>
               <dd>{selectedReport.penalty}</dd>
             </div>
@@ -360,6 +371,15 @@ export function ReportsPage() {
               <dd>{selectedReport.simTimeSec} с</dd>
             </div>
           </dl>
+
+          {selectedReport.recommendExerciseId && (
+            <p className="hint">
+              Адаптивная рекомендация: {selectedReport.recommendExerciseId}
+              {selectedReport.recommendReason
+                ? ` — ${selectedReport.recommendReason}`
+                : ''}
+            </p>
+          )}
 
           {selectedReport.qualificationSummary && (
             <p className="hint">{selectedReport.qualificationSummary}</p>
@@ -413,6 +433,13 @@ export function ReportsPage() {
           >
             Аудит
           </button>
+          <button
+            type="button"
+            className={tab === 'scenarios' ? 'hdr-btn' : 'hdr-btn ghost'}
+            onClick={() => setTab('scenarios')}
+          >
+            Сценарии JSON
+          </button>
           <button type="button" className="hdr-btn ghost" onClick={onClear}>
             Очистить отчёты
           </button>
@@ -422,21 +449,72 @@ export function ReportsPage() {
         </div>
       </header>
 
+      {tab === 'scenarios' && (
+        <div style={{ margin: 16 }}>
+          <ScenarioJsonEditor />
+        </div>
+      )}
+
       {tab === 'audit' && (
         <section className="reports-detail" style={{ margin: 16 }}>
           <div className="reports-detail-head">
             <h2>Журнал аудита</h2>
-            <button
-              type="button"
-              className="hdr-btn ghost"
-              onClick={() => {
-                if (!confirm('Очистить журнал аудита?')) return
-                void clearAudit().then(() => setAudit([]))
-              }}
-            >
-              Очистить аудит
-            </button>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="hdr-btn ghost"
+                onClick={() => {
+                  void apiGet<{ ok: boolean; checked?: number; error?: string }>(
+                    '/audit/verify',
+                  )
+                    .then((r) =>
+                      setAuditIntegrity(
+                        r.ok
+                          ? `Цепочка HMAC OK (${r.checked ?? 0} записей)`
+                          : `Нарушение: ${r.error ?? 'unknown'}`,
+                      ),
+                    )
+                    .catch((e) =>
+                      setAuditIntegrity(
+                        e instanceof Error ? e.message : 'Ошибка проверки',
+                      ),
+                    )
+                }}
+              >
+                Проверить HMAC
+              </button>
+              <button
+                type="button"
+                className="hdr-btn ghost"
+                onClick={() => {
+                  void apiGet<{
+                    uptimeSec?: number
+                    counters?: Record<string, number>
+                  }>('/metrics')
+                    .then((m) =>
+                      setMetricsHint(
+                        `uptime ${m.uptimeSec ?? '?'}с · ticks ${m.counters?.sim_ticks ?? 0} · cmd ${m.counters?.sim_commands ?? 0}`,
+                      ),
+                    )
+                    .catch(() => setMetricsHint('Метрики недоступны'))
+                }}
+              >
+                Метрики
+              </button>
+              <button
+                type="button"
+                className="hdr-btn ghost"
+                onClick={() => {
+                  if (!confirm('Очистить журнал аудита?')) return
+                  void clearAudit().then(() => setAudit([]))
+                }}
+              >
+                Очистить аудит
+              </button>
+            </div>
           </div>
+          {auditIntegrity && <p className="hint">{auditIntegrity}</p>}
+          {metricsHint && <p className="hint">{metricsHint}</p>}
           <ul className="reports-log">
             {audit.map((e) => (
               <li key={e.id}>

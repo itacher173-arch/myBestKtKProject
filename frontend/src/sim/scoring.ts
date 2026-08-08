@@ -1,5 +1,15 @@
 import type { Exercise, ProcessState } from './types'
 import { criticalFailReasonText } from './pazGuards'
+import {
+  localizeTrajectoryError,
+  matchGoldenTrajectory,
+  type TrajectoryError,
+} from './lcsScore'
+import {
+  classifyFromScore,
+  recommendByErrorClass,
+  type AdaptiveRule,
+} from './adaptiveRules'
 
 export type PenaltyKind = 'unsafe' | 'late' | 'extra' | 'missed'
 
@@ -13,7 +23,7 @@ export interface PenaltyDetail {
 export interface ScoreInput {
   exercise: Exercise | undefined
   process: ProcessState
-  actionsLog: { description: string }[]
+  actionsLog: { description: string; at?: number }[]
   faultTriggered: boolean
   faultResponded: boolean
   respondedInTime: boolean | null
@@ -30,6 +40,11 @@ export interface ScoreResult {
   outcomeOk: boolean
   stepsDone: number
   stepsTotal: number
+  /** LCS: совпавшие шаги эталона */
+  lcsMatched: number
+  lcsTotal: number
+  trajectoryError: TrajectoryError | null
+  adaptive: AdaptiveRule | null
 }
 
 function stepDone(needed: string, doneDescs: string[]): boolean {
@@ -195,30 +210,23 @@ export function scoreExercise(input: ScoreInput): ScoreResult {
   } = input
 
   const needed = exercise?.scenarioSteps ?? []
+  const golden = needed
   const doneDescs = actionsLog.map((a) => a.description)
-  const stepsDone = needed.filter((s) => stepDone(s, doneDescs)).length
-  const stepsTotal = needed.length
+  const lcs = matchGoldenTrajectory(golden, actionsLog)
+  const trajectoryError = localizeTrajectoryError(golden, actionsLog)
+  const stepsDone = lcs.matched
+  const stepsTotal = lcs.total || needed.length
   const stepScore =
     stepsTotal === 0 ? 0 : Math.round((stepsDone / stepsTotal) * 1000) / 10
 
   const expected = exercise?.expectedResponseActions ?? []
   const missedExpected = expected.filter((s) => !stepDone(s, doneDescs)).length
 
-  const extra = doneDescs.filter((d) => {
-    if (needed.includes(d)) return false
-    if (
-      needed.some((s) => s.includes('топливного')) &&
-      /топливного газа на (\d+)%/.test(d)
-    ) {
-      const m = d.match(/на (\d+)%/)
-      if (m && Number(m[1]) >= 40) return false
-    }
-    return true
-  }).length
-
+  // LCS: лишние действия не штрафуем как «extra», если они не unsafe
+  const extra = 0
   const unsafe = countUnsafeActions(process, actionsLog)
   const late = respondedInTime === false ? 1 : 0
-  const missed = missedExpected
+  const missed = missedExpected + (trajectoryError ? 1 : 0)
 
   const penaltyDetail: PenaltyDetail = {
     unsafe,
@@ -226,7 +234,7 @@ export function scoreExercise(input: ScoreInput): ScoreResult {
     extra,
     missed,
   }
-  const penalty = unsafe * 3 + late * 2 + extra + missed * 2
+  const penalty = unsafe * 3 + late * 2 + missed * 2
 
   const outcome = evaluateProcessOutcome(exercise, process, faultResponded)
   const criticalFail = detectCriticalFails(process, exercise, actionsLog)
@@ -246,7 +254,16 @@ export function scoreExercise(input: ScoreInput): ScoreResult {
   const qualified =
     !criticalFail && scoreOk && penaltyOk && responseOk && outcome.ok
 
-  const summary = criticalFail
+  const errorClass = classifyFromScore({
+    trajectoryMissed: trajectoryError != null,
+    late: late > 0,
+    unsafe,
+    missed: missedExpected,
+    extra: lcs.extrasAllowed.length,
+  })
+  const adaptive = recommendByErrorClass(errorClass)
+
+  let summary = criticalFail
     ? `НЕ КВАЛИФИЦИРОВАН: критическая ошибка. ${outcome.reason}.`
     : qualified
       ? `КВАЛИФИЦИРОВАН: ${outcome.reason}. Балл ${scorePercent.toFixed(0)}%.`
@@ -256,6 +273,13 @@ export function scoreExercise(input: ScoreInput): ScoreResult {
         (!responseOk ? '; реакция на отказ неполная/поздняя' : '') +
         (penalty > 12 ? `; штрафы ${penalty}` : '') +
         '.'
+
+  if (trajectoryError) {
+    summary += ` ${trajectoryError.message} [${trajectoryError.rule}].`
+  }
+  if (adaptive && !qualified) {
+    summary += ` Рекомендация: ${adaptive.miniTrainingId} — ${adaptive.reason}.`
+  }
 
   return {
     scorePercent,
@@ -267,5 +291,9 @@ export function scoreExercise(input: ScoreInput): ScoreResult {
     outcomeOk: outcome.ok,
     stepsDone,
     stepsTotal,
+    lcsMatched: lcs.matched,
+    lcsTotal: lcs.total,
+    trajectoryError,
+    adaptive,
   }
 }

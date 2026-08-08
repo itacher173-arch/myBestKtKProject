@@ -43,6 +43,17 @@ export interface TraineeReport {
     extra: number
     missed: number
   }
+  lcsMatched?: number
+  lcsTotal?: number
+  trajectoryError?: {
+    at: number | null
+    stepIndex: number
+    expected: string
+    rule: string
+    message: string
+  } | null
+  recommendExerciseId?: string | null
+  recommendReason?: string | null
   analogSample?: AnalogSample[]
   actionsLog: StoredLogEntry[]
   systemEvents: StoredLogEntry[]

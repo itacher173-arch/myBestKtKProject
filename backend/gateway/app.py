@@ -19,6 +19,7 @@ FRONTEND_DIST = ROOT / "frontend" / "dist"
 TRAINING_URL = os.getenv("KTK_TRAINING_URL", "http://127.0.0.1:8103")
 KNOWLEDGE_URL = os.getenv("KTK_KNOWLEDGE_URL", "http://127.0.0.1:8104")
 STORAGE_URL = os.getenv("KTK_STORAGE_URL", "http://127.0.0.1:8105")
+FASTAPI_URL = os.getenv("KTK_FASTAPI_URL", "http://127.0.0.1:8010")
 
 
 def fetch_json(url: str) -> object:
@@ -88,9 +89,10 @@ class Handler(JsonHandler):
                 ("training", TRAINING_URL),
                 ("knowledge", KNOWLEDGE_URL),
                 ("storage", STORAGE_URL),
+                ("fastapi", FASTAPI_URL),
             ):
                 try:
-                    services[name] = fetch_json(url + "/health")
+                    services[name] = fetch_json(url + "/health" if name != "fastapi" else url + "/api/health")
                 except Exception as exc:
                     services[name] = {"status": "error", "error": str(exc)}
             status = (
@@ -101,6 +103,14 @@ class Handler(JsonHandler):
             return self.send_json(
                 {"status": status, "service": "gateway", "services": services}
             )
+        if path in ("/api/live", "/api/ready"):
+            return self.proxy(FASTAPI_URL, path)
+        if path == "/api/metrics":
+            return self.proxy(STORAGE_URL, "/metrics")
+        if path == "/api/audit" or path.startswith("/api/audit/"):
+            return self.proxy(STORAGE_URL, path[len("/api") :])
+        if path.startswith("/api/scenarios/") or path.startswith("/api/sim/"):
+            return self.proxy(FASTAPI_URL, path)
         if path == "/api/mini-trainings":
             return self.proxy(TRAINING_URL, "/trainings")
         if path.startswith("/api/knowledge/"):
@@ -109,8 +119,6 @@ class Handler(JsonHandler):
             return self.proxy(KNOWLEDGE_URL, self.path[len("/api/knowledge") :] or "/")
         if path == "/api/reports" or path.startswith("/api/reports/"):
             return self.proxy(STORAGE_URL, path[len("/api") :])
-        if path == "/api/audit":
-            return self.proxy(STORAGE_URL, "/audit")
         if path.startswith("/api/auth/"):
             return self.proxy(STORAGE_URL, path[len("/api") :])
         if path == "/api/users" or path.startswith("/api/users/"):
@@ -127,8 +135,10 @@ class Handler(JsonHandler):
             return self.proxy(TRAINING_URL, path[len("/api/training") :])
         if path == "/api/reports":
             return self.proxy(STORAGE_URL, "/reports")
-        if path == "/api/audit":
-            return self.proxy(STORAGE_URL, "/audit")
+        if path == "/api/audit" or path.startswith("/api/audit/"):
+            return self.proxy(STORAGE_URL, path[len("/api") :])
+        if path.startswith("/api/scenarios/") or path.startswith("/api/sim/"):
+            return self.proxy(FASTAPI_URL, path)
         if path.startswith("/api/auth/"):
             return self.proxy(STORAGE_URL, path[len("/api") :])
         if path == "/api/users" or path.startswith("/api/users/"):
@@ -149,8 +159,8 @@ class Handler(JsonHandler):
         path = urlparse(self.path).path
         if path == "/api/reports" or path.startswith("/api/reports/"):
             return self.proxy(STORAGE_URL, path[len("/api") :])
-        if path == "/api/audit":
-            return self.proxy(STORAGE_URL, "/audit")
+        if path == "/api/audit" or path.startswith("/api/audit/"):
+            return self.proxy(STORAGE_URL, path[len("/api") :])
         if path.startswith("/api/users/"):
             return self.proxy(STORAGE_URL, path[len("/api") :])
         if path.startswith("/api/groups/"):

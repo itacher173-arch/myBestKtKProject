@@ -20,6 +20,7 @@ from backend.storage.access import (
     request_user,
     require_roles,
 )
+from backend.storage.audit_chain import hash_entry, verify_chain
 from backend.storage.auth import (
     LoginRateLimitError,
     create_user,
@@ -29,14 +30,6 @@ from backend.storage.auth import (
     login_user,
     update_user,
     users_count,
-)
-from backend.storage.sessions import (
-    SESSION_COOKIE,
-    SESSION_TTL_SEC,
-    create_session,
-    delete_session,
-    extract_token,
-    get_session,
 )
 from backend.storage.groups import (
     add_member,
@@ -52,6 +45,15 @@ from backend.storage.groups import (
     rename_group,
     set_group_instructor,
 )
+from backend.storage.sessions import (
+    SESSION_COOKIE,
+    SESSION_TTL_SEC,
+    create_session,
+    delete_session,
+    extract_token,
+    get_session,
+)
+
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 RUNTIME = BACKEND_ROOT / "runtime"
 REPORTS_PATH = RUNTIME / "reports.json"
@@ -200,7 +202,7 @@ def list_audit() -> list:
     with connect() as conn:
         rows = conn.execute(
             """
-            SELECT id, at, actor, role, action, detail
+            SELECT id, at, actor, role, action, detail, prev_hash, entry_hash
             FROM audit_log
             ORDER BY at DESC
             LIMIT %s
@@ -220,10 +222,24 @@ def append_audit(entry: dict) -> dict:
         "detail": entry.get("detail"),
     }
     with connect() as conn:
+        last = conn.execute(
+            """
+            SELECT entry_hash FROM audit_log
+            WHERE entry_hash IS NOT NULL AND btrim(entry_hash) <> ''
+            ORDER BY at DESC
+            LIMIT 1
+            """
+        ).fetchone()
+        prev_hash = (last["entry_hash"] if last else "") or ""
+        entry_hash = hash_entry(record, prev_hash)
+        record["prev_hash"] = prev_hash
+        record["entry_hash"] = entry_hash
         conn.execute(
             """
-            INSERT INTO audit_log (id, at, actor, role, action, detail)
-            VALUES (%s, %s, %s, %s, %s, %s)
+            INSERT INTO audit_log (
+                id, at, actor, role, action, detail, prev_hash, entry_hash
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT (id) DO NOTHING
             """,
             (
@@ -233,9 +249,10 @@ def append_audit(entry: dict) -> dict:
                 record["role"],
                 record["action"],
                 record["detail"],
+                prev_hash,
+                entry_hash,
             ),
         )
-        # Храним не больше AUDIT_MAX последних записей
         conn.execute(
             """
             DELETE FROM audit_log
@@ -249,6 +266,18 @@ def append_audit(entry: dict) -> dict:
         )
         conn.commit()
     return record
+
+
+def verify_audit_integrity() -> dict:
+    with connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT id, at, actor, role, action, detail, prev_hash, entry_hash
+            FROM audit_log
+            ORDER BY at ASC
+            """
+        ).fetchall()
+    return verify_chain([dict(r) for r in rows])
 
 
 def clear_audit() -> dict:
@@ -337,6 +366,14 @@ class Handler(JsonHandler):
             if path == "/audit":
                 require_roles(user, "admin", "instructor")
                 return self.send_json(list_audit())
+            if path == "/audit/verify":
+                require_roles(user, "admin", "instructor")
+                return self.send_json(verify_audit_integrity())
+            if path == "/metrics":
+                require_roles(user, "admin", "instructor")
+                from backend.common.metrics import snapshot
+
+                return self.send_json(snapshot())
             if path == "/users":
                 role = (query.get("role") or [""])[0].strip()
                 if role == "trainee":

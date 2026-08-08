@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ktk.local/schemas/scenario.schema.json",
+  "title": "KTK Scenario",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "name", "version", "initial", "checklist"],
+  "properties": {
+    "id": { "type": "string", "minLength": 2, "maxLength": 64 },
+    "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+(\\.[0-9]+)?$" },
+    "description": { "type": "string" },
+    "mode": { "type": "string", "enum": ["train", "exam"] },
+    "initial": {
+      "type": "object",
+      "description": "Начальное состояние процесса (частичный ProcessState)",
+      "additionalProperties": true
+    },
+    "checklist": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1
+    },
+    "goldenSequence": {
+      "type": "array",
+      "description": "Эталонная траектория обязательных действий (LCS)",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "maxResponseSec": { "type": "number", "minimum": 1 },
+        "forbidActions": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "requirePaz": { "type": "boolean" }
+      }
+    },
+    "faultType": { "type": "string" },
+    "equipmentIds": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "zoneIds": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}

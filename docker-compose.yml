@@ -36,6 +36,7 @@ services:
       dockerfile: backend/Dockerfile
     ports:
       - "8000:8000"
+      - "8010:8010"
       - "8106:8106"
     environment:
       KTK_HOST: "0.0.0.0"
@@ -44,6 +45,9 @@ services:
       KTK_ADMIN_LOGIN: "admin"
       KTK_ADMIN_NAME: "Администратор"
       KTK_ADMIN_PASSWORD: "admin"
+      KTK_AUDIT_HMAC_SECRET: "ktk-dev-audit-secret-change-me"
+      KTK_FASTAPI_PORT: "8010"
+      KTK_FASTAPI_URL: "http://127.0.0.1:8010"
     volumes:
       - backend_runtime:/app/backend/runtime
     depends_on:
@@ -51,6 +55,12 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
     restart: unless-stopped
 
   postgres:

@@ -10,8 +10,10 @@ from http.server import ThreadingHTTPServer
 from backend.gateway.app import Handler as GatewayHandler
 from backend.knowledge.app import Handler as KnowledgeHandler
 from backend.presence import start_presence_server
+from backend.simulator.ticker import start_ticker
+from backend.storage.app import RUNTIME
 from backend.storage.app import Handler as StorageHandler
-from backend.storage.app import RUNTIME, bootstrap as bootstrap_storage
+from backend.storage.app import bootstrap as bootstrap_storage
 from backend.training.app import Handler as TrainingHandler
 
 
@@ -24,6 +26,19 @@ def _serve(name: str, host: str, port: int, handler) -> None:
     Server((host, port), handler).serve_forever()
 
 
+def _serve_fastapi(host: str, port: int) -> None:
+    import uvicorn
+
+    print(f"[fastapi] http://{host}:{port}", flush=True)
+    uvicorn.run(
+        "backend.api.main:app",
+        host=host,
+        port=port,
+        log_level="info",
+        access_log=False,
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="КТК backend (AVT-style)")
     parser.add_argument("--host", default=os.environ.get("KTK_HOST", "127.0.0.1"))
@@ -32,10 +47,16 @@ def main() -> None:
     parser.add_argument("--knowledge-port", type=int, default=8104)
     parser.add_argument("--storage-port", type=int, default=8105)
     parser.add_argument("--presence-port", type=int, default=8106)
+    parser.add_argument(
+        "--fastapi-port",
+        type=int,
+        default=int(os.environ.get("KTK_FASTAPI_PORT", "8010")),
+    )
     args = parser.parse_args()
 
     RUNTIME.mkdir(parents=True, exist_ok=True)
     bootstrap_storage()
+    start_ticker()
     start_presence_server(args.host if args.host != "127.0.0.1" else "0.0.0.0", args.presence_port)
 
     workers = [
@@ -55,9 +76,21 @@ def main() -> None:
         thread.start()
         threads.append(thread)
 
+    fastapi_host = args.host if args.host != "127.0.0.1" else "0.0.0.0"
+    threads.append(
+        threading.Thread(
+            target=_serve_fastapi,
+            args=(fastapi_host, args.fastapi_port),
+            name="ktk-fastapi",
+            daemon=True,
+        )
+    )
+    threads[-1].start()
+
     print(
         f"[ktk] API http://{args.host}:{args.gateway_port}/api/health · "
-        f"WS :{args.presence_port}/ · данные → PostgreSQL + Redis",
+        f"FastAPI :{args.fastapi_port} · WS :{args.presence_port}/ · "
+        f"данные → PostgreSQL + Redis · серверный такт симуляции",
         flush=True,
     )
     for thread in threads:

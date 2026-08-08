@@ -1,0 +1,70 @@
+.scenario-json-editor {
+  margin: 16px 0;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  background: color-mix(in srgb, #1a2420 88%, #2a4038);
+  color: #e8eee9;
+}
+
+.scenario-json-editor header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.scenario-json-editor h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.scenario-json-editor .lead {
+  margin: 8px 0 12px;
+  opacity: 0.85;
+  font-size: 0.92rem;
+}
+
+.scenario-json-editor textarea {
+  width: 100%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 10px;
+  border: 1px solid #3a4a44;
+  background: #0f1614;
+  color: #d7e4dc;
+  resize: vertical;
+}
+
+.scenario-json-editor .actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.scenario-json-editor button {
+  padding: 8px 12px;
+  border: 1px solid #4a6a5a;
+  background: #2a4a3a;
+  color: #e8eee9;
+  cursor: pointer;
+}
+
+.scenario-json-editor button.ghost {
+  background: transparent;
+}
+
+.scenario-json-editor button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.scenario-json-editor .ok {
+  color: #8fd4a8;
+}
+
+.scenario-json-editor .errors {
+  color: #f0a0a0;
+  margin: 8px 0 0;
+  padding-left: 18px;
+}

@@ -7,7 +7,6 @@ import threading
 from pathlib import Path
 from typing import Any, Callable
 
-
 _locks: dict[str, threading.Lock] = {}
 _locks_guard = threading.Lock()
 

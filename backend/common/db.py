@@ -43,6 +43,8 @@ SCHEMA_STATEMENTS = (
         role TEXT NOT NULL,
         action TEXT NOT NULL,
         detail TEXT,
+        prev_hash TEXT,
+        entry_hash TEXT,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
     """,
@@ -100,6 +102,12 @@ MIGRATION_STATEMENTS = (
     """,
     """
     ALTER TABLE users ADD COLUMN IF NOT EXISTS login TEXT
+    """,
+    """
+    ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS prev_hash TEXT
+    """,
+    """
+    ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS entry_hash TEXT
     """,
 )
 

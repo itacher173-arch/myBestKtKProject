@@ -38,6 +38,10 @@ import {
 import { appendAudit } from './auditStorage'
 import { getAuthedUser } from './authApi'
 import { processInterlockReason, criticalFailReasonText } from './pazGuards'
+import {
+  createServerSimSession,
+  mirrorServerCommand,
+} from './serverSimApi'
 import { sequenceBlockReason, type GuardedAction } from './scenarioGuards'
 import { getAnalogs, getUtilityAlarms, tickProcess } from './processModel'
 import {
@@ -485,6 +489,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
   const recoveryLogged = useRef(false)
   const saltAlarmLogged = useRef(false)
   const criticalFailHandled = useRef(false)
+  const serverSimIdRef = useRef<string | null>(null)
 
   const [trainingMode, setTrainingModeState] = useState<'full' | 'mini'>('full')
   const [selectedMiniTrainingId, setSelectedMiniTrainingId] = useState<
@@ -797,6 +802,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     )
       return
     logAction("Насос 'Н-1': нажата кнопка 'Пуск'")
+    mirrorServerCommand(serverSimIdRef.current, 'start-N1')
     dispatch({ type: 'SET_PROCESS', patch: { pumpN1: 'starting' } })
     if (pumpStartTimer.current) clearTimeout(pumpStartTimer.current)
     pumpStartTimer.current = window.setTimeout(() => {
@@ -816,6 +822,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     if (blockSequence('shutdown-stop-N1')) return
     if (stateRef.current.process.pumpN1 === 'stopped') return
     logAction("Насос 'Н-1': нажата кнопка 'Стоп'")
+    mirrorServerCommand(serverSimIdRef.current, 'stop-N1')
     if (pumpStartTimer.current) clearTimeout(pumpStartTimer.current)
     dispatch({
       type: 'SET_PROCESS',
@@ -847,6 +854,10 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
         return
       }
       logAction(`Насос '${id}': нажата кнопка 'Пуск'`)
+      mirrorServerCommand(
+        serverSimIdRef.current,
+        id === 'N-2' ? 'start-N2' : 'start-N3',
+      )
       dispatch({ type: 'SET_PROCESS', patch: { [key]: 'running' } })
     },
     [canControl, logAction, pushSystem, startPumpN1, blockSequence, assertMiniAction],
@@ -864,6 +875,10 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
       const key = id === 'N-2' ? 'pumpN2' : 'pumpN3'
       if (stateRef.current.process[key] === 'stopped') return
       logAction(`Насос '${id}': нажата кнопка 'Стоп'`)
+      mirrorServerCommand(
+        serverSimIdRef.current,
+        id === 'N-2' ? 'stop-N2' : 'stop-N3',
+      )
       dispatch({ type: 'SET_PROCESS', patch: { [key]: 'stopped' } })
     },
     [canControl, logAction, stopPumpN1, blockSequence, assertMiniAction],
@@ -888,6 +903,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
           "Электрозадвижка 'Л-3 (вывод товарного мазута)' нажата кнопка 'Открыть'",
       }
       logAction(names[id])
+      mirrorServerCommand(serverSimIdRef.current, guard)
       const patch: Partial<ProcessState> =
         id === 'L-1'
           ? { valveL1Motion: 'opening' }
@@ -1140,6 +1156,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
       const p = Math.max(0, Math.min(100, Math.round(percent)))
       if (blockSequence('fuel', p)) return
       logAction(`Печь 'П-1': Изменена подача топливного газа на ${p}%`)
+      mirrorServerCommand(serverSimIdRef.current, 'fuel', { fuelTarget: p })
       dispatch({ type: 'SET_PROCESS', patch: { fuelGasPercent: p } })
     },
     [canControl, logAction, pushSystem, blockSequence, assertMiniAction],
@@ -1271,6 +1288,20 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     let criticalFailReason: string | null =
       cur.session.criticalFailReason ?? null
     let outcomeOk = true
+    let lcsMatched: number | undefined
+    let lcsTotal: number | undefined
+    let trajectoryError:
+      | {
+          at: number | null
+          stepIndex: number
+          expected: string
+          rule: string
+          message: string
+        }
+      | null
+      | undefined
+    let recommendExerciseId: string | null | undefined
+    let recommendReason: string | null | undefined
 
     if (training) {
       const progress = evaluateMiniTraining(training, cur.process)
@@ -1306,6 +1337,11 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
       criticalFailReason =
         cur.session.criticalFailReason ??
         criticalFailReasonText(cur.process, ex, cur.actionsLog)
+      lcsMatched = scored.lcsMatched
+      lcsTotal = scored.lcsTotal
+      trajectoryError = scored.trajectoryError
+      recommendExerciseId = scored.adaptive?.miniTrainingId ?? null
+      recommendReason = scored.adaptive?.reason ?? null
     }
 
     const finishEvent = {
@@ -1336,6 +1372,11 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
         qualificationSummary: summary,
         criticalFail: Boolean(criticalFailReason) || !outcomeOk,
         outcomeOk,
+        lcsMatched,
+        lcsTotal,
+        trajectoryError: trajectoryError ?? null,
+        recommendExerciseId: recommendExerciseId ?? null,
+        recommendReason: recommendReason ?? null,
         protocolVersion: PROTOCOL_VERSION,
         modelVersion: MODEL_VERSION,
         scenarioVersion: SCENARIO_VERSION,
@@ -1455,6 +1496,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     recoveryLogged.current = false
     saltAlarmLogged.current = false
     criticalFailHandled.current = false
+    serverSimIdRef.current = null
     if (pumpStartTimer.current) {
       clearTimeout(pumpStartTimer.current)
       pumpStartTimer.current = null
@@ -1493,6 +1535,17 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
         label: training.title,
         skipBriefing: true,
       })
+      void createServerSimSession({
+        exerciseId: training.id,
+        initial: applyMiniPreset(training.id) as unknown as Record<
+          string,
+          unknown
+        >,
+      })
+        .then((s) => {
+          serverSimIdRef.current = s.id
+        })
+        .catch(() => undefined)
       return
     }
 
@@ -1503,6 +1556,11 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
       detail: `${cur.exerciseId ?? '?'} · ${cur.mode}`,
     })
     dispatch({ type: 'START_SESSION' })
+    void createServerSimSession({ exerciseId: cur.exerciseId })
+      .then((s) => {
+        serverSimIdRef.current = s.id
+      })
+      .catch(() => undefined)
   }, [selectedMiniTrainingId, trainingMode])
 
   const ackAlarm = useCallback((key: string) => {
