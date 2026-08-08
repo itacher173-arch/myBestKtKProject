@@ -23,12 +23,23 @@ function formatDate(ts: number) {
 
 export function ReportsPage() {
   const { resetToStart } = useTrainer()
-  const [reports, setReports] = useState<TraineeReport[]>(() => loadReports())
-  const [audit, setAudit] = useState(() => loadAudit())
-  const [selectedId, setSelectedId] = useState<string | null>(
-    reports[0]?.id ?? null,
-  )
+  const [reports, setReports] = useState<TraineeReport[]>([])
+  const [audit, setAudit] = useState<
+    Awaited<ReturnType<typeof loadAudit>>
+  >([])
+  const [selectedId, setSelectedId] = useState<string | null>(null)
   const [tab, setTab] = useState<'reports' | 'audit'>('reports')
+
+  const refresh = async () => {
+    const next = await loadReports()
+    const nextAudit = await loadAudit()
+    setReports(next)
+    setAudit(nextAudit)
+    setSelectedId((prev) => {
+      if (prev && next.some((r) => r.id === prev)) return prev
+      return next[0]?.id ?? null
+    })
+  }
 
   useEffect(() => {
     if (!isInstructorAuthed()) {
@@ -36,48 +47,43 @@ export function ReportsPage() {
     }
   }, [resetToStart])
 
+  useEffect(() => {
+    void refresh()
+  }, [])
+
   const selected = useMemo(
     () => reports.find((r) => r.id === selectedId) ?? null,
     [reports, selectedId],
   )
 
-  const refresh = () => {
-    const next = loadReports()
-    setReports(next)
-    setAudit(loadAudit())
-    if (selectedId && !next.some((r) => r.id === selectedId)) {
-      setSelectedId(next[0]?.id ?? null)
-    }
-  }
-
-  const onDelete = (id: string) => {
-    deleteReport(id)
-    appendAudit({
+  const onDelete = async (id: string) => {
+    await deleteReport(id)
+    await appendAudit({
       actor: 'instructor',
       role: 'instructor',
       action: 'delete_report',
       detail: id,
     })
-    refresh()
+    await refresh()
   }
 
-  const onClear = () => {
+  const onClear = async () => {
     if (!reports.length) return
-    if (!confirm('Удалить все отчёты обучаемых из localStorage?')) return
-    clearReports()
-    appendAudit({
+    if (!confirm('Удалить все отчёты обучаемых на сервере?')) return
+    await clearReports()
+    await appendAudit({
       actor: 'instructor',
       role: 'instructor',
       action: 'clear_reports',
     })
     setReports([])
     setSelectedId(null)
-    setAudit(loadAudit())
+    setAudit(await loadAudit())
   }
 
   const onDownloadProtocol = (r: TraineeReport) => {
     void downloadSessionProtocol(r)
-    appendAudit({
+    void appendAudit({
       actor: 'instructor',
       role: 'instructor',
       action: 'download_protocol',
@@ -87,7 +93,7 @@ export function ReportsPage() {
 
   const onPrintProtocol = (r: TraineeReport) => {
     printSessionProtocol(r)
-    appendAudit({
+    void appendAudit({
       actor: 'instructor',
       role: 'instructor',
       action: 'print_protocol',
@@ -97,7 +103,7 @@ export function ReportsPage() {
 
   const onExit = () => {
     setInstructorAuthed(false)
-    appendAudit({
+    void appendAudit({
       actor: 'instructor',
       role: 'instructor',
       action: 'logout',
@@ -145,8 +151,7 @@ export function ReportsPage() {
               className="hdr-btn ghost"
               onClick={() => {
                 if (!confirm('Очистить журнал аудита?')) return
-                clearAudit()
-                setAudit([])
+                void clearAudit().then(() => setAudit([]))
               }}
             >
               Очистить аудит

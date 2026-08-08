@@ -40,7 +40,7 @@ export function StartScreen() {
 
   const goInstructor = () => {
     if (isInstructorAuthed()) {
-      appendAudit({
+      void appendAudit({
         actor: 'instructor',
         role: 'instructor',
         action: 'open_reports',
@@ -55,7 +55,7 @@ export function StartScreen() {
   const submitPin = () => {
     if (!verifyInstructorPin(pin)) {
       setPinError('Неверный PIN. Учебный PIN по умолчанию: 2026')
-      appendAudit({
+      void appendAudit({
         actor: 'unknown',
         role: 'instructor',
         action: 'auth_failed',
@@ -63,7 +63,7 @@ export function StartScreen() {
       return
     }
     setInstructorAuthed(true)
-    appendAudit({
+    void appendAudit({
       actor: 'instructor',
       role: 'instructor',
       action: 'auth_ok',

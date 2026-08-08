@@ -1,0 +1,15 @@
+.git
+.venv
+.tmp_plan
+.vite
+.DS_Store
+**/node_modules
+**/dist
+**/release
+frontend/electron
+frontend/scripts
+backend/runtime/*
+!backend/runtime/.gitkeep
+docs
+*.md
+!backend/README.md

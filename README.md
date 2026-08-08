@@ -2,16 +2,44 @@
 
 Компьютерный тренажёрный комплекс (кейс Ч2026/ГПН): мнемосхема ЭЛОУ-АВТ, сценарии пуска/останова и отказов, журнал и оценка по эталону.
 
-## Запуск
+## Структура
 
-```bash
-npm install
-npm run dev
+```text
+frontend/   # Vite + React + Electron
+backend/    # Python stdlib API (gateway, storage, knowledge, training)
+docs/       # БТ / архитектура / ИБ
+docker-compose.yml
 ```
 
-Обычно: `http://localhost:5173`.
+## Запуск
+
+### Локально (без Docker)
+
+```bash
+npm install --prefix frontend
+npm run backend   # API :8000
+npm run dev       # UI :5173, /api → gateway
+```
+
+### Docker Compose
+
+```bash
+npm run docker:up
+# = npm run build в frontend/ + docker compose up --build -d
+```
+
+| Сервис | URL | Образ |
+|---|---|---|
+| UI (nginx) | http://localhost:8080 | `nginx:1.27-alpine` (~50MB) |
+| API | http://localhost:8000/api/health | `python:3.12-slim` + psycopg |
+| Postgres | `localhost:5432` (user/pass/db: `ktk`) | `postgres:16-alpine` |
+
+Postgres поднят и используется storage-сервисом: отчёты и аудит в таблицах
+`trainee_reports` / `audit_log` (`DATABASE_URL`). localStorage — только кэш UI.
 
 Доступ инструктора: PIN по умолчанию `2026`.
+
+Подробнее: `backend/README.md`.
 
 ## Возможности
 

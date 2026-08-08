@@ -1,3 +1,4 @@
+import { apiDelete, apiGet, apiPost } from '../api/client'
 import type { SessionMode } from './types'
 
 export interface StoredLogEntry {
@@ -51,7 +52,7 @@ export const PROTOCOL_VERSION = 'session-protocol-1.0'
 
 const STORAGE_KEY = 'ktk-elou-avt-trainee-reports'
 
-export function loadReports(): TraineeReport[] {
+function loadLocalReports(): TraineeReport[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return []
@@ -62,9 +63,12 @@ export function loadReports(): TraineeReport[] {
   }
 }
 
-export function saveReport(report: TraineeReport): void {
-  const list = loadReports()
-  const duplicate = list.some(
+function saveLocalReports(list: TraineeReport[]): void {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(list))
+}
+
+function isDuplicate(list: TraineeReport[], report: TraineeReport): boolean {
+  return list.some(
     (r) =>
       r.userName === report.userName &&
       r.exerciseId === report.exerciseId &&
@@ -72,17 +76,42 @@ export function saveReport(report: TraineeReport): void {
       r.penalty === report.penalty &&
       Math.abs(r.completedAt - report.completedAt) < 3000,
   )
-  if (duplicate) return
-  list.unshift(report)
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(list))
 }
 
-export function deleteReport(id: string): void {
-  const list = loadReports().filter((r) => r.id !== id)
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(list))
+/** Синхронный кэш/офлайн-фолбэк (Electron file:// без API). */
+export function loadReportsSync(): TraineeReport[] {
+  return loadLocalReports()
 }
 
-export function clearReports(): void {
+export async function loadReports(): Promise<TraineeReport[]> {
+  try {
+    const remote = await apiGet<TraineeReport[]>('/reports')
+    if (Array.isArray(remote)) {
+      saveLocalReports(remote)
+      return remote
+    }
+  } catch {
+    /* offline / no backend */
+  }
+  return loadLocalReports()
+}
+
+export async function saveReport(report: TraineeReport): Promise<void> {
+  await apiPost<{ ok: boolean }>('/reports', report)
+  const local = loadLocalReports()
+  if (!isDuplicate(local, report)) {
+    local.unshift(report)
+    saveLocalReports(local)
+  }
+}
+
+export async function deleteReport(id: string): Promise<void> {
+  await apiDelete<{ ok: boolean }>(`/reports/${encodeURIComponent(id)}`)
+  saveLocalReports(loadLocalReports().filter((r) => r.id !== id))
+}
+
+export async function clearReports(): Promise<void> {
+  await apiDelete<{ ok: boolean }>('/reports')
   localStorage.removeItem(STORAGE_KEY)
 }
 
@@ -132,7 +161,6 @@ export async function protocolContentHash(payload: object): Promise<string> {
       .map((b) => b.toString(16).padStart(2, '0'))
       .join('')
   }
-  // fallback
   let h = 0
   const s = JSON.stringify(payload)
   for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0

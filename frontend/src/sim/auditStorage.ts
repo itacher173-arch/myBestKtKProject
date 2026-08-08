@@ -1,4 +1,6 @@
-/** Журнал аудита ИБ: действия ролей, доступ к отчётам, завершение сессий. */
+/** Журнал аудита ИБ: сервер (JSON) + локальный фолбэк. */
+
+import { apiDelete, apiGet, apiPost } from '../api/client'
 
 export interface AuditEntry {
   id: string
@@ -16,7 +18,7 @@ function uid() {
   return `aud-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
 }
 
-export function loadAudit(): AuditEntry[] {
+function loadLocalAudit(): AuditEntry[] {
   try {
     const raw = localStorage.getItem(KEY)
     if (!raw) return []
@@ -27,22 +29,46 @@ export function loadAudit(): AuditEntry[] {
   }
 }
 
-export function appendAudit(
+function saveLocalAudit(list: AuditEntry[]): void {
+  localStorage.setItem(KEY, JSON.stringify(list.slice(0, MAX)))
+}
+
+export function loadAuditSync(): AuditEntry[] {
+  return loadLocalAudit()
+}
+
+export async function loadAudit(): Promise<AuditEntry[]> {
+  try {
+    const remote = await apiGet<AuditEntry[]>('/audit')
+    if (Array.isArray(remote)) {
+      saveLocalAudit(remote)
+      return remote
+    }
+  } catch {
+    /* offline */
+  }
+  return loadLocalAudit()
+}
+
+export async function appendAudit(
   entry: Omit<AuditEntry, 'id' | 'at'> & { at?: number },
-): void {
-  const list = loadAudit()
-  list.unshift({
+): Promise<void> {
+  const record: AuditEntry = {
     id: uid(),
     at: entry.at ?? Date.now(),
     actor: entry.actor,
     role: entry.role,
     action: entry.action,
     detail: entry.detail,
-  })
-  localStorage.setItem(KEY, JSON.stringify(list.slice(0, MAX)))
+  }
+  await apiPost<AuditEntry>('/audit', record)
+  const list = loadLocalAudit()
+  list.unshift(record)
+  saveLocalAudit(list)
 }
 
-export function clearAudit(): void {
+export async function clearAudit(): Promise<void> {
+  await apiDelete<{ ok: boolean }>('/audit')
   localStorage.removeItem(KEY)
 }
 

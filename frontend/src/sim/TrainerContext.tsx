@@ -1319,7 +1319,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     )
 
     if (cur.session.role === 'trainee' && cur.session.userName.trim()) {
-      saveReport({
+      void saveReport({
         id: uid(),
         userName: cur.session.userName.trim(),
         exerciseId: cur.session.exerciseId ?? training?.id ?? '',
@@ -1349,7 +1349,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
           description,
         })),
       })
-      appendAudit({
+      void appendAudit({
         actor: cur.session.userName.trim(),
         role: 'trainee',
         action: 'complete_exercise',
@@ -1419,7 +1419,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
       if (stateRef.current.session.completed) return
       dispatch({ type: 'SET_PAUSED', paused })
       pushSystem(paused ? 'Симуляция на паузе.' : 'Симуляция продолжена.')
-      appendAudit({
+      void appendAudit({
         actor: stateRef.current.session.userName || 'trainee',
         role: 'trainee',
         action: paused ? 'pause' : 'resume',
@@ -1446,7 +1446,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
 
     if (training) {
       dispatch({ type: 'SET_EXERCISE', id: training.id })
-      appendAudit({
+      void appendAudit({
         actor: cur.userName || 'trainee',
         role: 'trainee',
         action: 'start_session',
@@ -1463,7 +1463,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    appendAudit({
+    void appendAudit({
       actor: cur.userName || 'trainee',
       role: 'trainee',
       action: 'start_session',
@@ -1511,7 +1511,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     for (const msg of applied.messages) pushSystem(msg)
     dispatch({ type: 'FAULT_TRIGGERED' })
     pushSystem(`--- Нештатная ситуация: «${ex.name}» ---`)
-    appendAudit({
+    void appendAudit({
       actor: 'instructor',
       role: 'instructor',
       action: 'inject_fault',

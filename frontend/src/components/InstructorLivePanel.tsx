@@ -32,7 +32,7 @@ export function InstructorLivePanel() {
   const unlock = () => {
     if (!verifyInstructorPin(pin)) {
       setErr('Неверный PIN')
-      appendAudit({
+      void appendAudit({
         actor: 'unknown',
         role: 'instructor',
         action: 'auth_failed',
@@ -42,7 +42,7 @@ export function InstructorLivePanel() {
     }
     setInstructorAuthed(true)
     setErr('')
-    appendAudit({
+    void appendAudit({
       actor: 'instructor',
       role: 'instructor',
       action: 'auth_ok',
@@ -108,7 +108,7 @@ export function InstructorLivePanel() {
               className="instr-inject"
               onClick={() => {
                 injectCurrentFault()
-                appendAudit({
+                void appendAudit({
                   actor: 'instructor',
                   role: 'instructor',
                   action: 'inject_fault_hidden',
