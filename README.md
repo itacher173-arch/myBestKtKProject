@@ -31,12 +31,12 @@ npm run docker:up
 # собирает frontend + admin-frontend и поднимает контейнеры
 ```
 
-| Сервис | URL | Образ |
-|---|---|---|
-| КТК (nginx) | http://localhost:8080 | `nginx:1.27-alpine` |
-| Админ-панель | http://localhost:8081 | `nginx:1.27-alpine` |
-| API | http://localhost:8000/api/health | `python:3.12-slim` + psycopg |
-| Postgres | `localhost:5432` (user/pass/db: `ktk`) | `postgres:16-alpine` |
+| Сервис       | URL                                    | Образ                        |
+| ------------ | -------------------------------------- | ---------------------------- |
+| КТК (nginx)  | http://localhost:8080                  | `nginx:1.27-alpine`          |
+| Админ-панель | http://localhost:8081                  | `nginx:1.27-alpine`          |
+| API          | http://localhost:8000/api/health       | `python:3.12-slim` + psycopg |
+| Postgres     | `localhost:5432` (user/pass/db: `ktk`) | `postgres:16-alpine`         |
 
 Postgres используется storage-сервисом: отчёты, аудит, пользователи и группы.
 localStorage — только кэш UI.
@@ -55,11 +55,3 @@ localStorage — только кэш UI.
 - Журнал, таймер, пауза; чек-лист шагов сценария
 - Режимы обучение / экзамен; оценка по исходу процесса
 - Отчёты инструктора, протокол JSON и журнал аудита
-
-## Документы
-
-- `docs/REQUIREMENTS.md` — БТ / ФТТ / НФТ  
-- `docs/ARCHITECTURE.md` — архитектура  
-- `docs/ECONOMICS.md` — экономика  
-- `docs/INFRASTRUCTURE.md` — инфраструктура  
-- `docs/SECURITY.md` — ИБ  
