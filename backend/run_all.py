@@ -57,7 +57,7 @@ def main() -> None:
 
     print(
         f"[ktk] API http://{args.host}:{args.gateway_port}/api/health · "
-        f"WS :{args.presence_port}/ · данные → PostgreSQL",
+        f"WS :{args.presence_port}/ · данные → PostgreSQL + Redis",
         flush=True,
     )
     for thread in threads:

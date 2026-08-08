@@ -1,6 +1,6 @@
 # Backend КТК (стиль AVT_4.0)
 
-Python 3 stdlib, без внешних зависимостей и без полноценной БД.
+Python 3.12 + psycopg + websockets + redis.
 
 ## Сервисы
 
@@ -9,7 +9,8 @@ Python 3 stdlib, без внешних зависимостей и без пол
 | gateway | 8000 | `/api/*` + раздача `frontend/dist/` |
 | training | 8103 | каталог мини-тренингов, evaluate |
 | knowledge | 8104 | статьи из `frontend/src/knowledge/seed.json` |
-| storage | 8105 | отчёты и аудит → `backend/runtime/*.json` |
+| storage | 8105 | отчёты, аудит, users/groups → PostgreSQL |
+| presence | 8106 | WebSocket presence → Redis |
 
 ## Запуск
 
@@ -20,6 +21,8 @@ python3 -m backend.run_all
 # или
 npm run backend
 ```
+
+Нужны `DATABASE_URL` и `REDIS_URL` (в Docker задаются compose).
 
 Проверка: http://127.0.0.1:8000/api/health
 

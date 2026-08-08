@@ -53,11 +53,12 @@ SCHEMA_STATEMENTS = (
     """
     CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY,
+        login TEXT NOT NULL,
         full_name TEXT NOT NULL,
         password_hash TEXT NOT NULL,
         role TEXT NOT NULL CHECK (role IN ('trainee', 'instructor', 'admin')),
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        UNIQUE (full_name)
+        UNIQUE (login)
     )
     """,
     """
@@ -97,7 +98,81 @@ MIGRATION_STATEMENTS = (
         ADD CONSTRAINT users_role_check
         CHECK (role IN ('trainee', 'instructor', 'admin'))
     """,
+    """
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS login TEXT
+    """,
 )
+
+
+def _migrate_user_logins(conn: Any) -> None:
+    """Заполняет login у старых пользователей и включает UNIQUE."""
+    conn.execute(
+        """
+        UPDATE users
+        SET login = 'admin'
+        WHERE role = 'admin'
+          AND (login IS NULL OR btrim(login) = '')
+          AND NOT EXISTS (
+            SELECT 1 FROM users u2
+            WHERE lower(u2.login) = 'admin' AND u2.id <> users.id
+          )
+        """
+    )
+    rows = conn.execute(
+        """
+        SELECT id FROM users
+        WHERE login IS NULL OR btrim(login) = ''
+        ORDER BY created_at
+        """
+    ).fetchall()
+    for row in rows:
+        uid = row["id"]
+        base = f"user{uid[-6:].replace('-', '')}".lower()
+        candidate = base
+        n = 1
+        while conn.execute(
+            "SELECT 1 FROM users WHERE lower(login) = lower(%s)",
+            (candidate,),
+        ).fetchone():
+            candidate = f"{base}{n}"
+            n += 1
+        conn.execute("UPDATE users SET login = %s WHERE id = %s", (candidate, uid))
+
+    conn.execute(
+        """
+        DO $$
+        BEGIN
+          IF EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'users' AND column_name = 'login'
+              AND is_nullable = 'YES'
+          ) THEN
+            ALTER TABLE users ALTER COLUMN login SET NOT NULL;
+          END IF;
+        END $$;
+        """
+    )
+    conn.execute(
+        """
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint WHERE conname = 'users_login_key'
+          ) THEN
+            ALTER TABLE users ADD CONSTRAINT users_login_key UNIQUE (login);
+          END IF;
+        END $$;
+        """
+    )
+    conn.execute(
+        """
+        ALTER TABLE users DROP CONSTRAINT IF EXISTS users_full_name_key
+        """
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_users_login ON users (lower(login))"
+    )
+
 
 def database_url() -> str:
     url = os.environ.get("DATABASE_URL", "").strip()
@@ -133,6 +208,7 @@ def init_schema() -> None:
             conn.execute(statement)
         for statement in MIGRATION_STATEMENTS:
             conn.execute(statement)
+        _migrate_user_logins(conn)
         conn.commit()
 
 

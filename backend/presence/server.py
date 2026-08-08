@@ -1,4 +1,4 @@
-"""WebSocket presence: онлайн-статус и текущее упражнение обучаемых."""
+"""WebSocket presence: онлайн-статус и текущее упражнение обучаемых (Redis)."""
 
 from __future__ import annotations
 
@@ -10,42 +10,95 @@ from typing import Any
 
 from websockets.asyncio.server import ServerConnection, serve
 
+from backend.common.redis_client import get_redis, wait_for_redis
+
 Presence = dict[str, Any]
 
-_lock = threading.Lock()
-_presence: dict[str, Presence] = {}
-_clients: set[ServerConnection] = set()
+PRESENCE_TTL_SEC = 90
+OFFLINE_TTL_SEC = 30
+IDS_KEY = "ktk:presence:ids"
+
+
+def _key(user_id: str) -> str:
+    return f"ktk:presence:{user_id}"
 
 
 def _snapshot() -> list[Presence]:
-    with _lock:
-        return [dict(item) for item in _presence.values()]
+    r = get_redis()
+    ids = list(r.smembers(IDS_KEY) or [])
+    if not ids:
+        return []
+    keys = [_key(uid) for uid in ids]
+    values = r.mget(keys)
+    users: list[Presence] = []
+    stale: list[str] = []
+    for uid, raw in zip(ids, values):
+        if not raw:
+            stale.append(uid)
+            continue
+        try:
+            users.append(json.loads(raw))
+        except json.JSONDecodeError:
+            stale.append(uid)
+    if stale:
+        r.srem(IDS_KEY, *stale)
+    return users
 
 
-def _set_presence(user_id: str, patch: Presence) -> Presence:
-    with _lock:
-        current = _presence.get(user_id, {"userId": user_id})
-        current.update(patch)
-        current["userId"] = user_id
-        current["updatedAt"] = int(time.time() * 1000)
-        _presence[user_id] = current
-        return dict(current)
+def _set_presence(user_id: str, patch: Presence, *, ttl: int = PRESENCE_TTL_SEC) -> Presence:
+    r = get_redis()
+    key = _key(user_id)
+    raw = r.get(key)
+    current: Presence = {"userId": user_id}
+    if raw:
+        try:
+            current.update(json.loads(raw))
+        except json.JSONDecodeError:
+            pass
+    current.update(patch)
+    current["userId"] = user_id
+    current["updatedAt"] = int(time.time() * 1000)
+    pipe = r.pipeline()
+    pipe.set(key, json.dumps(current, ensure_ascii=False), ex=ttl)
+    pipe.sadd(IDS_KEY, user_id)
+    pipe.execute()
+    return dict(current)
+
+
+def _touch(user_id: str) -> None:
+    """Продлевает TTL живого клиента (ping)."""
+    r = get_redis()
+    key = _key(user_id)
+    if r.exists(key):
+        r.expire(key, PRESENCE_TTL_SEC)
+        r.sadd(IDS_KEY, user_id)
 
 
 def _mark_offline(user_id: str) -> Presence | None:
-    with _lock:
-        current = _presence.get(user_id)
-        if not current:
-            return None
-        current = dict(current)
-        current["online"] = False
-        current["activity"] = "offline"
-        current["catalogId"] = None
-        current["catalogTitle"] = None
-        current["sessionMode"] = None
-        current["updatedAt"] = int(time.time() * 1000)
-        _presence[user_id] = current
-        return current
+    r = get_redis()
+    key = _key(user_id)
+    raw = r.get(key)
+    if not raw:
+        r.srem(IDS_KEY, user_id)
+        return None
+    try:
+        current = json.loads(raw)
+    except json.JSONDecodeError:
+        r.delete(key)
+        r.srem(IDS_KEY, user_id)
+        return None
+    current["online"] = False
+    current["activity"] = "offline"
+    current["catalogId"] = None
+    current["catalogTitle"] = None
+    current["sessionMode"] = None
+    current["updatedAt"] = int(time.time() * 1000)
+    r.set(key, json.dumps(current, ensure_ascii=False), ex=OFFLINE_TTL_SEC)
+    r.sadd(IDS_KEY, user_id)
+    return current
+
+
+_clients: set[ServerConnection] = set()
 
 
 async def _broadcast(message: dict[str, Any]) -> None:
@@ -112,6 +165,8 @@ async def _handler(websocket: ServerConnection) -> None:
                 )
                 await _broadcast({"type": "presence_update", "user": entry})
             elif msg_type == "ping":
+                if user_id:
+                    _touch(user_id)
                 await websocket.send(json.dumps({"type": "pong"}))
     finally:
         _clients.discard(websocket)
@@ -123,11 +178,13 @@ async def _handler(websocket: ServerConnection) -> None:
 
 async def _run(host: str, port: int) -> None:
     async with serve(_handler, host, port):
-        print(f"[presence] ws://{host}:{port}", flush=True)
+        print(f"[presence] ws://{host}:{port} · Redis", flush=True)
         await asyncio.Future()
 
 
 def start_presence_server(host: str = "0.0.0.0", port: int = 8106) -> None:
+    wait_for_redis()
+
     def runner() -> None:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)

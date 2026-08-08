@@ -225,6 +225,39 @@
   flex: 1;
 }
 
+.members-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.members-tabs button {
+  border: 1px solid #2c3f50;
+  background: #1a2430;
+  color: #e8eef4;
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.members-tabs button.active {
+  border-color: #4a90c2;
+  background: #244056;
+}
+
+.members-search {
+  width: 100%;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #2c3f50;
+  background: #1a2430;
+  color: #e8eef4;
+  font: inherit;
+  box-sizing: border-box;
+}
+
 .admin-members {
   list-style: none;
   margin: 0;
@@ -243,6 +276,32 @@
   border: 1px solid #2c3f50;
   border-radius: 8px;
   background: #1a2430;
+}
+
+.member-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.member-info strong {
+  font-size: 13px;
+}
+
+.member-meta {
+  font-size: 11px;
+  color: #8aa0b3;
+}
+
+.members-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 12px;
+  color: #9db4c7;
+  font-size: 13px;
 }
 
 .admin-empty {

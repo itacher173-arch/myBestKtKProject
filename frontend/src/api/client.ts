@@ -29,28 +29,56 @@ async function parseBody(response: Response): Promise<unknown> {
   }
 }
 
+function errorMessage(status: number, payload: unknown): string {
+  if (
+    payload &&
+    typeof payload === 'object' &&
+    'error' in payload &&
+    typeof (payload as { error: unknown }).error === 'string'
+  ) {
+    return (payload as { error: string }).error
+  }
+  if (status === 401 || status === 403) {
+    return 'Нет доступа. Проверьте логин и пароль.'
+  }
+  if (status === 429) {
+    return 'Слишком много попыток, подождите.'
+  }
+  if (status === 502 || status === 503 || status === 504) {
+    return 'Сервер API временно недоступен. Подождите и обновите страницу.'
+  }
+  if (status >= 500) {
+    return 'Ошибка сервера. Попробуйте позже.'
+  }
+  if (typeof payload === 'string' && payload.trim() && !payload.includes('<html')) {
+    return payload.trim()
+  }
+  return `Ошибка запроса (${status})`
+}
+
 export async function apiRequest<T>(
   path: string,
   init?: RequestInit,
 ): Promise<T> {
   const url = `${apiBase().replace(/\/$/, '')}${path.startsWith('/') ? path : `/${path}`}`
-  const response = await fetch(url, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(init?.headers ?? {}),
-    },
-  })
+  let response: Response
+  try {
+    response = await fetch(url, {
+      ...init,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(init?.headers ?? {}),
+      },
+    })
+  } catch {
+    throw new ApiError(
+      'Нет связи с сервером. Проверьте, что backend запущен.',
+      0,
+    )
+  }
   const payload = await parseBody(response)
   if (!response.ok) {
-    const message =
-      payload &&
-      typeof payload === 'object' &&
-      'error' in payload &&
-      typeof (payload as { error: unknown }).error === 'string'
-        ? (payload as { error: string }).error
-        : `HTTP ${response.status}`
-    throw new ApiError(message, response.status, payload)
+    throw new ApiError(errorMessage(response.status, payload), response.status, payload)
   }
   return payload as T
 }

@@ -31,7 +31,7 @@ def list_trainees() -> list[dict]:
     with connect() as conn:
         rows = conn.execute(
             """
-            SELECT id, full_name, role, created_at
+            SELECT id, login, full_name, role, created_at
             FROM users
             WHERE role = 'trainee'
             ORDER BY full_name
@@ -40,6 +40,7 @@ def list_trainees() -> list[dict]:
     return [
         {
             "id": row["id"],
+            "login": row.get("login") or "",
             "fullName": row["full_name"],
             "role": row["role"],
             "createdAt": int(row["created_at"].timestamp() * 1000)
@@ -54,7 +55,7 @@ def list_instructors() -> list[dict]:
     with connect() as conn:
         rows = conn.execute(
             """
-            SELECT id, full_name, role, created_at
+            SELECT id, login, full_name, role, created_at
             FROM users
             WHERE role = 'instructor'
             ORDER BY full_name
@@ -63,6 +64,7 @@ def list_instructors() -> list[dict]:
     return [
         {
             "id": row["id"],
+            "login": row.get("login") or "",
             "fullName": row["full_name"],
             "role": row["role"],
             "createdAt": int(row["created_at"].timestamp() * 1000)
@@ -262,7 +264,7 @@ def list_members(group_id: str) -> list[dict]:
             raise ValueError("Группа не найдена")
         rows = conn.execute(
             """
-            SELECT u.id, u.full_name, u.role, m.added_at
+            SELECT u.id, u.login, u.full_name, u.role, m.added_at
             FROM group_members m
             JOIN users u ON u.id = m.user_id
             WHERE m.group_id = %s
@@ -273,6 +275,7 @@ def list_members(group_id: str) -> list[dict]:
     return [
         {
             "id": row["id"],
+            "login": row.get("login") or "",
             "fullName": row["full_name"],
             "role": row["role"],
             "addedAt": int(row["added_at"].timestamp() * 1000)

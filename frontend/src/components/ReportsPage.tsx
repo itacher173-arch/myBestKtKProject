@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ApiError } from '../api/client'
-import { getAuthedUser, logoutUser } from '../sim/authApi'
+import { getAuthedUser, logoutUser, redirectToAuthPortal } from '../sim/authApi'
 import {
   presenceBus,
   usePresenceMap,
@@ -192,14 +192,16 @@ export function ReportsPage() {
 
   const onExit = () => {
     presenceBus.disconnect()
-    logoutUser()
-    setInstructorAuthed(false)
     void appendAudit({
       actor: instructor?.fullName || 'instructor',
       role: 'instructor',
       action: 'logout',
     })
-    resetToStart()
+    void (async () => {
+      await logoutUser()
+      setInstructorAuthed(false)
+      redirectToAuthPortal()
+    })()
   }
 
   const memberPresence = (userId: string): PresenceUser | undefined =>

@@ -1,4 +1,4 @@
-import { apiPost } from '../api/client'
+import { apiGet, apiPost } from '../api/client'
 import {
   setInstructorAuthed,
   type AuditEntry,
@@ -8,12 +8,19 @@ export type UserRole = 'trainee' | 'instructor' | 'admin'
 
 export interface AuthUser {
   id: string
+  login?: string
   fullName: string
   role: UserRole
   createdAt?: number | null
 }
 
 const USER_KEY = 'ktk-elou-avt-auth-user'
+const SESSION_COOKIE = 'ktk_session'
+
+export function authPortalUrl(): string {
+  const fromEnv = import.meta.env.VITE_AUTH_URL as string | undefined
+  return (fromEnv && fromEnv.trim()) || 'http://localhost:8082'
+}
 
 export function getAuthedUser(): AuthUser | null {
   try {
@@ -51,29 +58,34 @@ export function validatePassword(password: string): string | null {
   return null
 }
 
-export async function loginUser(input: {
-  fullName: string
-  password: string
-}): Promise<AuthUser> {
-  const nameErr = validateFullName(input.fullName)
-  if (nameErr) throw new Error(nameErr)
-  const passErr = validatePassword(input.password)
-  if (passErr) throw new Error(passErr)
-  const data = await apiPost<{ ok: boolean; user: AuthUser }>('/auth/login', {
-    fullName: input.fullName.trim(),
-    password: input.password,
-  })
-  if (data.user.role === 'admin') {
-    throw new Error(
-      'Администратор входит через админ-панель (порт 8081), не через КТК.',
-    )
+export async function fetchSessionUser(): Promise<AuthUser | null> {
+  try {
+    const data = await apiGet<{ ok: boolean; user: AuthUser }>('/auth/me')
+    if (!data.user || data.user.role === 'admin') {
+      setAuthedUser(null)
+      return null
+    }
+    setAuthedUser(data.user)
+    return data.user
+  } catch {
+    setAuthedUser(null)
+    return null
   }
-  setAuthedUser(data.user)
-  return data.user
 }
 
-export function logoutUser(): void {
+export async function logoutUser(): Promise<void> {
+  try {
+    await apiPost('/auth/logout', {})
+  } catch {
+    /* ignore */
+  }
+  document.cookie = `${SESSION_COOKIE}=; Path=/; Max-Age=0; SameSite=Lax`
   setAuthedUser(null)
+}
+
+export function redirectToAuthPortal(): void {
+  const next = encodeURIComponent(window.location.href)
+  window.location.replace(`${authPortalUrl()}/?next=${next}`)
 }
 
 export type { AuditEntry }

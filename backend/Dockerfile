@@ -12,7 +12,8 @@ COPY frontend/src/miniTraining/catalog.json /app/frontend/src/miniTraining/catal
 ENV PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app \
     KTK_HOST=0.0.0.0 \
-    DATABASE_URL=postgresql://ktk:ktk@postgres:5432/ktk
+    DATABASE_URL=postgresql://ktk:ktk@postgres:5432/ktk \
+    REDIS_URL=redis://redis:6379/0
 
 RUN mkdir -p /app/backend/runtime
 

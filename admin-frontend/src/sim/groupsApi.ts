@@ -2,6 +2,7 @@ import { apiDelete, apiGet, apiPost } from '../api/client'
 
 export interface GroupUser {
   id: string
+  login?: string
   fullName: string
   role: string
   createdAt?: number | null

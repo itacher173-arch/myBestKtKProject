@@ -11,7 +11,9 @@ from urllib.parse import parse_qs, urlparse
 from backend.common.db import connect, init_schema, jsonb, safe_db_label
 from backend.common.http import JsonHandler
 from backend.common.json_store import read_json_list
+from backend.common.redis_client import redis_status, wait_for_redis
 from backend.storage.auth import (
+    LoginRateLimitError,
     create_user,
     delete_user,
     ensure_bootstrap_admin,
@@ -19,6 +21,14 @@ from backend.storage.auth import (
     login_user,
     update_user,
     users_count,
+)
+from backend.storage.sessions import (
+    SESSION_COOKIE,
+    SESSION_TTL_SEC,
+    create_session,
+    delete_session,
+    extract_token,
+    get_session,
 )
 from backend.storage.groups import (
     add_member,
@@ -254,12 +264,15 @@ class Handler(JsonHandler):
         if path == "/health":
             try:
                 reports, audit, users = _counts()
+                redis = redis_status()
+                status = "ok" if redis.get("status") == "ok" else "degraded"
                 return self.send_json(
                     {
-                        "status": "ok",
+                        "status": status,
                         "service": "storage",
                         "backend": "postgresql",
                         "database": safe_db_label(),
+                        "redis": redis,
                         "reports": reports,
                         "audit": audit,
                         "users": users,
@@ -276,6 +289,24 @@ class Handler(JsonHandler):
                     503,
                 )
         try:
+            if path == "/auth/session":
+                token = extract_token(
+                    cookie_header=self.headers.get("Cookie"),
+                    authorization=self.headers.get("Authorization"),
+                )
+                session = get_session(token)
+                if not session:
+                    return self.send_error_json("Требуется авторизация", 401)
+                return self.send_json({"ok": True, "user": session["user"]})
+            if path == "/auth/me":
+                token = extract_token(
+                    cookie_header=self.headers.get("Cookie"),
+                    authorization=self.headers.get("Authorization"),
+                )
+                session = get_session(token)
+                if not session:
+                    return self.send_error_json("Требуется авторизация", 401)
+                return self.send_json({"ok": True, "user": session["user"]})
             if path == "/reports":
                 return self.send_json(list_reports())
             if path == "/audit":
@@ -331,16 +362,53 @@ class Handler(JsonHandler):
                     403,
                 )
             if path == "/auth/login":
-                user = login_user(
-                    str(body.get("fullName") or ""),
-                    str(body.get("password") or ""),
+                forwarded = self.headers.get("X-Forwarded-For") or ""
+                client_ip = (
+                    forwarded.split(",")[0].strip()
+                    or self.headers.get("X-Real-IP")
+                    or self.client_address[0]
+                    or ""
                 )
-                return self.send_json({"ok": True, "user": user})
+                try:
+                    user = login_user(
+                        str(body.get("login") or body.get("fullName") or ""),
+                        str(body.get("password") or ""),
+                        client_ip=client_ip,
+                    )
+                except LoginRateLimitError as exc:
+                    return self.send_error_json(exc, 429)
+                # Админ входит только в админ-панель (без app-сессии)
+                if user["role"] == "admin":
+                    return self.send_json({"ok": True, "user": user})
+                token = create_session(user)
+                cookie = (
+                    f"{SESSION_COOKIE}={token}; Path=/; Max-Age={SESSION_TTL_SEC}; "
+                    "HttpOnly; SameSite=Lax"
+                )
+                return self.send_json(
+                    {"ok": True, "user": user, "token": token},
+                    extra_headers={"Set-Cookie": cookie},
+                )
+            if path == "/auth/logout":
+                token = extract_token(
+                    cookie_header=self.headers.get("Cookie"),
+                    authorization=self.headers.get("Authorization"),
+                    body_token=str(body.get("token") or "") or None,
+                )
+                delete_session(token)
+                expired = (
+                    f"{SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax"
+                )
+                return self.send_json(
+                    {"ok": True},
+                    extra_headers={"Set-Cookie": expired},
+                )
             if path == "/users":
                 user = create_user(
                     str(body.get("fullName") or ""),
                     str(body.get("password") or ""),
                     str(body.get("role") or ""),
+                    str(body.get("login") or ""),
                 )
                 return self.send_json({"ok": True, "user": user}, 201)
             if path == "/groups":
@@ -356,6 +424,8 @@ class Handler(JsonHandler):
                     201,
                 )
             self.send_error_json("not found", 404)
+        except LoginRateLimitError as exc:
+            self.send_error_json(exc, 429)
         except ValueError as exc:
             self.send_error_json(exc, 400)
         except Exception as exc:
@@ -372,8 +442,10 @@ class Handler(JsonHandler):
                 full_name = body.get("fullName")
                 password = body.get("password")
                 role = body.get("role")
+                login = body.get("login")
                 user = update_user(
                     user_id,
+                    login=str(login) if login is not None else None,
                     full_name=str(full_name) if full_name is not None else None,
                     password=str(password)
                     if password is not None and str(password)
@@ -440,9 +512,11 @@ class Handler(JsonHandler):
 
 def bootstrap() -> None:
     init_schema()
+    wait_for_redis()
     _migrate_json_if_needed()
     ensure_bootstrap_admin()
     print(f"[storage] PostgreSQL {safe_db_label()}", flush=True)
+    print(f"[storage] Redis {redis_status().get('url') or 'ok'}", flush=True)
 
 
 def main() -> None:

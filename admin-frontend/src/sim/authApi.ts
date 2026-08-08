@@ -4,12 +4,14 @@ export type UserRole = 'trainee' | 'instructor' | 'admin'
 
 export interface AuthUser {
   id: string
+  login?: string
   fullName: string
   role: UserRole
   createdAt?: number | null
 }
 
 const USER_KEY = 'ktk-elou-avt-admin-auth-user'
+const LOGIN_RE = /^[a-zA-Z][a-zA-Z0-9_]{2,31}$/
 
 export function getAuthedUser(): AuthUser | null {
   try {
@@ -35,6 +37,13 @@ export function roleLabel(role: UserRole | string): string {
   return 'обучаемый'
 }
 
+export function validateLogin(login: string): string | null {
+  if (!LOGIN_RE.test(login.trim())) {
+    return 'Логин: 3–32 символа, латиница; начинается с буквы; a-z, 0-9, _'
+  }
+  return null
+}
+
 export function validateFullName(name: string): string | null {
   if (name.trim().length < 1) return 'ФИО: минимум 1 символ'
   return null
@@ -46,19 +55,19 @@ export function validatePassword(password: string): string | null {
 }
 
 export async function loginAdmin(input: {
-  fullName: string
+  login: string
   password: string
 }): Promise<AuthUser> {
-  const nameErr = validateFullName(input.fullName)
-  if (nameErr) throw new Error(nameErr)
+  const loginErr = validateLogin(input.login)
+  if (loginErr) throw new Error(loginErr)
   const passErr = validatePassword(input.password)
   if (passErr) throw new Error(passErr)
   const data = await apiPost<{ ok: boolean; user: AuthUser }>('/auth/login', {
-    fullName: input.fullName.trim(),
+    login: input.login.trim().toLowerCase(),
     password: input.password,
   })
   if (data.user.role !== 'admin') {
-    throw new Error('Доступ только для администратора. Используйте панель КТК.')
+    throw new Error('Доступ только для администратора. Используйте портал входа КТК.')
   }
   setAuthedUser(data.user)
   return data.user

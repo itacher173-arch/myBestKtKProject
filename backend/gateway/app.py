@@ -34,7 +34,21 @@ class Handler(JsonHandler):
             body = self.rfile.read(length) if length else (
                 b"{}" if self.command == "POST" else None
             )
-        headers = {"Content-Type": "application/json"} if body is not None else {}
+        headers: dict[str, str] = {}
+        if body is not None:
+            headers["Content-Type"] = "application/json"
+        cookie = self.headers.get("Cookie")
+        if cookie:
+            headers["Cookie"] = cookie
+        authorization = self.headers.get("Authorization")
+        if authorization:
+            headers["Authorization"] = authorization
+        forwarded = self.headers.get("X-Forwarded-For")
+        if forwarded:
+            headers["X-Forwarded-For"] = forwarded
+        real_ip = self.headers.get("X-Real-IP")
+        if real_ip:
+            headers["X-Real-IP"] = real_ip
         request = Request(
             base + target_path,
             data=body,
@@ -50,12 +64,17 @@ class Handler(JsonHandler):
                     response.headers.get("Content-Type", "application/json"),
                 )
                 self.send_header("Content-Length", str(len(raw)))
+                set_cookie = response.headers.get("Set-Cookie")
+                if set_cookie:
+                    self.send_header("Set-Cookie", set_cookie)
                 self.end_headers()
                 self.wfile.write(raw)
         except HTTPError as exc:
             payload = exc.read().decode("utf-8")
+            set_cookie = exc.headers.get("Set-Cookie") if exc.headers else None
+            extra = {"Set-Cookie": set_cookie} if set_cookie else None
             try:
-                self.send_json(json.loads(payload), exc.code)
+                self.send_json(json.loads(payload), exc.code, extra_headers=extra)
             except Exception:
                 self.send_error_json(payload or str(exc), exc.code)
         except URLError as exc:

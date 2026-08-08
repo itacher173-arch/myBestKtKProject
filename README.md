@@ -6,6 +6,7 @@
 
 ```text
 frontend/         # КТК (Vite + React + Electron) → :8080
+auth-frontend/    # Портал входа → :8082
 admin-frontend/   # Админ-панель → :8081
 backend/          # Python API (gateway, storage, knowledge, training, presence)
 docs/
@@ -33,17 +34,20 @@ npm run docker:up
 
 | Сервис       | URL                                    | Образ                        |
 | ------------ | -------------------------------------- | ---------------------------- |
+| Вход (auth)  | http://localhost:8082                  | `nginx:1.27-alpine`          |
 | КТК (nginx)  | http://localhost:8080                  | `nginx:1.27-alpine`          |
 | Админ-панель | http://localhost:8081                  | `nginx:1.27-alpine`          |
 | API          | http://localhost:8000/api/health       | `python:3.12-slim` + psycopg |
 | Postgres     | `localhost:5432` (user/pass/db: `ktk`) | `postgres:16-alpine`         |
+| Redis        | `localhost:6379`                       | `redis:7-alpine`             |
 
-Postgres используется storage-сервисом: отчёты, аудит, пользователи и группы.
+Postgres — пользователи, группы, отчёты и аудит.
+Redis — presence, антибрутфорс логина и серверные сессии.
 localStorage — только кэш UI.
 
-Админ-панель: логин `admin` / пароль `admin`.
-Учётные записи обучаемых и инструкторов создаются только в админке.
-Инструктор в КТК видит только свои группы.
+Вход в КТК — только через портал `:8082`. Прямой доступ к `:8080` без сессии перенаправляет на авторизацию.
+Админ-панель: логин `admin` / пароль `admin` на `:8081`.
+Вход в КТК — логин (латиница) + пароль; ФИО задаётся при создании пользователя.
 
 Подробнее: `backend/README.md`.
 

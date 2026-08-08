@@ -7,6 +7,7 @@ from typing import Any
 
 class JsonHandler(BaseHTTPRequestHandler):
     server_version = "KTK/0.1"
+    protocol_version = "HTTP/1.1"
 
     def log_message(self, fmt: str, *args: object) -> None:
         print(f"[{self.log_date_time_string()}] {fmt % args}")
@@ -18,6 +19,8 @@ class JsonHandler(BaseHTTPRequestHandler):
             "Access-Control-Allow-Methods",
             "GET, POST, PATCH, PUT, DELETE, OPTIONS",
         )
+        self.send_header("Connection", "close")
+        self.close_connection = True
         super().end_headers()
 
     def do_OPTIONS(self) -> None:
@@ -30,11 +33,19 @@ class JsonHandler(BaseHTTPRequestHandler):
             return {}
         return json.loads(self.rfile.read(length).decode("utf-8"))
 
-    def send_json(self, data: Any, status: int = 200) -> None:
+    def send_json(
+        self,
+        data: Any,
+        status: int = 200,
+        extra_headers: dict[str, str] | None = None,
+    ) -> None:
         raw = json.dumps(data, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(raw)))
+        if extra_headers:
+            for key, value in extra_headers.items():
+                self.send_header(key, value)
         self.end_headers()
         self.wfile.write(raw)
 

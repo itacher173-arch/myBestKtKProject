@@ -3,6 +3,7 @@ import type { UserRole } from './authApi'
 
 export interface AdminUser {
   id: string
+  login: string
   fullName: string
   role: UserRole
   createdAt?: number | null
@@ -22,18 +23,25 @@ export function listAllUsers(): Promise<AdminUser[]> {
 }
 
 export function createAdminUser(input: {
+  login: string
   fullName: string
   password: string
   role: UserRole
 }): Promise<AdminUser> {
   return apiPost<{ ok: boolean; user: AdminUser }>('/users', input).then(
-    (r) => r.user,
+    (r) => {
+      if (!r?.user?.id) {
+        throw new Error('Сервер не вернул созданного пользователя')
+      }
+      return r.user
+    },
   )
 }
 
 export function updateAdminUser(
   userId: string,
   input: {
+    login?: string
     fullName?: string
     password?: string
     role?: UserRole
@@ -42,7 +50,12 @@ export function updateAdminUser(
   return apiPatch<{ ok: boolean; user: AdminUser }>(
     `/users/${encodeURIComponent(userId)}`,
     input,
-  ).then((r) => r.user)
+  ).then((r) => {
+    if (!r?.user?.id) {
+      throw new Error('Сервер не вернул обновлённого пользователя')
+    }
+    return r.user
+  })
 }
 
 export function deleteAdminUser(userId: string): Promise<void> {

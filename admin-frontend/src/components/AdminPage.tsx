@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+} from 'react'
 import { ApiError } from '../api/client'
 import {
   assignGroupInstructor,
@@ -17,6 +23,7 @@ import {
   roleLabel,
   type UserRole,
   validateFullName,
+  validateLogin,
   validatePassword,
 } from '../sim/authApi'
 import { appendAudit } from '../sim/auditStorage'
@@ -39,7 +46,8 @@ const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
 ]
 
 export function AdminPage({ onLogout }: { onLogout: () => void }) {
-  const admin = getAuthedUser()
+  // Стабильная ссылка: иначе useEffect([admin]) уходит в бесконечный GET /users
+  const admin = useMemo(() => getAuthedUser(), [])
   const [tab, setTab] = useState<Tab>('users')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -47,6 +55,7 @@ export function AdminPage({ onLogout }: { onLogout: () => void }) {
   const [users, setUsers] = useState<AdminUser[]>([])
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [editMode, setEditMode] = useState(false)
+  const [formLogin, setFormLogin] = useState('')
   const [formName, setFormName] = useState('')
   const [formPassword, setFormPassword] = useState('')
   const [formRole, setFormRole] = useState<UserRole>('trainee')
@@ -57,7 +66,10 @@ export function AdminPage({ onLogout }: { onLogout: () => void }) {
   const [members, setMembers] = useState<GroupUser[]>([])
   const [newGroupName, setNewGroupName] = useState('')
   const [newGroupInstructorId, setNewGroupInstructorId] = useState('')
-  const [addTraineeId, setAddTraineeId] = useState('')
+  const [membersTab, setMembersTab] = useState<'inGroup' | 'all'>('inGroup')
+  const [memberSearch, setMemberSearch] = useState('')
+  const [membersPage, setMembersPage] = useState(1)
+  const PAGE_SIZE = 8
 
   const instructors = useMemo(
     () => users.filter((u) => u.role === 'instructor'),
@@ -90,27 +102,34 @@ export function AdminPage({ onLogout }: { onLogout: () => void }) {
 
   useEffect(() => {
     if (!admin || admin.role !== 'admin') return
+    let cancelled = false
     void (async () => {
-      setError('')
       try {
         await refreshUsers()
       } catch (err) {
-        setError(
-          err instanceof Error
-            ? `Пользователи: ${err.message}`
-            : 'Ошибка загрузки пользователей',
-        )
+        if (!cancelled) {
+          setError(
+            err instanceof Error
+              ? `Пользователи: ${err.message}`
+              : 'Ошибка загрузки пользователей',
+          )
+        }
       }
       try {
         await refreshGroups()
       } catch (err) {
-        setError(
-          err instanceof Error
-            ? `Группы: ${err.message}`
-            : 'Ошибка загрузки групп',
-        )
+        if (!cancelled) {
+          setError(
+            err instanceof Error
+              ? `Группы: ${err.message}`
+              : 'Ошибка загрузки групп',
+          )
+        }
       }
     })()
+    return () => {
+      cancelled = true
+    }
   }, [admin, refreshUsers, refreshGroups])
 
   useEffect(() => {
@@ -118,6 +137,9 @@ export function AdminPage({ onLogout }: { onLogout: () => void }) {
       setMembers([])
       return
     }
+    setMembersTab('inGroup')
+    setMemberSearch('')
+    setMembersPage(1)
     void refreshMembers(activeGroupId).catch((err) => {
       setError(err instanceof Error ? err.message : 'Ошибка участников')
     })
@@ -132,6 +154,7 @@ export function AdminPage({ onLogout }: { onLogout: () => void }) {
   const resetUserForm = () => {
     setEditMode(false)
     setSelectedUserId(null)
+    setFormLogin('')
     setFormName('')
     setFormPassword('')
     setFormRole('trainee')
@@ -141,6 +164,7 @@ export function AdminPage({ onLogout }: { onLogout: () => void }) {
     setError('')
     setEditMode(false)
     setSelectedUserId(null)
+    setFormLogin('')
     setFormName('')
     setFormPassword('')
     setFormRole('trainee')
@@ -150,62 +174,91 @@ export function AdminPage({ onLogout }: { onLogout: () => void }) {
     setError('')
     setEditMode(true)
     setSelectedUserId(user.id)
+    setFormLogin(user.login || '')
     setFormName(user.fullName)
     setFormPassword('')
     setFormRole(user.role)
   }
 
-  const saveUser = async () => {
+  const saveUser = async (event?: FormEvent<HTMLFormElement>) => {
+    event?.preventDefault()
     setError('')
-    const nameErr = validateFullName(formName)
+
+    // FormData — актуальные значения из DOM (в т.ч. автозаполнение браузера)
+    let loginValue = formLogin
+    let nameValue = formName
+    let passwordValue = formPassword
+    if (event?.currentTarget) {
+      const fd = new FormData(event.currentTarget)
+      loginValue = String(fd.get('login') ?? loginValue)
+      nameValue = String(fd.get('fullName') ?? nameValue)
+      passwordValue = String(fd.get('password') ?? passwordValue)
+      setFormLogin(loginValue)
+      setFormName(nameValue)
+      setFormPassword(passwordValue)
+    }
+
+    const loginErr = validateLogin(loginValue)
+    if (loginErr) {
+      setError(loginErr)
+      return
+    }
+    const nameErr = validateFullName(nameValue)
     if (nameErr) {
       setError(nameErr)
       return
     }
     if (!editMode) {
-      const passErr = validatePassword(formPassword)
+      const passErr = validatePassword(passwordValue)
       if (passErr) {
         setError(passErr)
         return
       }
-    } else if (formPassword && validatePassword(formPassword)) {
-      setError(validatePassword(formPassword)!)
+    } else if (passwordValue && validatePassword(passwordValue)) {
+      setError(validatePassword(passwordValue)!)
       return
     }
     setBusy(true)
     try {
       if (editMode && selectedUserId) {
         const payload: {
+          login: string
           fullName: string
           role: UserRole
           password?: string
         } = {
-          fullName: formName.trim(),
+          login: loginValue.trim().toLowerCase(),
+          fullName: nameValue.trim(),
           role: formRole,
         }
-        if (formPassword.trim()) payload.password = formPassword
+        if (passwordValue.trim()) payload.password = passwordValue
         const user = await updateAdminUser(selectedUserId, payload)
         void appendAudit({
           actor: admin?.fullName || 'admin',
           role: 'admin',
           action: 'admin_update_user',
-          detail: `${user.fullName}:${user.role}`,
+          detail: `${user.login}:${user.role}`,
         })
+        await refreshUsers()
+        startEditUser(user)
+        setFormPassword('')
       } else {
         const user = await createAdminUser({
-          fullName: formName,
-          password: formPassword,
+          login: loginValue.trim().toLowerCase(),
+          fullName: nameValue.trim(),
+          password: passwordValue,
           role: formRole,
         })
         void appendAudit({
           actor: admin?.fullName || 'admin',
           role: 'admin',
           action: 'admin_create_user',
-          detail: `${user.fullName}:${user.role}`,
+          detail: `${user.login}:${user.role}`,
         })
+        await refreshUsers()
+        startEditUser(user)
+        setFormPassword('')
       }
-      await refreshUsers()
-      resetUserForm()
     } catch (err) {
       setError(
         err instanceof ApiError
@@ -288,13 +341,12 @@ export function AdminPage({ onLogout }: { onLogout: () => void }) {
     }
   }
 
-  const onAddMember = async () => {
-    if (!activeGroupId || !addTraineeId) return
+  const onAddMember = async (userId: string) => {
+    if (!activeGroupId || !userId) return
     setBusy(true)
     setError('')
     try {
-      await addGroupMember(activeGroupId, addTraineeId)
-      setAddTraineeId('')
+      await addGroupMember(activeGroupId, userId)
       await Promise.all([refreshMembers(activeGroupId), refreshGroups()])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ошибка добавления')
@@ -346,8 +398,35 @@ export function AdminPage({ onLogout }: { onLogout: () => void }) {
     }
   }
 
-  const memberIds = new Set(members.map((m) => m.id))
-  const availableTrainees = trainees.filter((t) => !memberIds.has(t.id))
+  const memberIds = useMemo(() => new Set(members.map((m) => m.id)), [members])
+
+  const filteredMembersList = useMemo(() => {
+    const q = memberSearch.trim().toLowerCase()
+    const source =
+      membersTab === 'inGroup'
+        ? members
+        : trainees.map((t) => ({
+            ...t,
+            inGroup: memberIds.has(t.id),
+          }))
+    const filtered = source.filter((u) => {
+      if (!q) return true
+      const login = (u.login || '').toLowerCase()
+      const name = (u.fullName || '').toLowerCase()
+      return login.includes(q) || name.includes(q)
+    })
+    return filtered
+  }, [membersTab, members, trainees, memberSearch, memberIds])
+
+  const membersTotalPages = Math.max(
+    1,
+    Math.ceil(filteredMembersList.length / PAGE_SIZE),
+  )
+  const membersPageSafe = Math.min(membersPage, membersTotalPages)
+  const pagedMembers = filteredMembersList.slice(
+    (membersPageSafe - 1) * PAGE_SIZE,
+    membersPageSafe * PAGE_SIZE,
+  )
 
   if (!admin || admin.role !== 'admin') {
     return (
@@ -419,7 +498,9 @@ export function AdminPage({ onLogout }: { onLogout: () => void }) {
                     }
                     onClick={() => startEditUser(u)}
                   >
-                    <strong>{u.fullName}</strong>
+                    <strong>
+                      @{u.login || '—'} · {u.fullName}
+                    </strong>
                     <span>{roleLabel(u.role)}</span>
                   </button>
                 </li>
@@ -429,70 +510,88 @@ export function AdminPage({ onLogout }: { onLogout: () => void }) {
 
           <section className="admin-detail">
             <h2>{editMode ? 'Редактирование пользователя' : 'Новый пользователь'}</h2>
-            <label>
-              ФИО
-              <input
-                type="text"
-                value={formName}
-                onChange={(e) => setFormName(e.target.value)}
-                maxLength={120}
-                placeholder="Иванов Иван Иванович"
-              />
-            </label>
-            <label>
-              Пароль{editMode ? ' (оставьте пустым, чтобы не менять)' : ''}
-              <input
-                type="password"
-                value={formPassword}
-                onChange={(e) => setFormPassword(e.target.value)}
-                maxLength={64}
-                placeholder={editMode ? 'Новый пароль' : 'Минимум 4 символа'}
-                autoComplete="new-password"
-              />
-            </label>
-            <fieldset className="admin-roles">
-              <legend>Роль</legend>
-              <div className="role-row">
-                {ROLE_OPTIONS.map((opt) => (
+            <form
+              className="admin-user-form"
+              onSubmit={(e) => void saveUser(e)}
+            >
+              <label>
+                Логин
+                <input
+                  type="text"
+                  name="login"
+                  value={formLogin}
+                  onChange={(e) => setFormLogin(e.target.value)}
+                  maxLength={32}
+                  placeholder="ivanov"
+                  autoComplete="off"
+                  required
+                />
+              </label>
+              <label>
+                ФИО
+                <input
+                  type="text"
+                  name="fullName"
+                  value={formName}
+                  onChange={(e) => setFormName(e.target.value)}
+                  maxLength={120}
+                  placeholder="Иванов Иван Иванович"
+                  autoComplete="off"
+                  required
+                />
+              </label>
+              <label>
+                Пароль{editMode ? ' (оставьте пустым, чтобы не менять)' : ''}
+                <input
+                  type="password"
+                  name="password"
+                  value={formPassword}
+                  onChange={(e) => setFormPassword(e.target.value)}
+                  maxLength={64}
+                  placeholder={editMode ? 'Новый пароль' : 'Минимум 4 символа'}
+                  autoComplete="new-password"
+                  required={!editMode}
+                />
+              </label>
+              <fieldset className="admin-roles">
+                <legend>Роль</legend>
+                <div className="role-row">
+                  {ROLE_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      className={formRole === opt.value ? 'active' : ''}
+                      onClick={() => setFormRole(opt.value)}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+              <div className="admin-actions">
+                <button type="submit" className="hdr-btn" disabled={busy}>
+                  {editMode ? 'Сохранить' : 'Создать'}
+                </button>
+                {editMode && selectedUser && (
                   <button
-                    key={opt.value}
                     type="button"
-                    className={formRole === opt.value ? 'active' : ''}
-                    onClick={() => setFormRole(opt.value)}
+                    className="hdr-btn danger"
+                    disabled={busy}
+                    onClick={() => void removeUser(selectedUser)}
                   >
-                    {opt.label}
+                    Удалить
                   </button>
-                ))}
-              </div>
-            </fieldset>
-            <div className="admin-actions">
-              <button
-                type="button"
-                className="hdr-btn"
-                disabled={busy}
-                onClick={() => void saveUser()}
-              >
-                {editMode ? 'Сохранить' : 'Создать'}
-              </button>
-              {editMode && selectedUser && (
+                )}
                 <button
                   type="button"
-                  className="hdr-btn danger"
+                  className="hdr-btn ghost"
                   disabled={busy}
-                  onClick={() => void removeUser(selectedUser)}
+                  onClick={startCreateUser}
                 >
-                  Удалить
+                  Сброс формы
                 </button>
-              )}
-              <button
-                type="button"
-                className="hdr-btn ghost"
-                disabled={busy}
-                onClick={startCreateUser}
-              >
-                Сброс формы
-              </button>
-            </div>
+              </div>
+            </form>
           </section>
         </div>
       )}
@@ -597,45 +696,102 @@ export function AdminPage({ onLogout }: { onLogout: () => void }) {
                 </label>
 
                 <h3>Участники</h3>
-                <div className="admin-add-row">
-                  <select
-                    value={addTraineeId}
-                    onChange={(e) => setAddTraineeId(e.target.value)}
-                  >
-                    <option value="">Выберите обучаемого</option>
-                    {availableTrainees.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.fullName}
-                      </option>
-                    ))}
-                  </select>
+                <div className="members-tabs">
                   <button
                     type="button"
-                    className="hdr-btn"
-                    disabled={busy || !addTraineeId}
-                    onClick={() => void onAddMember()}
+                    className={membersTab === 'inGroup' ? 'active' : ''}
+                    onClick={() => {
+                      setMembersTab('inGroup')
+                      setMembersPage(1)
+                    }}
                   >
-                    Добавить
+                    В группе ({members.length})
+                  </button>
+                  <button
+                    type="button"
+                    className={membersTab === 'all' ? 'active' : ''}
+                    onClick={() => {
+                      setMembersTab('all')
+                      setMembersPage(1)
+                    }}
+                  >
+                    Все ({trainees.length})
                   </button>
                 </div>
+                <input
+                  type="search"
+                  className="members-search"
+                  value={memberSearch}
+                  onChange={(e) => {
+                    setMemberSearch(e.target.value)
+                    setMembersPage(1)
+                  }}
+                  placeholder="Поиск по логину или ФИО"
+                />
                 <ul className="admin-members">
-                  {!members.length && (
-                    <li className="admin-empty">Пока никого нет</li>
+                  {!pagedMembers.length && (
+                    <li className="admin-empty">Никого не найдено</li>
                   )}
-                  {members.map((m) => (
-                    <li key={m.id}>
-                      <span>{m.fullName}</span>
-                      <button
-                        type="button"
-                        className="hdr-btn ghost"
-                        disabled={busy}
-                        onClick={() => void onRemoveMember(m.id)}
-                      >
-                        Убрать
-                      </button>
-                    </li>
-                  ))}
+                  {pagedMembers.map((m) => {
+                    const inGroup = memberIds.has(m.id)
+                    return (
+                      <li key={m.id}>
+                        <div className="member-info">
+                          <strong>
+                            @{m.login || '—'} · {m.fullName}
+                          </strong>
+                          {membersTab === 'all' && (
+                            <span className="member-meta">
+                              {inGroup ? 'в группе' : 'не в группе'}
+                            </span>
+                          )}
+                        </div>
+                        {inGroup ? (
+                          <button
+                            type="button"
+                            className="hdr-btn ghost"
+                            disabled={busy}
+                            onClick={() => void onRemoveMember(m.id)}
+                          >
+                            Убрать
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="hdr-btn"
+                            disabled={busy}
+                            onClick={() => void onAddMember(m.id)}
+                          >
+                            Добавить
+                          </button>
+                        )}
+                      </li>
+                    )
+                  })}
                 </ul>
+                <div className="members-pager">
+                  <button
+                    type="button"
+                    className="hdr-btn ghost"
+                    disabled={busy || membersPageSafe <= 1}
+                    onClick={() => setMembersPage((p) => Math.max(1, p - 1))}
+                  >
+                    Назад
+                  </button>
+                  <span>
+                    {membersPageSafe} / {membersTotalPages}
+                  </span>
+                  <button
+                    type="button"
+                    className="hdr-btn ghost"
+                    disabled={busy || membersPageSafe >= membersTotalPages}
+                    onClick={() =>
+                      setMembersPage((p) => Math.min(membersTotalPages, p + 1))
+                    }
+                  >
+                    Вперёд
+                  </button>
+                </div>
               </>
             )}
           </section>

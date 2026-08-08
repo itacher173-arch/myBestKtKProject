@@ -1,30 +1,37 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ApiError } from './api/client'
-import { AdminPage } from './components/AdminPage'
 import {
-  getAuthedUser,
-  loginAdmin,
-  logoutUser,
-  type AuthUser,
+  clearClientSession,
+  fetchMe,
+  loginAppUser,
+  redirectTarget,
   validateLogin,
   validatePassword,
 } from './sim/authApi'
-import { appendAudit } from './sim/auditStorage'
 import './App.css'
 
 export default function App() {
-  const [authed, setAuthed] = useState<AuthUser | null>(() => getAuthedUser())
   const [login, setLogin] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [checking, setChecking] = useState(true)
 
-  const onLogout = () => {
-    logoutUser()
-    setAuthed(null)
-    setPassword('')
-    setError('')
-  }
+  useEffect(() => {
+    void (async () => {
+      try {
+        const user = await fetchMe()
+        if (user && user.role !== 'admin') {
+          window.location.replace(redirectTarget())
+          return
+        }
+      } catch {
+        /* форма входа */
+      } finally {
+        setChecking(false)
+      }
+    })()
+  }, [])
 
   const onLogin = async () => {
     setError('')
@@ -40,15 +47,10 @@ export default function App() {
     }
     setBusy(true)
     try {
-      const user = await loginAdmin({ login, password })
-      setAuthed(user)
-      setPassword('')
-      void appendAudit({
-        actor: user.fullName,
-        role: 'admin',
-        action: 'admin_login',
-      })
+      await loginAppUser({ login, password })
+      window.location.replace(redirectTarget())
     } catch (err) {
+      clearClientSession()
       setError(
         err instanceof ApiError
           ? err.message
@@ -61,16 +63,22 @@ export default function App() {
     }
   }
 
-  if (authed?.role === 'admin') {
-    return <AdminPage onLogout={onLogout} />
+  if (checking) {
+    return (
+      <div className="auth-login">
+        <div className="auth-login-card">
+          <p className="lead">Проверка сессии…</p>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="admin-login">
-      <div className="admin-login-card">
+    <div className="auth-login">
+      <div className="auth-login-card">
         <div className="corporate-mark">ГАЗПРОМ НЕФТЬ</div>
-        <h1>Админ-панель КТК</h1>
-        <p className="lead">Управление пользователями и группами</p>
+        <h1>Вход в КТК</h1>
+        <p className="lead">Авторизация обучаемого или инструктора</p>
 
         <label>
           Логин
@@ -78,7 +86,7 @@ export default function App() {
             type="text"
             value={login}
             onChange={(e) => setLogin(e.target.value)}
-            placeholder="admin"
+            placeholder="ivanov"
             maxLength={32}
             autoComplete="username"
           />
@@ -103,6 +111,10 @@ export default function App() {
         <button type="button" disabled={busy} onClick={() => void onLogin()}>
           {busy ? 'Вход…' : 'Войти'}
         </button>
+
+        <p className="hint">
+          Администраторам — панель на порту 8081 (логин admin).
+        </p>
       </div>
     </div>
   )
