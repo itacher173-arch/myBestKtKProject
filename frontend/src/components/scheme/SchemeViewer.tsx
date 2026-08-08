@@ -52,6 +52,8 @@ export function SchemeViewer() {
   const [activeZoneId, setActiveZoneId] = useState<string | null>(null)
   const [scale, setScale] = useState(0.48)
   const [pan, setPan] = useState({ x: 20, y: 10 })
+  const scaleRef = useRef(scale)
+  const panRef = useRef(pan)
   const dragRef = useRef<{
     active: boolean
     startX: number
@@ -59,6 +61,13 @@ export function SchemeViewer() {
     panX: number
     panY: number
   } | null>(null)
+
+  useEffect(() => {
+    scaleRef.current = scale
+  }, [scale])
+  useEffect(() => {
+    panRef.current = pan
+  }, [pan])
 
   const groups = useMemo(
     () => equipment.filter((e) => e.type === 'group'),
@@ -202,11 +211,33 @@ export function SchemeViewer() {
     [closePanel, handleNodeSelect, selectEquip],
   )
 
-  const onWheel = useCallback((e: WheelEvent) => {
-    e.preventDefault()
-    const delta = e.deltaY > 0 ? 0.92 : 1.08
-    setScale((s) => Math.min(2.2, Math.max(0.25, s * delta)))
+  const zoomAt = useCallback((factor: number, clientX: number, clientY: number) => {
+    const el = containerRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const mx = clientX - rect.left
+    const my = clientY - rect.top
+    const s = scaleRef.current
+    const p = panRef.current
+    const next = Math.min(2.2, Math.max(0.25, s * factor))
+    if (next === s) return
+    const ratio = next / s
+    // Точка под курсором остаётся на месте: pan' = m - (m - pan) * (s'/s)
+    setScale(next)
+    setPan({
+      x: mx - (mx - p.x) * ratio,
+      y: my - (my - p.y) * ratio,
+    })
   }, [])
+
+  const onWheel = useCallback(
+    (e: WheelEvent) => {
+      e.preventDefault()
+      const factor = e.deltaY > 0 ? 0.92 : 1.08
+      zoomAt(factor, e.clientX, e.clientY)
+    },
+    [zoomAt],
+  )
 
   useEffect(() => {
     const el = containerRef.current
@@ -459,14 +490,24 @@ export function SchemeViewer() {
       <div className="scheme-zoom">
         <button
           type="button"
-          onClick={() => setScale((s) => Math.min(2.2, s * 1.15))}
+          onClick={() => {
+            const el = containerRef.current
+            if (!el) return
+            const rect = el.getBoundingClientRect()
+            zoomAt(1.15, rect.left + rect.width / 2, rect.top + rect.height / 2)
+          }}
         >
           +
         </button>
         <span>{Math.round(scale * 100)}%</span>
         <button
           type="button"
-          onClick={() => setScale((s) => Math.max(0.25, s / 1.15))}
+          onClick={() => {
+            const el = containerRef.current
+            if (!el) return
+            const rect = el.getBoundingClientRect()
+            zoomAt(1 / 1.15, rect.left + rect.width / 2, rect.top + rect.height / 2)
+          }}
         >
           −
         </button>

@@ -38,12 +38,13 @@ npm run docker:up
 | КТК (nginx)  | http://localhost:8080                  | `nginx:1.27-alpine`          |
 | Админ-панель | http://localhost:8081                  | `nginx:1.27-alpine`          |
 | API          | http://localhost:8000/api/health       | `python:3.12-slim` + psycopg |
-| Postgres     | `localhost:5432` (user/pass/db: `ktk`) | `postgres:16-alpine`         |
-| Redis        | `localhost:6379`                       | `redis:7-alpine`             |
+| Postgres     | внутренняя сеть Docker             | `postgres:16-alpine`         |
+| Redis        | внутренняя сеть Docker             | `redis:7-alpine`             |
 
-Postgres — пользователи, группы, отчёты и аудит.
+Postgres — пользователи, группы, отчёты и аудит (порты 5432/6379 наружу не публикуются).
 Redis — presence, антибрутфорс логина и серверные сессии.
-localStorage — только кэш UI.
+API users/groups/reports/audit требуют серверную сессию; CRUD пользователей — только admin.
+Bootstrap-админ создаётся один раз (пароль при рестарте не сбрасывается).
 
 Вход в КТК — только через портал `:8082`. Прямой доступ к `:8080` без сессии перенаправляет на авторизацию.
 Админ-панель: логин `admin` / пароль `admin` на `:8081`.

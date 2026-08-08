@@ -57,6 +57,12 @@ export async function loginAppUser(input: {
     },
   )
   if (data.user.role === 'admin') {
+    clearClientSession()
+    try {
+      await apiPost('/auth/logout', {})
+    } catch {
+      /* ignore */
+    }
     throw new Error(
       'Администратор входит через админ-панель: http://localhost:8081',
     )

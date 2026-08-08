@@ -59,8 +59,7 @@ services:
       POSTGRES_USER: ktk
       POSTGRES_PASSWORD: ktk
       POSTGRES_DB: ktk
-    ports:
-      - "5432:5432"
+    # Порт наружу не публикуем (доступ только из docker-сети)
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -72,8 +71,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
+    # Порт наружу не публикуем (доступ только из docker-сети)
     volumes:
       - redis_data:/data
     command: ["redis-server", "--appendonly", "yes"]

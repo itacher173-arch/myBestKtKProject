@@ -111,6 +111,28 @@ def list_groups(instructor_id: str | None = None, *, all_groups: bool = False) -
     return [_group_dict(dict(row)) for row in rows]
 
 
+def get_group(group_id: str) -> dict:
+    if not group_id.strip():
+        raise ValueError("groupId обязателен")
+    with connect() as conn:
+        row = conn.execute(
+            """
+            SELECT g.id, g.name, g.instructor_id, g.created_at,
+                   u.full_name AS instructor_name,
+                   COUNT(m.user_id)::int AS member_count
+            FROM training_groups g
+            JOIN users u ON u.id = g.instructor_id
+            LEFT JOIN group_members m ON m.group_id = g.id
+            WHERE g.id = %s
+            GROUP BY g.id, u.full_name
+            """,
+            (group_id,),
+        ).fetchone()
+    if not row:
+        raise ValueError("Группа не найдена")
+    return _group_dict(dict(row))
+
+
 def create_group(name: str, instructor_id: str) -> dict:
     title = name.strip()
     if len(title) < 1:

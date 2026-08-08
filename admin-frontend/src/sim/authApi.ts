@@ -62,17 +62,28 @@ export async function loginAdmin(input: {
   if (loginErr) throw new Error(loginErr)
   const passErr = validatePassword(input.password)
   if (passErr) throw new Error(passErr)
-  const data = await apiPost<{ ok: boolean; user: AuthUser }>('/auth/login', {
-    login: input.login.trim().toLowerCase(),
-    password: input.password,
-  })
+  const data = await apiPost<{ ok: boolean; user: AuthUser; token?: string }>(
+    '/auth/login',
+    {
+      login: input.login.trim().toLowerCase(),
+      password: input.password,
+    },
+  )
   if (data.user.role !== 'admin') {
     throw new Error('Доступ только для администратора. Используйте портал входа КТК.')
+  }
+  if (!data.token) {
+    throw new Error('Сервер не выдал сессию администратора')
   }
   setAuthedUser(data.user)
   return data.user
 }
 
-export function logoutUser(): void {
+export async function logoutUser(): Promise<void> {
+  try {
+    await apiPost('/auth/logout', {})
+  } catch {
+    /* ignore */
+  }
   setAuthedUser(null)
 }

@@ -12,6 +12,14 @@ from backend.common.db import connect, init_schema, jsonb, safe_db_label
 from backend.common.http import JsonHandler
 from backend.common.json_store import read_json_list
 from backend.common.redis_client import redis_status, wait_for_redis
+from backend.storage.access import (
+    AuthRequired,
+    Forbidden,
+    can_manage_group,
+    is_admin,
+    request_user,
+    require_roles,
+)
 from backend.storage.auth import (
     LoginRateLimitError,
     create_user,
@@ -34,6 +42,7 @@ from backend.storage.groups import (
     add_member,
     create_group,
     delete_group,
+    get_group,
     group_reports,
     list_groups,
     list_instructors,
@@ -257,6 +266,24 @@ def _counts() -> tuple[int, int, int]:
 
 
 class Handler(JsonHandler):
+    def _session_cookie(self, token: str) -> str:
+        return (
+            f"{SESSION_COOKIE}={token}; Path=/; Max-Age={SESSION_TTL_SEC}; "
+            "HttpOnly; SameSite=Lax"
+        )
+
+    def _clear_session_cookie(self) -> str:
+        return f"{SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax"
+
+    def _handle_auth_errors(self, exc: Exception) -> bool:
+        if isinstance(exc, AuthRequired):
+            self.send_error_json(exc, 401)
+            return True
+        if isinstance(exc, Forbidden):
+            self.send_error_json(exc, 403)
+            return True
+        return False
+
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
         path = parsed.path
@@ -299,28 +326,31 @@ class Handler(JsonHandler):
                     return self.send_error_json("Требуется авторизация", 401)
                 return self.send_json({"ok": True, "user": session["user"]})
             if path == "/auth/me":
-                token = extract_token(
-                    cookie_header=self.headers.get("Cookie"),
-                    authorization=self.headers.get("Authorization"),
-                )
-                session = get_session(token)
-                if not session:
-                    return self.send_error_json("Требуется авторизация", 401)
-                return self.send_json({"ok": True, "user": session["user"]})
+                user = request_user(self)
+                return self.send_json({"ok": True, "user": user})
+
+            user = request_user(self)
+
             if path == "/reports":
+                require_roles(user, "admin", "instructor", "trainee")
                 return self.send_json(list_reports())
             if path == "/audit":
+                require_roles(user, "admin", "instructor")
                 return self.send_json(list_audit())
             if path == "/users":
                 role = (query.get("role") or [""])[0].strip()
                 if role == "trainee":
+                    require_roles(user, "admin", "instructor")
                     return self.send_json(list_trainees())
                 if role == "instructor":
+                    require_roles(user, "admin")
                     return self.send_json(list_instructors())
+                require_roles(user, "admin")
                 if role:
                     return self.send_json(list_users(role))
                 return self.send_json(list_users())
             if path.startswith("/users/") and path.count("/") == 2:
+                require_roles(user, "admin")
                 user_id = path[len("/users/") :]
                 users = [u for u in list_users() if u["id"] == user_id]
                 if not users:
@@ -333,29 +363,43 @@ class Handler(JsonHandler):
                     "true",
                     "yes",
                 )
-                return self.send_json(
-                    list_groups(instructor_id or None, all_groups=all_flag)
-                )
+                if all_flag:
+                    require_roles(user, "admin")
+                    return self.send_json(list_groups(None, all_groups=True))
+                require_roles(user, "admin", "instructor")
+                if not instructor_id:
+                    if is_admin(user):
+                        return self.send_error_json(
+                            "Укажите instructorId или all=1", 400
+                        )
+                    instructor_id = user["id"]
+                elif not is_admin(user) and instructor_id != user["id"]:
+                    raise Forbidden("Можно смотреть только свои группы")
+                return self.send_json(list_groups(instructor_id, all_groups=False))
             if path.startswith("/groups/") and path.endswith("/members"):
                 group_id = path[len("/groups/") : -len("/members")]
+                group = get_group(group_id)
+                if not can_manage_group(user, group):
+                    raise Forbidden("Нет доступа к этой группе")
                 return self.send_json(list_members(group_id))
             if path.startswith("/groups/") and path.endswith("/reports"):
                 group_id = path[len("/groups/") : -len("/reports")]
+                group = get_group(group_id)
+                if not can_manage_group(user, group):
+                    raise Forbidden("Нет доступа к этой группе")
                 return self.send_json(group_reports(group_id))
             self.send_error_json("not found", 404)
-        except ValueError as exc:
-            self.send_error_json(exc, 400)
         except Exception as exc:
+            if self._handle_auth_errors(exc):
+                return
+            if isinstance(exc, ValueError):
+                return self.send_error_json(exc, 400)
             self.send_error_json(exc)
 
     def do_POST(self) -> None:
         path = urlparse(self.path).path
         try:
             body = self.read_json()
-            if path == "/reports":
-                return self.send_json(save_report(body), 201)
-            if path == "/audit":
-                return self.send_json(append_audit(body), 201)
             if path == "/auth/register":
                 return self.send_error_json(
                     "Регистрация отключена. Пользователей создаёт администратор.",
@@ -377,17 +421,10 @@ class Handler(JsonHandler):
                     )
                 except LoginRateLimitError as exc:
                     return self.send_error_json(exc, 429)
-                # Админ входит только в админ-панель (без app-сессии)
-                if user["role"] == "admin":
-                    return self.send_json({"ok": True, "user": user})
                 token = create_session(user)
-                cookie = (
-                    f"{SESSION_COOKIE}={token}; Path=/; Max-Age={SESSION_TTL_SEC}; "
-                    "HttpOnly; SameSite=Lax"
-                )
                 return self.send_json(
                     {"ok": True, "user": user, "token": token},
-                    extra_headers={"Set-Cookie": cookie},
+                    extra_headers={"Set-Cookie": self._session_cookie(token)},
                 )
             if path == "/auth/logout":
                 token = extract_token(
@@ -396,46 +433,69 @@ class Handler(JsonHandler):
                     body_token=str(body.get("token") or "") or None,
                 )
                 delete_session(token)
-                expired = (
-                    f"{SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax"
-                )
                 return self.send_json(
                     {"ok": True},
-                    extra_headers={"Set-Cookie": expired},
+                    extra_headers={"Set-Cookie": self._clear_session_cookie()},
                 )
+
+            user = request_user(self)
+
+            if path == "/reports":
+                require_roles(user, "admin", "instructor", "trainee")
+                # Не даём подменить автора произвольной строкой без сессии
+                if "userName" not in body or not str(body.get("userName") or "").strip():
+                    body = {**body, "userName": user.get("fullName") or user.get("login")}
+                return self.send_json(save_report(body), 201)
+            if path == "/audit":
+                require_roles(user, "admin", "instructor", "trainee")
+                safe = {
+                    **body,
+                    "actor": user.get("fullName") or user.get("login") or "user",
+                    "role": user.get("role") or "trainee",
+                }
+                return self.send_json(append_audit(safe), 201)
             if path == "/users":
-                user = create_user(
+                require_roles(user, "admin")
+                created = create_user(
                     str(body.get("fullName") or ""),
                     str(body.get("password") or ""),
                     str(body.get("role") or ""),
                     str(body.get("login") or ""),
                 )
-                return self.send_json({"ok": True, "user": user}, 201)
+                return self.send_json({"ok": True, "user": created}, 201)
             if path == "/groups":
-                group = create_group(
-                    str(body.get("name") or ""),
-                    str(body.get("instructorId") or ""),
-                )
+                require_roles(user, "admin", "instructor")
+                instructor_id = str(body.get("instructorId") or "")
+                if not is_admin(user):
+                    instructor_id = user["id"]
+                group = create_group(str(body.get("name") or ""), instructor_id)
                 return self.send_json(group, 201)
             if path.startswith("/groups/") and path.endswith("/members"):
                 group_id = path[len("/groups/") : -len("/members")]
+                group = get_group(group_id)
+                if not can_manage_group(user, group):
+                    raise Forbidden("Нет доступа к этой группе")
                 return self.send_json(
                     add_member(group_id, str(body.get("userId") or "")),
                     201,
                 )
             self.send_error_json("not found", 404)
-        except LoginRateLimitError as exc:
-            self.send_error_json(exc, 429)
-        except ValueError as exc:
-            self.send_error_json(exc, 400)
         except Exception as exc:
+            if self._handle_auth_errors(exc):
+                return
+            if isinstance(exc, LoginRateLimitError):
+                return self.send_error_json(exc, 429)
+            if isinstance(exc, ValueError):
+                return self.send_error_json(exc, 400)
             self.send_error_json(exc)
 
     def do_PATCH(self) -> None:
         path = urlparse(self.path).path
         try:
             body = self.read_json()
+            user = request_user(self)
             if path.startswith("/users/"):
+                require_roles(user, "admin")
                 user_id = path[len("/users/") :]
                 if not user_id or "/" in user_id:
                     return self.send_error_json("userId required", 400)
@@ -443,7 +503,7 @@ class Handler(JsonHandler):
                 password = body.get("password")
                 role = body.get("role")
                 login = body.get("login")
-                user = update_user(
+                updated = update_user(
                     user_id,
                     login=str(login) if login is not None else None,
                     full_name=str(full_name) if full_name is not None else None,
@@ -452,61 +512,81 @@ class Handler(JsonHandler):
                     else None,
                     role=str(role) if role is not None else None,
                 )
-                return self.send_json({"ok": True, "user": user})
+                return self.send_json({"ok": True, "user": updated})
             if path.startswith("/groups/"):
                 rest = path[len("/groups/") :]
                 if "/" in rest:
                     return self.send_error_json("not found", 404)
                 group_id = rest
+                group = get_group(group_id)
                 if "instructorId" in body:
-                    group = set_group_instructor(
-                        group_id, str(body.get("instructorId") or "")
+                    require_roles(user, "admin")
+                    return self.send_json(
+                        set_group_instructor(
+                            group_id, str(body.get("instructorId") or "")
+                        )
                     )
-                    return self.send_json(group)
                 if "name" in body:
-                    group = rename_group(group_id, str(body.get("name") or ""))
-                    return self.send_json(group)
+                    if not can_manage_group(user, group):
+                        raise Forbidden("Нет доступа к этой группе")
+                    return self.send_json(
+                        rename_group(group_id, str(body.get("name") or ""))
+                    )
                 return self.send_error_json("instructorId or name required", 400)
             self.send_error_json("not found", 404)
-        except ValueError as exc:
-            self.send_error_json(exc, 400)
         except Exception as exc:
+            if self._handle_auth_errors(exc):
+                return
+            if isinstance(exc, ValueError):
+                return self.send_error_json(exc, 400)
             self.send_error_json(exc)
 
     def do_DELETE(self) -> None:
         path = urlparse(self.path).path
         try:
+            user = request_user(self)
             if path == "/reports":
+                require_roles(user, "admin", "instructor")
                 return self.send_json(clear_reports())
             if path.startswith("/reports/"):
+                require_roles(user, "admin", "instructor")
                 report_id = path[len("/reports/") :]
                 if not report_id:
                     return self.send_error_json("id required", 400)
                 return self.send_json(delete_report(report_id))
             if path == "/audit":
+                require_roles(user, "admin", "instructor")
                 return self.send_json(clear_audit())
             if path.startswith("/users/"):
+                require_roles(user, "admin")
                 user_id = path[len("/users/") :]
                 if not user_id or "/" in user_id:
                     return self.send_error_json("userId required", 400)
                 return self.send_json(delete_user(user_id))
             if path.startswith("/groups/") and "/members/" in path:
-                # /groups/{id}/members/{userId}
                 rest = path[len("/groups/") :]
                 group_id, _, member_part = rest.partition("/members/")
                 user_id = member_part
                 if not group_id or not user_id:
                     return self.send_error_json("groupId and userId required", 400)
+                group = get_group(group_id)
+                if not can_manage_group(user, group):
+                    raise Forbidden("Нет доступа к этой группе")
                 return self.send_json(remove_member(group_id, user_id))
             if path.startswith("/groups/"):
                 group_id = path[len("/groups/") :]
                 if not group_id or "/" in group_id:
                     return self.send_error_json("groupId required", 400)
+                group = get_group(group_id)
+                if not can_manage_group(user, group):
+                    raise Forbidden("Нет доступа к этой группе")
                 return self.send_json(delete_group(group_id))
             self.send_error_json("not found", 404)
-        except ValueError as exc:
-            self.send_error_json(exc, 400)
         except Exception as exc:
+            if self._handle_auth_errors(exc):
+                return
+            if isinstance(exc, ValueError):
+                return self.send_error_json(exc, 400)
             self.send_error_json(exc)
 
 

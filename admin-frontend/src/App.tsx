@@ -20,10 +20,11 @@ export default function App() {
   const [busy, setBusy] = useState(false)
 
   const onLogout = () => {
-    logoutUser()
-    setAuthed(null)
-    setPassword('')
-    setError('')
+    void logoutUser().then(() => {
+      setAuthed(null)
+      setPassword('')
+      setError('')
+    })
   }
 
   const onLogin = async () => {

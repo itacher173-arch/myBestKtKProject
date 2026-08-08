@@ -336,7 +336,7 @@ def users_count() -> int:
 
 
 def ensure_bootstrap_admin() -> None:
-    """Гарантирует учётку администратора (login/password: admin/admin)."""
+    """Создаёт админа только если в БД ещё нет ни одного admin. Пароль не перезаписывает."""
     login = (os.environ.get("KTK_ADMIN_LOGIN") or "admin").strip().lower()
     full_name = (os.environ.get("KTK_ADMIN_NAME") or "Администратор").strip()
     password = (os.environ.get("KTK_ADMIN_PASSWORD") or "admin").strip()
@@ -344,46 +344,34 @@ def ensure_bootstrap_admin() -> None:
         raise ValueError("KTK_ADMIN_LOGIN некорректен")
     if len(full_name) < 1 or len(password) < 4:
         raise ValueError("KTK_ADMIN_NAME/PASSWORD некорректны")
-    password_hash = hash_password(password)
     with connect() as conn:
+        admin_count = int(
+            conn.execute(
+                "SELECT COUNT(*) AS c FROM users WHERE role = 'admin'"
+            ).fetchone()["c"]
+        )
+        if admin_count > 0:
+            conn.commit()
+            print(f"[storage] bootstrap admin: already present ({admin_count})", flush=True)
+            return
         by_login = conn.execute(
             "SELECT id FROM users WHERE lower(login) = lower(%s)",
             (login,),
         ).fetchone()
         if by_login:
             conn.execute(
-                """
-                UPDATE users
-                SET role = 'admin', password_hash = %s, full_name = %s, login = %s
-                WHERE id = %s
-                """,
-                (password_hash, full_name, login, by_login["id"]),
+                "UPDATE users SET role = 'admin' WHERE id = %s",
+                (by_login["id"],),
             )
-        else:
-            legacy = conn.execute(
-                """
-                SELECT id FROM users
-                WHERE role = 'admin'
-                ORDER BY created_at
-                LIMIT 1
-                """
-            ).fetchone()
-            if legacy:
-                conn.execute(
-                    """
-                    UPDATE users
-                    SET login = %s, full_name = %s, password_hash = %s, role = 'admin'
-                    WHERE id = %s
-                    """,
-                    (login, full_name, password_hash, legacy["id"]),
-                )
-            else:
-                conn.execute(
-                    """
-                    INSERT INTO users (id, login, full_name, password_hash, role)
-                    VALUES (%s, %s, %s, %s, 'admin')
-                    """,
-                    (_uid(), login, full_name, password_hash),
-                )
+            conn.commit()
+            print(f"[storage] bootstrap admin: promoted {login}", flush=True)
+            return
+        conn.execute(
+            """
+            INSERT INTO users (id, login, full_name, password_hash, role)
+            VALUES (%s, %s, %s, %s, 'admin')
+            """,
+            (_uid(), login, full_name, hash_password(password)),
+        )
         conn.commit()
-    print(f"[storage] bootstrap admin: {login}", flush=True)
+    print(f"[storage] bootstrap admin created: {login}", flush=True)

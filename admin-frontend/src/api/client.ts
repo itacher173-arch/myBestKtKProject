@@ -65,6 +65,7 @@ export async function apiRequest<T>(
   try {
     response = await fetch(url, {
       ...init,
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         ...(init?.headers ?? {}),
