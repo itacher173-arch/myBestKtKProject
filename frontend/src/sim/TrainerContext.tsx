@@ -36,6 +36,7 @@ import {
   applyFault,
 } from './faultEngine'
 import { appendAudit } from './auditStorage'
+import { getAuthedUser } from './authApi'
 import { processInterlockReason, criticalFailReasonText } from './pazGuards'
 import { sequenceBlockReason, type GuardedAction } from './scenarioGuards'
 import { getAnalogs, getUtilityAlarms, tickProcess } from './processModel'
@@ -63,7 +64,7 @@ import {
 } from './types'
 
 type Action =
-  | { type: 'SET_ROLE'; role: Role }
+  | { type: 'SET_ROLE'; role: Role | null }
   | { type: 'SET_NAME'; name: string }
   | { type: 'SET_EXERCISE'; id: string | null }
   | { type: 'SET_MODE'; mode: SessionMode }
@@ -396,7 +397,7 @@ interface TrainerApi {
   state: TrainerState
   exercises: typeof exercises
   analogs: AnalogTag[]
-  setRole: (role: Role) => void
+  setRole: (role: Role | null) => void
   setName: (name: string) => void
   setExercise: (id: string) => void
   setSessionMode: (mode: SessionMode) => void
@@ -1428,6 +1429,28 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     [pushSystem],
   )
 
+  const resetToStart = useCallback(() => {
+    recoveryLogged.current = false
+    saltAlarmLogged.current = false
+    criticalFailHandled.current = false
+    if (pumpStartTimer.current) {
+      clearTimeout(pumpStartTimer.current)
+      pumpStartTimer.current = null
+    }
+    setTrainingModeState('full')
+    setSelectedMiniTrainingId(null)
+    setHintsUsed(0)
+    setVisibleHint(null)
+    setKnowledgeOpen(false)
+    setKnowledgeArticleId(null)
+    dispatch({ type: 'RESET_TO_START' })
+    const user = getAuthedUser()
+    if (user) {
+      dispatch({ type: 'SET_ROLE', role: user.role })
+      dispatch({ type: 'SET_NAME', name: user.fullName })
+    }
+  }, [])
+
   const startSession = useCallback(() => {
     recoveryLogged.current = false
     saltAlarmLogged.current = false
@@ -1436,13 +1459,23 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
       clearTimeout(pumpStartTimer.current)
       pumpStartTimer.current = null
     }
-    const cur = stateRef.current.session
+    const user = getAuthedUser()
+    if (user) {
+      dispatch({ type: 'SET_ROLE', role: user.role })
+      dispatch({ type: 'SET_NAME', name: user.fullName })
+    }
+    const cur = {
+      ...stateRef.current.session,
+      role: user?.role ?? stateRef.current.session.role,
+      userName: user?.fullName ?? stateRef.current.session.userName,
+    }
     const training =
       trainingMode === 'mini'
         ? getMiniTraining(MINI_TRAININGS, selectedMiniTrainingId)
         : undefined
     if (trainingMode === 'mini' && !training) return
     if (trainingMode === 'full' && !getExercise(cur.exerciseId)) return
+    if (cur.role !== 'trainee' || !cur.userName.trim()) return
 
     if (training) {
       dispatch({ type: 'SET_EXERCISE', id: training.id })
@@ -1471,23 +1504,6 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     })
     dispatch({ type: 'START_SESSION' })
   }, [selectedMiniTrainingId, trainingMode])
-
-  const resetToStart = useCallback(() => {
-    recoveryLogged.current = false
-    saltAlarmLogged.current = false
-    criticalFailHandled.current = false
-    if (pumpStartTimer.current) {
-      clearTimeout(pumpStartTimer.current)
-      pumpStartTimer.current = null
-    }
-    setTrainingModeState('full')
-    setSelectedMiniTrainingId(null)
-    setHintsUsed(0)
-    setVisibleHint(null)
-    setKnowledgeOpen(false)
-    setKnowledgeArticleId(null)
-    dispatch({ type: 'RESET_TO_START' })
-  }, [])
 
   const ackAlarm = useCallback((key: string) => {
     dispatch({ type: 'ACK_ALARM', key })

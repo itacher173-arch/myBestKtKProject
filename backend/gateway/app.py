@@ -92,6 +92,12 @@ class Handler(JsonHandler):
             return self.proxy(STORAGE_URL, path[len("/api") :])
         if path == "/api/audit":
             return self.proxy(STORAGE_URL, "/audit")
+        if path.startswith("/api/auth/"):
+            return self.proxy(STORAGE_URL, path[len("/api") :])
+        if path == "/api/users" or path.startswith("/api/users/"):
+            return self.proxy(STORAGE_URL, self.path[len("/api") :])
+        if path == "/api/groups" or path.startswith("/api/groups/"):
+            return self.proxy(STORAGE_URL, self.path[len("/api") :])
         if path.startswith("/api/"):
             return self.send_error_json("not found", 404)
         self.serve_static(path)
@@ -104,6 +110,20 @@ class Handler(JsonHandler):
             return self.proxy(STORAGE_URL, "/reports")
         if path == "/api/audit":
             return self.proxy(STORAGE_URL, "/audit")
+        if path.startswith("/api/auth/"):
+            return self.proxy(STORAGE_URL, path[len("/api") :])
+        if path == "/api/users" or path.startswith("/api/users/"):
+            return self.proxy(STORAGE_URL, path[len("/api") :])
+        if path == "/api/groups" or path.startswith("/api/groups/"):
+            return self.proxy(STORAGE_URL, path[len("/api") :])
+        self.send_error_json("not found", 404)
+
+    def do_PATCH(self) -> None:
+        path = urlparse(self.path).path
+        if path.startswith("/api/users/"):
+            return self.proxy(STORAGE_URL, path[len("/api") :])
+        if path.startswith("/api/groups/"):
+            return self.proxy(STORAGE_URL, path[len("/api") :])
         self.send_error_json("not found", 404)
 
     def do_DELETE(self) -> None:
@@ -112,6 +132,10 @@ class Handler(JsonHandler):
             return self.proxy(STORAGE_URL, path[len("/api") :])
         if path == "/api/audit":
             return self.proxy(STORAGE_URL, "/audit")
+        if path.startswith("/api/users/"):
+            return self.proxy(STORAGE_URL, path[len("/api") :])
+        if path.startswith("/api/groups/"):
+            return self.proxy(STORAGE_URL, path[len("/api") :])
         self.send_error_json("not found", 404)
 
     def serve_static(self, path: str) -> None:

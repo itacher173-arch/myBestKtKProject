@@ -16,7 +16,7 @@ class JsonHandler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.send_header(
             "Access-Control-Allow-Methods",
-            "GET, POST, DELETE, OPTIONS",
+            "GET, POST, PATCH, PUT, DELETE, OPTIONS",
         )
         super().end_headers()
 

@@ -13,6 +13,7 @@ import { EquipmentPanel } from './components/scheme/EquipmentPanel'
 import { SchemeViewer } from './components/scheme/SchemeViewer'
 import { KnowledgeBase } from './knowledge/KnowledgeBase'
 import { TrainingPanel } from './miniTraining/TrainingPanel'
+import { PresenceBridge } from './sim/PresenceBridge'
 import { TrainerProvider, useTrainer } from './sim/TrainerContext'
 import { getExercise } from './sim/scenarios'
 import type { TimeScale } from './sim/types'
@@ -129,31 +130,35 @@ function TrainerApp() {
               >
                 {session.paused ? 'Продолжить' : 'Пауза'}
               </button>
-              <button
-                type="button"
-                className="hdr-btn ghost"
-                onClick={saveSnapshot}
-              >
-                Снимок
-              </button>
-              <button
-                type="button"
-                className="hdr-btn ghost"
-                disabled={!state.snapshot}
-                onClick={restoreSnapshot}
-              >
-                Restore
-              </button>
-              {!isMini && (
-                <button
-                  type="button"
-                  className="hdr-btn ghost"
-                  onClick={() =>
-                    setInstructorLiveOpen(!session.instructorLiveOpen)
-                  }
-                >
-                  Инструктор
-                </button>
+              {session.role === 'instructor' && (
+                <>
+                  <button
+                    type="button"
+                    className="hdr-btn ghost"
+                    onClick={saveSnapshot}
+                  >
+                    Снимок
+                  </button>
+                  <button
+                    type="button"
+                    className="hdr-btn ghost"
+                    disabled={!state.snapshot}
+                    onClick={restoreSnapshot}
+                  >
+                    Restore
+                  </button>
+                  {!isMini && (
+                    <button
+                      type="button"
+                      className="hdr-btn ghost"
+                      onClick={() =>
+                        setInstructorLiveOpen(!session.instructorLiveOpen)
+                      }
+                    >
+                      Инструктор
+                    </button>
+                  )}
+                </>
               )}
               <button
                 type="button"
@@ -217,6 +222,7 @@ function TrainerApp() {
 export default function App() {
   return (
     <TrainerProvider>
+      <PresenceBridge />
       <TrainerApp />
     </TrainerProvider>
   )

@@ -9,6 +9,7 @@ from http.server import ThreadingHTTPServer
 
 from backend.gateway.app import Handler as GatewayHandler
 from backend.knowledge.app import Handler as KnowledgeHandler
+from backend.presence import start_presence_server
 from backend.storage.app import Handler as StorageHandler
 from backend.storage.app import RUNTIME, bootstrap as bootstrap_storage
 from backend.training.app import Handler as TrainingHandler
@@ -30,10 +31,12 @@ def main() -> None:
     parser.add_argument("--training-port", type=int, default=8103)
     parser.add_argument("--knowledge-port", type=int, default=8104)
     parser.add_argument("--storage-port", type=int, default=8105)
+    parser.add_argument("--presence-port", type=int, default=8106)
     args = parser.parse_args()
 
     RUNTIME.mkdir(parents=True, exist_ok=True)
     bootstrap_storage()
+    start_presence_server(args.host if args.host != "127.0.0.1" else "0.0.0.0", args.presence_port)
 
     workers = [
         ("training", args.training_port, TrainingHandler),
@@ -54,7 +57,7 @@ def main() -> None:
 
     print(
         f"[ktk] API http://{args.host}:{args.gateway_port}/api/health · "
-        f"данные → PostgreSQL",
+        f"WS :{args.presence_port}/ · данные → PostgreSQL",
         flush=True,
     )
     for thread in threads:

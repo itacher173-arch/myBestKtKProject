@@ -1,6 +1,6 @@
 import type { FaultType } from './faultEngine'
 
-export type Role = 'instructor' | 'trainee'
+export type Role = 'instructor' | 'trainee' | 'admin'
 
 export type SessionMode = 'train' | 'exam'
 

@@ -1,0 +1,90 @@
+.admin-login {
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 30px;
+  background:
+    linear-gradient(135deg, rgba(0, 59, 111, 0.96), rgba(0, 121, 194, 0.9) 52%, rgba(0, 174, 239, 0.72)),
+    #003b6f;
+}
+
+.admin-login-card {
+  width: min(420px, 100%);
+  padding: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.97);
+  color: var(--gpn-ink);
+  box-shadow: 0 22px 65px rgba(0, 31, 55, 0.35);
+}
+
+.corporate-mark {
+  margin-bottom: 4px;
+  color: var(--gpn-blue);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.admin-login-card h1 {
+  margin: 0;
+  color: var(--gpn-deep);
+  font-size: 24px;
+}
+
+.admin-login-card .lead {
+  margin: 6px 0 18px;
+  color: var(--gpn-muted);
+  font-size: 13px;
+}
+
+.admin-login-card label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #52758a;
+}
+
+.admin-login-card input {
+  padding: 10px 12px;
+  border: 1px solid #c6e0ee;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--gpn-ink);
+}
+
+.admin-login-card .error {
+  margin: 0 0 12px;
+  color: #d64545;
+  font-size: 13px;
+}
+
+.admin-login-card > button {
+  width: 100%;
+  margin-top: 4px;
+  padding: 12px 14px;
+  border: none;
+  border-radius: 8px;
+  background: var(--gpn-blue);
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-login-card > button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.admin-login-card > button:hover:not(:disabled) {
+  background: var(--gpn-deep);
+}

@@ -127,6 +127,46 @@
   line-height: 1.45;
 }
 
+.auth-error {
+  color: #b42318 !important;
+  font-weight: 600;
+}
+
+.auth-section h2 {
+  margin-top: 14px;
+}
+
+.auth-user-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding: 10px 12px;
+  border: 1px solid #c6e0ee;
+  border-radius: 8px;
+  background: var(--gpn-pale);
+}
+
+.auth-user-bar p {
+  margin: 0;
+  font-size: 13px;
+}
+
+.auth-user-bar span {
+  color: var(--gpn-muted);
+}
+
+button.linkish {
+  border: none;
+  background: transparent;
+  color: var(--gpn-blue);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
 .mini-training-cards {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

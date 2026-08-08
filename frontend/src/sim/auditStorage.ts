@@ -6,7 +6,7 @@ export interface AuditEntry {
   id: string
   at: number
   actor: string
-  role: 'trainee' | 'instructor' | 'system'
+  role: 'trainee' | 'instructor' | 'admin' | 'system'
   action: string
   detail?: string
 }

@@ -50,6 +50,53 @@ SCHEMA_STATEMENTS = (
     CREATE INDEX IF NOT EXISTS idx_audit_at
         ON audit_log (at DESC)
     """,
+    """
+    CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        full_name TEXT NOT NULL,
+        password_hash TEXT NOT NULL,
+        role TEXT NOT NULL CHECK (role IN ('trainee', 'instructor', 'admin')),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (full_name)
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_users_role
+        ON users (role)
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS training_groups (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        instructor_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (instructor_id, name)
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS group_members (
+        group_id TEXT NOT NULL REFERENCES training_groups(id) ON DELETE CASCADE,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        added_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        PRIMARY KEY (group_id, user_id)
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_group_members_user
+        ON group_members (user_id)
+    """,
+)
+
+# Миграции для уже созданных БД (CREATE TABLE IF NOT EXISTS не меняет CHECK).
+MIGRATION_STATEMENTS = (
+    """
+    ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check
+    """,
+    """
+    ALTER TABLE users
+        ADD CONSTRAINT users_role_check
+        CHECK (role IN ('trainee', 'instructor', 'admin'))
+    """,
 )
 
 def database_url() -> str:
@@ -83,6 +130,8 @@ def init_schema() -> None:
     wait_for_db()
     with connect() as conn:
         for statement in SCHEMA_STATEMENTS:
+            conn.execute(statement)
+        for statement in MIGRATION_STATEMENTS:
             conn.execute(statement)
         conn.commit()
 

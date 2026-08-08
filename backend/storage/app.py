@@ -6,12 +6,33 @@ import argparse
 import time
 from http.server import ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 from backend.common.db import connect, init_schema, jsonb, safe_db_label
 from backend.common.http import JsonHandler
 from backend.common.json_store import read_json_list
-
+from backend.storage.auth import (
+    create_user,
+    delete_user,
+    ensure_bootstrap_admin,
+    list_users,
+    login_user,
+    update_user,
+    users_count,
+)
+from backend.storage.groups import (
+    add_member,
+    create_group,
+    delete_group,
+    group_reports,
+    list_groups,
+    list_instructors,
+    list_members,
+    list_trainees,
+    remove_member,
+    rename_group,
+    set_group_instructor,
+)
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 RUNTIME = BACKEND_ROOT / "runtime"
 REPORTS_PATH = RUNTIME / "reports.json"
@@ -218,19 +239,21 @@ def clear_audit() -> dict:
     return {"ok": True}
 
 
-def _counts() -> tuple[int, int]:
+def _counts() -> tuple[int, int, int]:
     with connect() as conn:
         reports = conn.execute("SELECT COUNT(*) AS c FROM trainee_reports").fetchone()["c"]
         audit = conn.execute("SELECT COUNT(*) AS c FROM audit_log").fetchone()["c"]
-    return int(reports), int(audit)
+    return int(reports), int(audit), users_count()
 
 
 class Handler(JsonHandler):
     def do_GET(self) -> None:
-        path = urlparse(self.path).path
+        parsed = urlparse(self.path)
+        path = parsed.path
+        query = parse_qs(parsed.query)
         if path == "/health":
             try:
-                reports, audit = _counts()
+                reports, audit, users = _counts()
                 return self.send_json(
                     {
                         "status": "ok",
@@ -239,6 +262,7 @@ class Handler(JsonHandler):
                         "database": safe_db_label(),
                         "reports": reports,
                         "audit": audit,
+                        "users": users,
                     }
                 )
             except Exception as exc:
@@ -251,11 +275,47 @@ class Handler(JsonHandler):
                     },
                     503,
                 )
-        if path == "/reports":
-            return self.send_json(list_reports())
-        if path == "/audit":
-            return self.send_json(list_audit())
-        self.send_error_json("not found", 404)
+        try:
+            if path == "/reports":
+                return self.send_json(list_reports())
+            if path == "/audit":
+                return self.send_json(list_audit())
+            if path == "/users":
+                role = (query.get("role") or [""])[0].strip()
+                if role == "trainee":
+                    return self.send_json(list_trainees())
+                if role == "instructor":
+                    return self.send_json(list_instructors())
+                if role:
+                    return self.send_json(list_users(role))
+                return self.send_json(list_users())
+            if path.startswith("/users/") and path.count("/") == 2:
+                user_id = path[len("/users/") :]
+                users = [u for u in list_users() if u["id"] == user_id]
+                if not users:
+                    return self.send_error_json("Пользователь не найден", 404)
+                return self.send_json(users[0])
+            if path == "/groups":
+                instructor_id = (query.get("instructorId") or [""])[0]
+                all_flag = (query.get("all") or [""])[0].lower() in (
+                    "1",
+                    "true",
+                    "yes",
+                )
+                return self.send_json(
+                    list_groups(instructor_id or None, all_groups=all_flag)
+                )
+            if path.startswith("/groups/") and path.endswith("/members"):
+                group_id = path[len("/groups/") : -len("/members")]
+                return self.send_json(list_members(group_id))
+            if path.startswith("/groups/") and path.endswith("/reports"):
+                group_id = path[len("/groups/") : -len("/reports")]
+                return self.send_json(group_reports(group_id))
+            self.send_error_json("not found", 404)
+        except ValueError as exc:
+            self.send_error_json(exc, 400)
+        except Exception as exc:
+            self.send_error_json(exc)
 
     def do_POST(self) -> None:
         path = urlparse(self.path).path
@@ -265,7 +325,79 @@ class Handler(JsonHandler):
                 return self.send_json(save_report(body), 201)
             if path == "/audit":
                 return self.send_json(append_audit(body), 201)
+            if path == "/auth/register":
+                return self.send_error_json(
+                    "Регистрация отключена. Пользователей создаёт администратор.",
+                    403,
+                )
+            if path == "/auth/login":
+                user = login_user(
+                    str(body.get("fullName") or ""),
+                    str(body.get("password") or ""),
+                )
+                return self.send_json({"ok": True, "user": user})
+            if path == "/users":
+                user = create_user(
+                    str(body.get("fullName") or ""),
+                    str(body.get("password") or ""),
+                    str(body.get("role") or ""),
+                )
+                return self.send_json({"ok": True, "user": user}, 201)
+            if path == "/groups":
+                group = create_group(
+                    str(body.get("name") or ""),
+                    str(body.get("instructorId") or ""),
+                )
+                return self.send_json(group, 201)
+            if path.startswith("/groups/") and path.endswith("/members"):
+                group_id = path[len("/groups/") : -len("/members")]
+                return self.send_json(
+                    add_member(group_id, str(body.get("userId") or "")),
+                    201,
+                )
             self.send_error_json("not found", 404)
+        except ValueError as exc:
+            self.send_error_json(exc, 400)
+        except Exception as exc:
+            self.send_error_json(exc)
+
+    def do_PATCH(self) -> None:
+        path = urlparse(self.path).path
+        try:
+            body = self.read_json()
+            if path.startswith("/users/"):
+                user_id = path[len("/users/") :]
+                if not user_id or "/" in user_id:
+                    return self.send_error_json("userId required", 400)
+                full_name = body.get("fullName")
+                password = body.get("password")
+                role = body.get("role")
+                user = update_user(
+                    user_id,
+                    full_name=str(full_name) if full_name is not None else None,
+                    password=str(password)
+                    if password is not None and str(password)
+                    else None,
+                    role=str(role) if role is not None else None,
+                )
+                return self.send_json({"ok": True, "user": user})
+            if path.startswith("/groups/"):
+                rest = path[len("/groups/") :]
+                if "/" in rest:
+                    return self.send_error_json("not found", 404)
+                group_id = rest
+                if "instructorId" in body:
+                    group = set_group_instructor(
+                        group_id, str(body.get("instructorId") or "")
+                    )
+                    return self.send_json(group)
+                if "name" in body:
+                    group = rename_group(group_id, str(body.get("name") or ""))
+                    return self.send_json(group)
+                return self.send_error_json("instructorId or name required", 400)
+            self.send_error_json("not found", 404)
+        except ValueError as exc:
+            self.send_error_json(exc, 400)
         except Exception as exc:
             self.send_error_json(exc)
 
@@ -281,7 +413,27 @@ class Handler(JsonHandler):
                 return self.send_json(delete_report(report_id))
             if path == "/audit":
                 return self.send_json(clear_audit())
+            if path.startswith("/users/"):
+                user_id = path[len("/users/") :]
+                if not user_id or "/" in user_id:
+                    return self.send_error_json("userId required", 400)
+                return self.send_json(delete_user(user_id))
+            if path.startswith("/groups/") and "/members/" in path:
+                # /groups/{id}/members/{userId}
+                rest = path[len("/groups/") :]
+                group_id, _, member_part = rest.partition("/members/")
+                user_id = member_part
+                if not group_id or not user_id:
+                    return self.send_error_json("groupId and userId required", 400)
+                return self.send_json(remove_member(group_id, user_id))
+            if path.startswith("/groups/"):
+                group_id = path[len("/groups/") :]
+                if not group_id or "/" in group_id:
+                    return self.send_error_json("groupId required", 400)
+                return self.send_json(delete_group(group_id))
             self.send_error_json("not found", 404)
+        except ValueError as exc:
+            self.send_error_json(exc, 400)
         except Exception as exc:
             self.send_error_json(exc)
 
@@ -289,6 +441,7 @@ class Handler(JsonHandler):
 def bootstrap() -> None:
     init_schema()
     _migrate_json_if_needed()
+    ensure_bootstrap_admin()
     print(f"[storage] PostgreSQL {safe_db_label()}", flush=True)
 
 

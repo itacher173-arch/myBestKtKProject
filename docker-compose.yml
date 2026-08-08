@@ -9,15 +9,28 @@ services:
       - backend
     restart: unless-stopped
 
+  admin:
+    build:
+      context: ./admin-frontend
+      dockerfile: Dockerfile
+    ports:
+      - "8081:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
   backend:
     build:
       context: .
       dockerfile: backend/Dockerfile
     ports:
       - "8000:8000"
+      - "8106:8106"
     environment:
       KTK_HOST: "0.0.0.0"
       DATABASE_URL: "postgresql://ktk:ktk@postgres:5432/ktk"
+      KTK_ADMIN_NAME: "admin"
+      KTK_ADMIN_PASSWORD: "admin"
     volumes:
       # Только для однократной миграции старых JSON → Postgres
       - backend_runtime:/app/backend/runtime

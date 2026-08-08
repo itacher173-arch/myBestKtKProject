@@ -16,5 +16,5 @@ ENV PYTHONUNBUFFERED=1 \
 
 RUN mkdir -p /app/backend/runtime
 
-EXPOSE 8000
+EXPOSE 8000 8106
 CMD ["python", "-m", "backend.run_all", "--host", "0.0.0.0"]

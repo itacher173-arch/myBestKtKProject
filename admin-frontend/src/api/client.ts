@@ -1,4 +1,4 @@
-/** HTTP-клиент к gateway (стиль AVT_4.0). */
+/** HTTP-клиент к gateway. */
 
 const DEFAULT_BASE = '/api'
 
@@ -75,14 +75,4 @@ export function apiPatch<T>(path: string, body?: unknown): Promise<T> {
 
 export function apiDelete<T>(path: string): Promise<T> {
   return apiRequest<T>(path, { method: 'DELETE' })
-}
-
-/** Быстрая проверка доступности gateway. */
-export async function apiHealth(): Promise<boolean> {
-  try {
-    const data = await apiGet<{ status?: string }>('/health')
-    return data.status === 'ok' || data.status === 'degraded'
-  } catch {
-    return false
-  }
 }

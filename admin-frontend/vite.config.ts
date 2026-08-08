@@ -3,30 +3,20 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  // Нужно для Electron (загрузка через file://)
-  base: './',
   server: {
+    port: 5174,
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:8000',
-        changeOrigin: true,
-      },
-      '/ws': {
-        target: 'ws://127.0.0.1:8106',
-        ws: true,
         changeOrigin: true,
       },
     },
   },
   preview: {
+    port: 5174,
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:8000',
-        changeOrigin: true,
-      },
-      '/ws': {
-        target: 'ws://127.0.0.1:8106',
-        ws: true,
         changeOrigin: true,
       },
     },
