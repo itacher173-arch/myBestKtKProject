@@ -15,10 +15,12 @@
   margin-bottom: 6px;
   padding: 8px 10px;
   border-radius: 8px 8px 0 0;
-  background: rgba(20, 36, 30, 0.95);
-  border: 1px solid #4a7a5a;
+  background: var(--panel-glass-success);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--success-border);
+  backdrop-filter: blur(8px);
   border-bottom: none;
-  color: #e8eef4;
+  color: var(--text-primary);
 }
 
 .scheme-quickbar-head strong {
@@ -28,7 +30,7 @@
 
 .scheme-quickbar-head span {
   font-size: 11px;
-  color: #9db4c7;
+  color: var(--text-muted);
   font-family: 'IBM Plex Mono', monospace;
 }
 
@@ -38,9 +40,9 @@
 }
 
 .scheme-quickbar-actions button {
-  border: 1px solid #3a556c;
-  background: #1e2a36;
-  color: #c5d4e0;
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--text-secondary);
   border-radius: 4px;
   padding: 4px 8px;
   font-size: 11px;

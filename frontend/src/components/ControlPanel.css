@@ -1,7 +1,7 @@
 .ctrl-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: var(--overlay-scrim);
   display: grid;
   place-items: center;
   z-index: 40;
@@ -9,10 +9,10 @@
 
 .ctrl-window {
   width: min(380px, calc(100vw - 24px));
-  background: #1a2430;
-  border: 1px solid #4a6780;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
   border-radius: 10px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--shadow-lg);
 }
 
 .ctrl-header {
@@ -20,20 +20,20 @@
   align-items: center;
   justify-content: space-between;
   padding: 12px 14px;
-  background: #243d52;
+  background: var(--surface-raised);
   border-radius: 10px 10px 0 0;
 }
 
 .ctrl-header h3 {
   margin: 0;
   font-size: 14px;
-  color: #f4f7fa;
+  color: var(--text-primary);
 }
 
 .ctrl-close {
   border: none;
   background: transparent;
-  color: #c5d4e0;
+  color: var(--text-secondary);
   font-size: 22px;
   line-height: 1;
   cursor: pointer;
@@ -41,13 +41,13 @@
 
 .ctrl-body {
   padding: 14px 16px 16px;
-  color: #c5d4e0;
+  color: var(--text-secondary);
   font-size: 13px;
 }
 
 .ctrl-desc {
   margin: 0 0 12px;
-  color: #9db4c7;
+  color: var(--text-muted);
   font-size: 12px;
   line-height: 1.4;
 }
@@ -56,16 +56,16 @@
   width: 100%;
   margin: 0 0 12px;
   padding: 8px 10px;
-  border: 1px solid var(--gpn-sky, #00aeef);
+  border: 1px solid var(--accent);
   border-radius: 6px;
-  background: rgba(0, 174, 239, 0.12);
-  color: #bfeeff;
+  background: var(--accent-soft);
+  color: var(--accent);
   font-weight: 700;
   cursor: pointer;
 }
 
 .ctrl-knowledge-btn:hover {
-  background: rgba(0, 174, 239, 0.22);
+  background: color-mix(in srgb, var(--accent-soft) 80%, var(--accent));
 }
 
 .ctrl-actions {
@@ -76,9 +76,9 @@
 }
 
 .ctrl-actions button {
-  border: 1px solid #3a556c;
-  background: #243040;
-  color: #e8eef4;
+  border: 1px solid var(--border);
+  background: var(--surface-muted);
+  color: var(--text-primary);
   border-radius: 6px;
   padding: 8px 12px;
   cursor: pointer;
@@ -91,9 +91,9 @@
 }
 
 .ctrl-actions button.on {
-  border-color: #3d8ebd;
-  background: #1e3a4a;
-  color: #6ec1ff;
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 .ctrl-body input[type='range'] {
@@ -103,21 +103,21 @@
 
 .signal-tag {
   font-family: 'IBM Plex Mono', monospace;
-  color: #f0c14b;
+  color: var(--warning);
   font-weight: 600;
 }
 
 .signal-value {
   font-size: 22px;
   font-weight: 700;
-  color: #e8eef4;
+  color: var(--text-primary);
 }
 
 .signal-value.alarm {
-  color: #e07070;
+  color: var(--danger);
 }
 
 .hint {
   font-size: 11px;
-  color: #7f97ab;
+  color: var(--text-muted);
 }

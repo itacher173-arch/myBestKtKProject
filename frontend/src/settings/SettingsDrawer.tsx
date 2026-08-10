@@ -198,6 +198,14 @@ export function SettingsDrawer() {
               label="Минимум анимации"
               description="Отключает декоративные переходы и пульсацию"
             />
+            <Toggle
+              checked={settings.showTrendStrip}
+              onChange={(value) =>
+                settings.setPreference('showTrendStrip', value)
+              }
+              label={settings.t('showTrends')}
+              description="Панель трендов параметров поверх схемы (PRA351, TR55-1 и др.)"
+            />
           </section>
 
           <section>

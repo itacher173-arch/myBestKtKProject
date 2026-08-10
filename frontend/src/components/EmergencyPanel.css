@@ -7,11 +7,13 @@
   width: min(280px, calc(100% - 24px));
   padding: 10px 12px;
   border-radius: 8px;
-  border: 1px solid #5a3a3a;
-  background: rgba(28, 16, 16, 0.92);
-  color: #e8d4d4;
+  border: 1px solid var(--danger-border);
+  background: var(--panel-glass-danger);
+  box-shadow: var(--shadow-sm);
+  color: var(--text-secondary);
   font-size: 12px;
   pointer-events: auto;
+  backdrop-filter: blur(8px);
 }
 
 .emerg-panel h3 {
@@ -19,17 +21,17 @@
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #c98989;
+  color: var(--text-muted);
 }
 
 .emerg-ok {
   margin: 0 0 8px;
-  color: #7dba8f;
+  color: var(--success);
 }
 
 .emerg-hint {
   margin: 0 0 8px;
-  color: #f0c14b;
+  color: var(--warning);
 }
 
 .emerg-alarms {
@@ -40,8 +42,8 @@
 
 .emerg-alarms li {
   padding: 4px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  color: #f0a0a0;
+  border-bottom: 1px solid var(--panel-divider);
+  color: var(--danger);
   font-weight: 600;
   display: flex;
   align-items: flex-start;
@@ -65,7 +67,7 @@
 .emerg-alarm-time {
   font-size: 10px;
   font-weight: 500;
-  color: #a89090;
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
 
@@ -80,21 +82,21 @@
 }
 
 .prio-1 {
-  color: #ffb0b0;
-  border-color: #c05050;
-  background: #3a1818;
+  color: var(--danger);
+  border-color: var(--danger-border);
+  background: var(--danger-soft);
 }
 
 .prio-2 {
-  color: #ffd090;
-  border-color: #a07830;
-  background: #2a2410;
+  color: var(--warning);
+  border-color: color-mix(in srgb, var(--warning) 45%, var(--border));
+  background: var(--warning-soft);
 }
 
 .prio-3 {
-  color: #c0d0e0;
-  border-color: #4a6070;
-  background: #1a2430;
+  color: var(--text-secondary);
+  border-color: var(--border);
+  background: var(--surface-raised);
 }
 
 .emerg-alarms li.acked {
@@ -103,9 +105,9 @@
 }
 
 .emerg-alarms button {
-  border: 1px solid #4a6780;
-  background: #1e2a36;
-  color: #c5d4e0;
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--text-secondary);
   border-radius: 4px;
   font: inherit;
   font-size: 10px;
@@ -121,9 +123,9 @@
 }
 
 .emerg-actions button {
-  border: 1px solid #8a4545;
-  background: #3a2020;
-  color: #f4e8e8;
+  border: 1px solid var(--danger-border);
+  background: var(--danger-soft);
+  color: var(--text-primary);
   border-radius: 6px;
   padding: 8px 10px;
   text-align: left;
@@ -133,8 +135,8 @@
 }
 
 .emerg-actions button:hover:not(:disabled) {
-  background: #4a2828;
-  border-color: #c06060;
+  background: color-mix(in srgb, var(--danger-soft) 80%, var(--surface-muted));
+  border-color: var(--danger-border);
 }
 
 .emerg-actions button:disabled {
@@ -145,14 +147,14 @@
 .emerg-inject {
   margin-top: 10px;
   padding-top: 8px;
-  border-top: 1px solid #5a3a3a;
+  border-top: 1px solid var(--danger-border);
 }
 
 .emerg-inject button {
   width: 100%;
-  border: 1px solid #8a6a2a;
-  background: #2a2418;
-  color: #ffd090;
+  border: 1px solid color-mix(in srgb, var(--warning) 45%, var(--border));
+  background: var(--warning-soft);
+  color: var(--warning);
   border-radius: 6px;
   padding: 7px 8px;
   font: inherit;

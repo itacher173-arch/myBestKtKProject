@@ -8,10 +8,12 @@
   overflow: auto;
   padding: 12px 14px;
   border-radius: 10px;
-  border: 1px solid #3a556c;
-  background: rgba(14, 22, 30, 0.96);
-  color: #d7e3ee;
+  border: 1px solid var(--border);
+  background: var(--panel-glass);
+  box-shadow: var(--shadow-sm);
+  color: var(--text-secondary);
   font-size: 12px;
+  backdrop-filter: blur(8px);
 }
 
 .debrief-panel header {
@@ -22,18 +24,18 @@
 }
 
 .debrief-panel header .ok {
-  color: #8fd49a;
+  color: var(--success);
   font-weight: 700;
 }
 
 .debrief-panel header .bad {
-  color: #f0a0a0;
+  color: var(--danger);
   font-weight: 700;
 }
 
 .debrief-summary {
   margin: 0 0 8px;
-  color: #9db4c7;
+  color: var(--text-muted);
   line-height: 1.35;
 }
 
@@ -41,9 +43,9 @@
   margin: 0 0 8px;
   padding: 6px 8px;
   border-radius: 6px;
-  background: #3a1818;
-  border: 1px solid #8a4040;
-  color: #ffc0c0;
+  background: var(--danger-soft);
+  border: 1px solid var(--danger-border);
+  color: var(--danger);
 }
 
 .debrief-meta {
@@ -55,7 +57,7 @@
 
 .debrief-meta dt {
   font-size: 10px;
-  color: #7f97ab;
+  color: var(--text-muted);
   text-transform: uppercase;
 }
 
@@ -69,7 +71,7 @@
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #7f97ab;
+  color: var(--text-muted);
 }
 
 .debrief-steps {
@@ -88,16 +90,16 @@
 }
 
 .debrief-steps li.ok {
-  color: #a8d4b0;
+  color: var(--success);
 }
 
 .debrief-steps li.miss {
-  color: #e0a0a0;
+  color: var(--danger);
 }
 
 .debrief-miss-note {
   margin: 8px 0 0;
-  color: #f0c14b;
+  color: var(--warning);
 }
 
 .debrief-log {
@@ -110,14 +112,14 @@
 
 .debrief-log li {
   padding: 3px 0;
-  border-bottom: 1px solid #1e2a36;
-  color: #9db4c7;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
 }
 
 .debrief-log time {
   display: inline-block;
   min-width: 64px;
-  color: #7f97ab;
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
   margin-right: 6px;
 }
@@ -125,9 +127,9 @@
 .debrief-btn {
   margin-top: 12px;
   width: 100%;
-  border: 1px solid #4a6780;
-  background: #1e2a36;
-  color: #e8eef4;
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--text-primary);
   border-radius: 6px;
   padding: 8px;
   font: inherit;

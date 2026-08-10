@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { usePreferences } from '../settings/PreferencesContext'
 import { useTrainer } from '../sim/TrainerContext'
 import type { AnalogHistorySample } from '../sim/types'
 import './TrendStrip.css'
@@ -44,6 +45,7 @@ function decimals(key: HistKey): number {
 
 export function TrendStrip() {
   const { state } = useTrainer()
+  const { setPreference, t } = usePreferences()
   const [selected, setSelected] = useState<HistKey[]>(DEFAULT_KEYS)
 
   const hist = state.analogHistory
@@ -53,12 +55,26 @@ export function TrendStrip() {
   )
 
   if (state.session.view !== 'exercise' || !state.session.started) return null
+
+  const hide = () => setPreference('showTrendStrip', false)
+
   if (hist.length < 2) {
     return (
       <div className="trend-strip">
-        <span className="trend-empty">
-          Тренды накопятся через несколько секунд…
-        </span>
+        <div className="trend-strip-head">
+          <span className="trend-empty">
+            Тренды накопятся через несколько секунд…
+          </span>
+          <button
+            type="button"
+            className="trend-strip-close"
+            onClick={hide}
+            aria-label={t('close')}
+            title="Скрыть панель трендов"
+          >
+            ×
+          </button>
+        </div>
       </div>
     )
   }
@@ -76,17 +92,28 @@ export function TrendStrip() {
 
   return (
     <div className="trend-strip">
-      <div className="trend-pick">
-        {SERIES.map((s) => (
-          <label key={s.key} className="trend-pick-item">
-            <input
-              type="checkbox"
-              checked={selected.includes(s.key)}
-              onChange={() => toggle(s.key)}
-            />
-            <span style={{ color: s.color }}>{s.label}</span>
-          </label>
-        ))}
+      <div className="trend-strip-head">
+        <div className="trend-pick">
+          {SERIES.map((s) => (
+            <label key={s.key} className="trend-pick-item">
+              <input
+                type="checkbox"
+                checked={selected.includes(s.key)}
+                onChange={() => toggle(s.key)}
+              />
+              <span style={{ color: s.color }}>{s.label}</span>
+            </label>
+          ))}
+        </div>
+        <button
+          type="button"
+          className="trend-strip-close"
+          onClick={hide}
+          aria-label={t('close')}
+          title="Скрыть панель трендов"
+        >
+          ×
+        </button>
       </div>
       <div className="trend-charts">
         {visible.map((s) => {

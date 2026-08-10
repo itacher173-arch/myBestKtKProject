@@ -2,31 +2,31 @@
   margin: 10px 0 12px;
   padding: 10px;
   border-radius: 8px;
-  border: 1px solid #3d6a4a;
-  background: #152820;
+  border: 1px solid var(--success-border);
+  background: var(--success-soft);
 }
 
 .inline-ctrl.compact {
   margin: 0;
-  background: rgba(18, 32, 28, 0.94);
-  border-color: #4a7a5a;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  border-color: var(--success-border);
+  box-shadow: var(--shadow-sm);
 }
 
 .inline-ctrl-status {
   font-size: 12px;
-  color: #c5d4e0;
+  color: var(--text-secondary);
   margin-bottom: 8px;
   line-height: 1.35;
 }
 
 .inline-ctrl-status .warn {
-  color: #e09090;
+  color: var(--danger);
   font-weight: 600;
 }
 
 .inline-ctrl-status .hint-inline {
-  color: #7f97ab;
+  color: var(--text-muted);
   font-weight: 400;
 }
 
@@ -37,7 +37,7 @@
 .inline-bar {
   height: 6px;
   border-radius: 3px;
-  background: #0f171e;
+  background: var(--surface-muted);
   margin-bottom: 8px;
   overflow: hidden;
 }
@@ -45,7 +45,7 @@
 .inline-bar span {
   display: block;
   height: 100%;
-  background: linear-gradient(90deg, #2d6a3e, #3ecf9a);
+  background: linear-gradient(90deg, var(--success), color-mix(in srgb, var(--success) 65%, white));
   border-radius: 3px;
 }
 
@@ -56,9 +56,9 @@
 }
 
 .inline-ctrl-row button {
-  border: 1px solid #3a556c;
-  background: #1e2a36;
-  color: #e8eef4;
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--text-primary);
   border-radius: 6px;
   padding: 7px 10px;
   font: inherit;
@@ -67,9 +67,9 @@
 }
 
 .inline-ctrl-row button.on {
-  border-color: #3d8ebd;
-  background: #1e3a4a;
-  color: #6ec1ff;
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 .inline-ctrl-row button:disabled {
@@ -78,14 +78,6 @@
 }
 
 .inline-slider {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-  font-size: 11px;
-  color: #7f97ab;
-}
-
-.inline-slider input {
-  flex: 1;
+  width: 100%;
+  accent-color: var(--accent);
 }

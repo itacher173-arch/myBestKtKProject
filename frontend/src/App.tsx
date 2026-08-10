@@ -38,7 +38,7 @@ function formatSimTime(sec: number) {
 const SPEEDS: TimeScale[] = [0.25, 0.5, 1, 2, 4]
 
 function TrainerApp() {
-  const { t } = usePreferences()
+  const { t, showTrendStrip } = usePreferences()
   const {
     state,
     completeExercise,
@@ -256,7 +256,7 @@ function TrainerApp() {
             <SchemeViewer />
             <TrainingPanel />
             {!isMini && <AlarmBar />}
-            {!isMini && <TrendStrip />}
+            {!isMini && showTrendStrip && <TrendStrip />}
             {!isMini && <EmergencyPanel />}
             {!isMini && !session.completed && <ScenarioChecklist />}
             {!isMini && <SchemeQuickBar />}

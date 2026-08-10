@@ -8,10 +8,12 @@
   overflow: auto;
   padding: 10px 12px;
   border-radius: 10px;
-  border: 1px solid #8a6a2a;
-  background: rgba(28, 24, 14, 0.96);
-  color: #f0e4c8;
+  border: 1px solid color-mix(in srgb, var(--warning) 45%, var(--border));
+  background: var(--panel-glass-warning);
+  box-shadow: var(--shadow-sm);
+  color: var(--text-secondary);
   font-size: 11px;
+  backdrop-filter: blur(8px);
 }
 
 .instr-live header {
@@ -19,13 +21,13 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 8px;
-  color: #ffd090;
+  color: var(--warning);
 }
 
 .instr-x {
   border: none;
   background: transparent;
-  color: #c5b080;
+  color: var(--text-muted);
   font-size: 18px;
   cursor: pointer;
   line-height: 1;
@@ -33,7 +35,7 @@
 
 .instr-auth p {
   margin: 0 0 8px;
-  color: #c5b080;
+  color: var(--text-muted);
 }
 
 .instr-auth input {
@@ -41,18 +43,18 @@
   margin-bottom: 8px;
   padding: 6px 8px;
   border-radius: 6px;
-  border: 1px solid #6a5a30;
-  background: #1a1810;
-  color: #f0e4c8;
+  border: 1px solid color-mix(in srgb, var(--warning) 35%, var(--border));
+  background: var(--warning-soft);
+  color: var(--text-secondary);
   font: inherit;
 }
 
 .instr-auth button,
 .instr-actions button,
 .instr-inject {
-  border: 1px solid #8a6a2a;
-  background: #2a2418;
-  color: #ffd090;
+  border: 1px solid color-mix(in srgb, var(--warning) 45%, var(--border));
+  background: var(--warning-soft);
+  color: var(--warning);
   border-radius: 5px;
   padding: 5px 8px;
   font: inherit;
@@ -61,13 +63,13 @@
 }
 
 .instr-err {
-  color: #e09090;
+  color: var(--danger);
   margin: 0 0 6px;
 }
 
 .instr-ex {
   margin: 0 0 8px;
-  color: #c5b080;
+  color: var(--text-muted);
 }
 
 .instr-actions {
@@ -78,8 +80,8 @@
 }
 
 .instr-actions button.on {
-  background: #4a3a18;
-  border-color: #c0a040;
+  background: color-mix(in srgb, var(--warning-soft) 80%, var(--surface-muted));
+  border-color: color-mix(in srgb, var(--warning) 50%, var(--border));
 }
 
 .instr-inject {
@@ -93,7 +95,7 @@
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #a89060;
+  color: var(--text-muted);
 }
 
 .instr-tags,
@@ -117,7 +119,7 @@
 
 .instr-log li {
   padding: 2px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  color: #d8c8a0;
+  border-bottom: 1px solid var(--panel-divider);
+  color: var(--text-secondary);
   line-height: 1.3;
 }

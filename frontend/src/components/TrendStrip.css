@@ -9,13 +9,37 @@
   max-width: min(560px, calc(100% - 320px));
   padding: 8px;
   border-radius: 8px;
-  background: rgba(14, 22, 30, 0.88);
-  border: 1px solid #3a556c;
+  background: var(--panel-glass);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(8px);
+}
+
+.trend-strip-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.trend-strip-close {
+  flex: 0 0 auto;
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+.trend-strip-close:hover {
+  color: var(--text-primary);
 }
 
 .trend-empty {
   font-size: 11px;
-  color: #7f97ab;
+  color: var(--text-muted);
 }
 
 .trend-pick {
@@ -23,7 +47,9 @@
   flex-wrap: wrap;
   gap: 4px 8px;
   padding-bottom: 4px;
-  border-bottom: 1px solid #2a3c4c;
+  border-bottom: 1px solid var(--border);
+  flex: 1;
+  min-width: 0;
 }
 
 .trend-pick-item {
@@ -31,14 +57,14 @@
   align-items: center;
   gap: 3px;
   font-size: 10px;
-  color: #9db4c7;
+  color: var(--text-muted);
   cursor: pointer;
   user-select: none;
 }
 
 .trend-pick-item input {
   margin: 0;
-  accent-color: #6ec1ff;
+  accent-color: var(--accent);
 }
 
 .trend-charts {
@@ -58,10 +84,10 @@
   justify-content: space-between;
   gap: 8px;
   font-size: 10px;
-  color: #9db4c7;
+  color: var(--text-muted);
 }
 
 .trend-label strong {
-  color: #e8eef4;
+  color: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }

@@ -22,6 +22,7 @@ interface Preferences {
   reducedMotion: boolean
   aiEnabled: boolean
   proactiveTips: boolean
+  showTrendStrip: boolean
 }
 
 interface PreferencesApi extends Preferences {
@@ -46,6 +47,7 @@ const defaults: Preferences = {
   reducedMotion: false,
   aiEnabled: false,
   proactiveTips: true,
+  showTrendStrip: true,
 }
 
 const STORAGE_KEY = 'ktk-elou-avt-preferences-v5'
@@ -69,6 +71,8 @@ const translations: Record<Locale, Record<string, string>> = {
     accessibility: 'Доступность',
     intelligence: 'ИИ и персонализация',
     saveAutomatic: 'Изменения применяются автоматически',
+    proactiveTips: 'Проактивные подсказки',
+    showTrends: 'Панель трендов',
     close: 'Закрыть',
   },
   en: {
@@ -89,6 +93,8 @@ const translations: Record<Locale, Record<string, string>> = {
     accessibility: 'Accessibility',
     intelligence: 'AI & personalization',
     saveAutomatic: 'Changes are applied automatically',
+    proactiveTips: 'Proactive tips',
+    showTrends: 'Trend panel',
     close: 'Close',
   },
 }

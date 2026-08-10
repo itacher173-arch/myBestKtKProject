@@ -351,13 +351,13 @@ export function SchemeViewer() {
               <path
                 d="M 40 0 L 0 0 0 40"
                 fill="none"
-                stroke="rgba(255,255,255,0.04)"
+                stroke="var(--scheme-grid)"
                 strokeWidth="1"
               />
             </pattern>
           </defs>
 
-          <rect width={VIEWBOX.width} height={VIEWBOX.height} fill="#141c24" />
+          <rect width={VIEWBOX.width} height={VIEWBOX.height} fill="var(--scheme-canvas)" />
           <rect
             width={VIEWBOX.width}
             height={VIEWBOX.height}
@@ -370,8 +370,8 @@ export function SchemeViewer() {
               y={70}
               width={activeBand.width}
               height={VIEWBOX.height - 110}
-              fill="rgba(62, 148, 200, 0.06)"
-              stroke="rgba(126, 200, 240, 0.22)"
+              fill="var(--scheme-zone)"
+              stroke="var(--scheme-zone-stroke)"
               strokeWidth={1}
               pointerEvents="none"
             />
@@ -384,7 +384,7 @@ export function SchemeViewer() {
               y1={70}
               x2={x}
               y2={VIEWBOX.height - 40}
-              stroke="rgba(143,163,181,0.18)"
+              stroke="var(--scheme-sep)"
               strokeDasharray="4 8"
             />
           ))}

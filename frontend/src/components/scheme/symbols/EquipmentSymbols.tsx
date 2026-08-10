@@ -1,20 +1,20 @@
 import type { EquipmentType } from '../../../scheme/types'
 
 const palette = {
-  steel: '#2a3a48',
-  steelLight: '#3d5163',
-  steelDark: '#151e28',
-  stroke: '#8fa3b5',
-  accent: '#c9d6e2',
-  cyan: '#3d8ebd',
-  teal: '#2a8f7a',
-  amber: '#d4a04a',
-  flame: '#e07a3d',
-  flameCore: '#f0c14b',
-  liquid: '#2d6a8a',
-  liquidBright: '#4aa3c9',
-  oil: '#8a6a3a',
-  green: '#2d8a5a',
+  steel: 'var(--eq-steel)',
+  steelLight: 'var(--eq-steel-light)',
+  steelDark: 'var(--eq-steel-dark)',
+  stroke: 'var(--eq-stroke)',
+  accent: 'var(--eq-accent)',
+  cyan: 'var(--eq-cyan)',
+  teal: 'var(--eq-teal)',
+  amber: 'var(--eq-amber)',
+  flame: 'var(--eq-flame)',
+  flameCore: 'var(--eq-flame-core)',
+  liquid: 'var(--eq-liquid)',
+  liquidBright: 'var(--eq-liquid-bright)',
+  oil: 'var(--eq-oil)',
+  green: 'var(--eq-green)',
 }
 
 interface SymbolProps {
@@ -39,10 +39,10 @@ function strokeColor(
   controllable?: boolean,
   alarm?: boolean,
 ) {
-  if (alarm) return '#e07070'
-  if (selected) return '#f0c14b'
-  if (hovered) return '#6ec1ff'
-  if (controllable) return '#4ecf9e'
+  if (alarm) return 'var(--danger)'
+  if (selected) return 'var(--warning)'
+  if (hovered) return 'var(--accent)'
+  if (controllable) return 'var(--success)'
   return palette.stroke
 }
 
@@ -55,40 +55,40 @@ export function EquipmentSymbolDefs() {
   return (
     <defs>
       <linearGradient id="eq-steel" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stopColor="#3a4e62" />
-        <stop offset="45%" stopColor="#243442" />
-        <stop offset="100%" stopColor="#151e28" />
+        <stop offset="0%" stopColor="var(--eq-grad-0)" />
+        <stop offset="45%" stopColor="var(--eq-grad-1)" />
+        <stop offset="100%" stopColor="var(--eq-grad-2)" />
       </linearGradient>
       <linearGradient id="eq-steel-v" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stopColor="#405668" />
-        <stop offset="100%" stopColor="#1a2530" />
+        <stop offset="0%" stopColor="var(--eq-grad-0)" />
+        <stop offset="100%" stopColor="var(--eq-grad-2)" />
       </linearGradient>
       <linearGradient id="eq-liquid" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stopColor="#5eb8e0" stopOpacity="0.85" />
-        <stop offset="100%" stopColor="#1e5a78" stopOpacity="0.95" />
+        <stop offset="0%" stopColor="var(--eq-liquid-bright)" stopOpacity="0.85" />
+        <stop offset="100%" stopColor="var(--eq-liquid)" stopOpacity="0.95" />
       </linearGradient>
       <linearGradient id="eq-oil" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stopColor="#c4a05a" stopOpacity="0.75" />
-        <stop offset="100%" stopColor="#5a4020" stopOpacity="0.9" />
+        <stop offset="0%" stopColor="var(--eq-amber)" stopOpacity="0.75" />
+        <stop offset="100%" stopColor="var(--eq-oil)" stopOpacity="0.9" />
       </linearGradient>
       <linearGradient id="eq-flame" x1="0" y1="1" x2="0" y2="0">
         <stop offset="0%" stopColor="#8a3018" />
-        <stop offset="40%" stopColor="#e07a3d" />
-        <stop offset="100%" stopColor="#f0c14b" />
+        <stop offset="40%" stopColor="var(--eq-flame)" />
+        <stop offset="100%" stopColor="var(--eq-flame-core)" />
       </linearGradient>
       <radialGradient id="eq-pump" cx="35%" cy="30%" r="70%">
-        <stop offset="0%" stopColor="#4a6578" />
-        <stop offset="55%" stopColor="#243442" />
-        <stop offset="100%" stopColor="#121a22" />
+        <stop offset="0%" stopColor="var(--eq-pump-0)" />
+        <stop offset="55%" stopColor="var(--eq-pump-1)" />
+        <stop offset="100%" stopColor="var(--eq-pump-2)" />
       </radialGradient>
       <linearGradient id="eq-hx" x1="0" y1="0" x2="1" y2="0">
-        <stop offset="0%" stopColor="#2a4050" />
-        <stop offset="50%" stopColor="#1e303c" />
-        <stop offset="100%" stopColor="#2a4050" />
+        <stop offset="0%" stopColor="var(--eq-grad-0)" />
+        <stop offset="50%" stopColor="var(--eq-grad-1)" />
+        <stop offset="100%" stopColor="var(--eq-grad-0)" />
       </linearGradient>
       <linearGradient id="eq-signal" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stopColor="#243040" />
-        <stop offset="100%" stopColor="#121820" />
+        <stop offset="0%" stopColor="var(--eq-signal-0)" />
+        <stop offset="100%" stopColor="var(--eq-signal-1)" />
       </linearGradient>
       <filter id="eq-glow" x="-30%" y="-30%" width="160%" height="160%">
         <feGaussianBlur stdDeviation="1.6" result="b" />
@@ -148,7 +148,7 @@ export function ColumnSymbol({
           y={liquidY}
           width={w - 8}
           height={3}
-          fill="#d4b87a"
+          fill="var(--eq-amber)"
           opacity={0.5}
         />
       </g>
@@ -245,7 +245,7 @@ export function PumpSymbol({
             y1={cy}
             x2={x2}
             y2={y2}
-            stroke={active ? '#6ecf9a' : palette.cyan}
+            stroke={active ? 'var(--success)' : palette.cyan}
             strokeWidth={2}
             strokeLinecap="round"
             opacity={0.9}
@@ -256,7 +256,7 @@ export function PumpSymbol({
         cx={cx}
         cy={cy}
         r={r * 0.18}
-        fill={active ? '#3ecf9a' : palette.cyan}
+        fill={active ? 'var(--success)' : palette.cyan}
         stroke={s}
         strokeWidth={0.8}
       />
@@ -314,7 +314,7 @@ export function FurnaceSymbol({
         width={w - 16}
         height={h - roof - 16}
         rx={3}
-        fill="#120c0a"
+        fill="var(--eq-steel-dark)"
         stroke={palette.steelLight}
         strokeWidth={0.8}
       />
@@ -563,7 +563,7 @@ export function DesalterSymbol({
           y={bodyY + bodyH - waterH}
           width={w - 8}
           height={waterH}
-          fill="#3a6a8a"
+          fill="var(--eq-liquid)"
           opacity={0.85}
         />
         <rect
@@ -583,7 +583,7 @@ export function DesalterSymbol({
           y1={bodyY + 10}
           x2={w * t}
           y2={bodyY + bodyH - waterH - 4}
-          stroke={active ? '#7ec8f0' : palette.cyan}
+          stroke={active ? 'var(--accent)' : palette.cyan}
           strokeWidth={1.4}
           opacity={active ? 0.95 : 0.45}
           strokeDasharray={active ? undefined : '3 2'}
@@ -594,7 +594,7 @@ export function DesalterSymbol({
           x={w / 2}
           y={bodyY + 14}
           textAnchor="middle"
-          fill="#7ec8f0"
+          fill="var(--eq-liquid-bright)"
           fontSize={8}
           opacity={0.8}
           pointerEvents="none"
@@ -616,7 +616,7 @@ export function GroupSymbol({ w, h, selected, hovered }: SymbolProps) {
         width={w - 4}
         height={h - 4}
         rx={10}
-        fill="rgba(28, 42, 56, 0.35)"
+        fill="var(--eq-body-dim)"
         stroke={s}
         strokeWidth={selected ? 2 : 1.2}
         strokeDasharray={selected ? undefined : '7 5'}
@@ -627,8 +627,8 @@ export function GroupSymbol({ w, h, selected, hovered }: SymbolProps) {
         width={w - 12}
         height={h - 12}
         rx={8}
-        fill="rgba(40, 70, 90, 0.08)"
-        stroke="rgba(143,163,181,0.15)"
+        fill="var(--scheme-zone)"
+        stroke="var(--scheme-sep)"
         strokeWidth={1}
       />
     </g>
@@ -645,11 +645,11 @@ export function LabelSymbol({
 }: SymbolProps & { zoneBanner?: boolean }) {
   if (zoneBanner) {
     const bg = selected
-      ? 'rgba(45, 90, 120, 0.95)'
+      ? 'var(--zone-banner-bg-selected)'
       : hovered
-        ? 'rgba(36, 70, 96, 0.92)'
-        : 'rgba(24, 38, 52, 0.92)'
-    const stroke = selected ? '#7ec8f0' : hovered ? '#5aa3c9' : '#4a6780'
+        ? 'var(--zone-banner-bg-hover)'
+        : 'var(--zone-banner-bg)'
+    const stroke = selected ? 'var(--accent)' : hovered ? 'var(--eq-cyan)' : 'var(--border)'
     return (
       <g>
         <rect
@@ -668,7 +668,7 @@ export function LabelSymbol({
           width={4}
           height={h}
           rx={2}
-          fill={selected ? '#7ec8f0' : '#3d8ebd'}
+          fill={selected ? 'var(--accent)' : 'var(--eq-cyan)'}
         />
       </g>
     )

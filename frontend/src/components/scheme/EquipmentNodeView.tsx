@@ -206,7 +206,7 @@ export function EquipmentNodeView({
           height={node.h + (pad + 2) * 2}
           rx={6}
           fill="none"
-          stroke="#e07070"
+          stroke="var(--danger)"
           strokeWidth={2}
           pointerEvents="none"
         />
@@ -220,7 +220,7 @@ export function EquipmentNodeView({
           height={node.h + pad * 2}
           rx={node.type === 'pump' || node.type === 'valve' ? 22 : 6}
           fill="none"
-          stroke="#3ecf9a"
+          stroke="var(--success)"
           strokeWidth={1.6}
           strokeDasharray="5 3"
           pointerEvents="none"
@@ -251,19 +251,19 @@ export function EquipmentNodeView({
         fill={
           zoneBanner
             ? selected
-              ? '#f0f7fc'
-              : '#d5e6f2'
+              ? 'var(--scheme-label)'
+              : 'var(--scheme-label-zone)'
             : selected
-              ? '#fff6d6'
+              ? 'var(--scheme-label-selected)'
               : alarm
-                ? '#ffc9c9'
-                : '#e8eef4'
+                ? 'var(--scheme-label-alarm)'
+                : 'var(--scheme-label)'
         }
         fontSize={fontSize}
         fontFamily="IBM Plex Sans, Segoe UI, sans-serif"
         fontWeight={selected || zoneBanner ? 700 : 600}
         style={{
-          textShadow: '0 1px 2px rgba(0,0,0,0.85)',
+          textShadow: 'var(--scheme-label-shadow)',
         }}
         pointerEvents="none"
       >
@@ -288,7 +288,7 @@ export function EquipmentNodeView({
               : node.h + 12
           }
           textAnchor="middle"
-          fill={alarm ? '#f0a0a0' : '#9fd0ff'}
+          fill={alarm ? 'var(--scheme-overlay-alarm)' : 'var(--scheme-overlay)'}
           fontSize={9}
           fontFamily="IBM Plex Mono, monospace"
           fontWeight={600}

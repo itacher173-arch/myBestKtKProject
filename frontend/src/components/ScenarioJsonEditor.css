@@ -1,9 +1,10 @@
 .scenario-json-editor {
   margin: 16px 0;
   padding: 16px;
-  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
-  background: color-mix(in srgb, #1a2420 88%, #2a4038);
-  color: #e8eee9;
+  border: 1px solid var(--border);
+  background: var(--surface-muted);
+  color: var(--text-primary);
+  border-radius: 10px;
 }
 
 .scenario-json-editor header {
@@ -22,6 +23,7 @@
   margin: 8px 0 12px;
   opacity: 0.85;
   font-size: 0.92rem;
+  color: var(--text-secondary);
 }
 
 .scenario-json-editor textarea {
@@ -30,9 +32,10 @@
   font-size: 12px;
   line-height: 1.4;
   padding: 10px;
-  border: 1px solid #3a4a44;
-  background: #0f1614;
-  color: #d7e4dc;
+  border: 1px solid var(--border);
+  background: var(--input-bg);
+  color: var(--text-primary);
+  border-radius: 8px;
   resize: vertical;
 }
 
@@ -44,14 +47,16 @@
 
 .scenario-json-editor button {
   padding: 8px 12px;
-  border: 1px solid #4a6a5a;
-  background: #2a4a3a;
-  color: #e8eee9;
+  border: 1px solid var(--success-border);
+  background: var(--success-soft);
+  color: var(--text-primary);
+  border-radius: 8px;
   cursor: pointer;
 }
 
 .scenario-json-editor button.ghost {
   background: transparent;
+  border-color: var(--border);
 }
 
 .scenario-json-editor button:disabled {
@@ -60,11 +65,11 @@
 }
 
 .scenario-json-editor .ok {
-  color: #8fd4a8;
+  color: var(--success);
 }
 
 .scenario-json-editor .errors {
-  color: #f0a0a0;
+  color: var(--danger);
   margin: 8px 0 0;
   padding-left: 18px;
 }
