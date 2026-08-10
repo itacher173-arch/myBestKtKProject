@@ -1102,7 +1102,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
       }
       dispatch({
         type: 'SET_PROCESS',
-        patch: { levelWaterE1: 35, levelWaterE2: 35 },
+        patch: { levelWaterE1: 25, levelWaterE2: 25 },
       })
       logAction(
         "Авария: скорректирован уровень воды E-1/E-2, предотвращён занос в колонны (SC-11)",
@@ -1191,7 +1191,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
           type: 'SET_PROCESS',
           patch: {
             fuelGasPercent: 0,
-            levelSetpointK1: 45,
+            levelSetpointK1: 50,
             levelK1: Math.max(stateRef.current.process.levelK1, 28),
             safeShutdownInitiated: true,
           },

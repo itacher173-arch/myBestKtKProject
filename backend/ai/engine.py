@@ -327,7 +327,7 @@ def analyze_session(payload: dict[str, Any]) -> dict[str, Any]:
             f"Первое защитное действие выполнено через {float(response_seconds):.1f} с при ориентире 60 с.",
             "Повторить короткий аварийный сценарий до устойчивого выполнения без подсказки.",
             "MT-SAFE-01",
-            "safety-actions",
+            "cooling-loss",
         )
     elif response_seconds is not None:
         strengths.append(f"Защитная реакция выполнена за {float(response_seconds):.1f} с — в пределах ориентира.")

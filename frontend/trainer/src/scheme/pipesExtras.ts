@@ -1,72 +1,10 @@
 import type { PipeEdge } from './types'
 
 /**
- * Только функциональные связи extras.
- * Подписи фракций/газа — без линий (иначе схема превращается в «спагетти»).
+ * Только короткие функциональные связи extras.
+ * Дальние утилиты намеренно без линий — иначе «спагетти».
  */
 export const pipesExtras: PipeEdge[] = [
-  {
-    id: 'p-util-steam-elou',
-    from: 'UTIL-block',
-    to: 'ELOU-block',
-    kind: 'steam',
-    points: [
-      [140, 115],
-      [400, 115],
-      [400, 320],
-      [640, 320],
-    ],
-    label: 'пар',
-  },
-  {
-    id: 'p-p5-util',
-    from: 'P-5',
-    to: 'UTIL-block',
-    kind: 'steam',
-    points: [
-      [218, 960],
-      [218, 150],
-      [140, 150],
-      [140, 115],
-    ],
-    label: 'пар 10 ати',
-  },
-  {
-    id: 'p-river-x18',
-    from: 'UTIL-river',
-    to: 'X-18',
-    kind: 'utility',
-    points: [
-      [150, 995],
-      [220, 995],
-      [220, 225],
-      [280, 225],
-    ],
-    label: 'речная вода',
-  },
-  {
-    id: 'p-reagent-elou',
-    from: 'reagent-panel',
-    to: 'ELOU-block',
-    kind: 'utility',
-    points: [
-      [790, 700],
-      [790, 480],
-    ],
-    label: 'реагенты',
-  },
-  {
-    id: 'p-k1-e44',
-    from: 'K-1',
-    to: 'E-44',
-    kind: 'utility',
-    points: [
-      [1350, 200],
-      [1820, 200],
-      [1820, 110],
-    ],
-    label: 'некондиция',
-  },
   {
     id: 'p-e44-flare',
     from: 'E-44',
@@ -84,8 +22,9 @@ export const pipesExtras: PipeEdge[] = [
     kind: 'utility',
     points: [
       [1450, 135],
-      [1820, 135],
-      [1820, 110],
+      [1450, 70],
+      [1855, 70],
+      [1855, 110],
     ],
   },
   {
@@ -95,8 +34,22 @@ export const pipesExtras: PipeEdge[] = [
     kind: 'product',
     points: [
       [1575, 200],
-      [1575, 110],
-      [1492, 110],
+      [1595, 200],
+      [1595, 90],
+      [1524, 90],
+      [1524, 70],
+    ],
+  },
+  {
+    id: 'p-s1k-sm1k',
+    from: 'S-1k',
+    to: 'Sm-1k',
+    kind: 'product',
+    points: [
+      [1732, 368],
+      [1685, 368],
+      [1685, 224],
+      [1610, 224],
     ],
   },
   {
@@ -105,22 +58,11 @@ export const pipesExtras: PipeEdge[] = [
     to: 'K-12-2',
     kind: 'product',
     points: [
-      [1492, 150],
-      [1492, 280],
-      [1572, 280],
+      [1524, 150],
+      [1525, 150],
+      [1525, 280],
+      [1540, 280],
     ],
-  },
-  {
-    id: 'p-river-t23',
-    from: 'UTIL-river',
-    to: 'T-23',
-    kind: 'utility',
-    points: [
-      [150, 995],
-      [1780, 995],
-      [1780, 644],
-    ],
-    label: 'вода в Т-23',
   },
   {
     id: 'p-t23-n23',

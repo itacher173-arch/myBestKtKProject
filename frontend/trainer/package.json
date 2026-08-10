@@ -9,7 +9,9 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "verify:scheme-pdf": "tsx scripts/verify-scheme-pdf.mts"
+    "verify:scheme-pdf": "tsx scripts/verify-scheme-pdf.mts",
+    "verify:training": "tsx scripts/verify-training.mts",
+    "verify:pipe-arrows": "tsx scripts/verify-pipe-arrows.mts"
   },
   "dependencies": {
     "react": "^18.3.1",

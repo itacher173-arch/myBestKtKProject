@@ -9,9 +9,8 @@ import {
 import {
   VIEWBOX,
   equipment,
-  equipmentById,
   pipes,
-  type PipeEdge,
+  PIPE_KIND_LABELS,
   type PipeKind,
 } from '../../scheme'
 import {
@@ -28,6 +27,11 @@ import {
   isPipeOnMiniFocus,
   type MiniFocusPath,
 } from '../../training/focusPath'
+import {
+  arrowHeadPoints,
+  orientedPipePoints,
+  pipeLabelPos,
+} from '../pipeGeometry'
 import { EquipmentNodeView } from './EquipmentNodeView'
 import { EquipmentSymbolDefs } from './symbols/EquipmentSymbols'
 
@@ -38,138 +42,14 @@ const PIPE_COLORS: Record<PipeKind, string> = {
   utility: '#7a8f7a',
 }
 
+const PIPE_LEGEND: { kind: PipeKind; short: string }[] = [
+  { kind: 'oil', short: 'Нефть / сырьё' },
+  { kind: 'product', short: 'Продукт / фракция' },
+  { kind: 'steam', short: 'Пар' },
+  { kind: 'utility', short: 'Вспом. поток' },
+]
+
 const ZONE_SEPARATORS = [300, 620, 1040, 1500, 1940, 2460, 2980]
-
-function equipCenter(id: string): [number, number] | null {
-  const eq = equipmentById[id]
-  if (!eq) return null
-  return [eq.x + eq.w / 2, eq.y + eq.h / 2]
-}
-
-/** Направление polyline от `from` к `to`, чтобы markerEnd смотрел на приёмник. */
-function orientedPipePoints(pipe: PipeEdge): [number, number][] {
-  const pts = pipe.points
-  if (pts.length < 2) return pts
-  const from = equipCenter(pipe.from)
-  const to = equipCenter(pipe.to)
-  if (!from || !to) return pts
-
-  const dist2 = (a: [number, number], b: [number, number]) =>
-    (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2
-  const first = pts[0]
-  const last = pts[pts.length - 1]
-  const forward =
-    dist2(first, from) + dist2(last, to) <=
-    dist2(last, from) + dist2(first, to)
-  return sanitizePipePoints(forward ? pts : [...pts].reverse())
-}
-
-/** Ортогональный snap + достаточная длина последнего сегмента под стрелку. */
-function sanitizePipePoints(pts: [number, number][]): [number, number][] {
-  if (pts.length < 2) return pts
-  const out: [number, number][] = pts.map(([x, y]) => [x, y])
-
-  for (let i = 1; i < out.length; i++) {
-    const prev = out[i - 1]
-    const cur = out[i]
-    const dx = cur[0] - prev[0]
-    const dy = cur[1] - prev[1]
-    if (Math.abs(dx) <= Math.abs(dy)) cur[0] = prev[0]
-    else cur[1] = prev[1]
-  }
-
-  // убрать совпадающие точки
-  const cleaned: [number, number][] = [out[0]]
-  for (let i = 1; i < out.length; i++) {
-    const prev = cleaned[cleaned.length - 1]
-    if (out[i][0] !== prev[0] || out[i][1] !== prev[1]) cleaned.push(out[i])
-  }
-  if (cleaned.length < 2) return pts
-
-  const minTip = 18
-  const a = cleaned[cleaned.length - 2]
-  const b = cleaned[cleaned.length - 1]
-  const dx = b[0] - a[0]
-  const dy = b[1] - a[1]
-  const len = Math.hypot(dx, dy)
-  if (len > 0.01 && len < minTip) {
-    const s = minTip / len
-    cleaned[cleaned.length - 1] = [a[0] + dx * s, a[1] + dy * s]
-  }
-
-  // целые координаты — без субпиксельного «перекоса» стрелок
-  return cleaned.map(([x, y]) => [Math.round(x), Math.round(y)])
-}
-
-const ARROW_LEN = 11
-const ARROW_HALF = 4
-
-/** Наконечник стрелки как polygon — не ломается от CSS-scale родителя. */
-function arrowHeadPoints(
-  points: [number, number][],
-): { line: [number, number][]; tip: string } | null {
-  if (points.length < 2) return null
-  const line = points.map(([x, y]) => [x, y] as [number, number])
-  const a = line[line.length - 2]
-  const b = line[line.length - 1]
-  let dx = b[0] - a[0]
-  let dy = b[1] - a[1]
-  // строго ортогональный наконечник
-  if (Math.abs(dx) >= Math.abs(dy)) {
-    dy = 0
-    dx = dx === 0 ? 1 : dx
-  } else {
-    dx = 0
-    dy = dy === 0 ? 1 : dy
-  }
-  const len = Math.hypot(dx, dy)
-  if (len < 0.01) return null
-  const ux = dx / len
-  const uy = dy / len
-  const tipLen = ARROW_LEN
-  line[line.length - 1] = [
-    Math.round(b[0] - ux * (tipLen - 1)),
-    Math.round(b[1] - uy * (tipLen - 1)),
-  ]
-  const baseX = b[0] - ux * tipLen
-  const baseY = b[1] - uy * tipLen
-  const p1x = Math.round(baseX - uy * ARROW_HALF)
-  const p1y = Math.round(baseY + ux * ARROW_HALF)
-  const p2x = Math.round(baseX + uy * ARROW_HALF)
-  const p2y = Math.round(baseY - ux * ARROW_HALF)
-  return {
-    line,
-    tip: `${b[0]},${b[1]} ${p1x},${p1y} ${p2x},${p2y}`,
-  }
-}
-
-/** Подпись трубы — сбоку от сегмента, не поверх оборудования. */
-function pipeLabelPos(
-  points: [number, number][],
-): { x: number; y: number } | null {
-  if (points.length < 2) return null
-  // на самом длинном сегменте
-  let best = 0
-  let bestLen = -1
-  for (let i = 0; i < points.length - 1; i++) {
-    const len = Math.hypot(
-      points[i + 1][0] - points[i][0],
-      points[i + 1][1] - points[i][1],
-    )
-    if (len > bestLen) {
-      bestLen = len
-      best = i
-    }
-  }
-  const a = points[best]
-  const b = points[best + 1]
-  const mx = (a[0] + b[0]) / 2
-  const my = (a[1] + b[1]) / 2
-  const horiz = Math.abs(b[0] - a[0]) >= Math.abs(b[1] - a[1])
-  return horiz
-    ? { x: mx, y: my - 10 }
-    : { x: mx + 8, y: my }
-}
 
 export function SchemeViewer() {
   const {
@@ -383,7 +263,7 @@ export function SchemeViewer() {
     (e: ReactPointerEvent) => {
       if (e.button !== 0) return
       const target = e.target as Element
-      if (target.closest('[data-equip], .scheme-zoom, .scheme-hint, button')) return
+      if (target.closest('[data-equip], .scheme-zoom, .scheme-footer, .scheme-hint, button')) return
       dragRef.current = {
         active: true,
         startX: e.clientX,
@@ -513,9 +393,6 @@ export function SchemeViewer() {
                     strokeLinecap="butt"
                     strokeLinejoin="miter"
                   />
-                  {arrow && (
-                    <polygon points={arrow.tip} fill={color} stroke="none" />
-                  )}
                 </g>
               )
             })}
@@ -569,6 +446,25 @@ export function SchemeViewer() {
             ))}
           </g>
 
+          {/* Наконечники поверх узлов — стыкуются к границе приёмника */}
+          <g className="pipe-arrows-layer" pointerEvents="none">
+            {pipes.map((pipe) => {
+              if (!pipeInFocus(pipe.from, pipe.to)) return null
+              const points = orientedPipePoints(pipe)
+              const arrow = arrowHeadPoints(points)
+              if (!arrow) return null
+              return (
+                <polygon
+                  key={`arr-${pipe.id}`}
+                  points={arrow.tip}
+                  fill={PIPE_COLORS[pipe.kind]}
+                  stroke="none"
+                  opacity={0.95}
+                />
+              )
+            })}
+          </g>
+
           {/* Подписи труб поверх оборудования — не уходят «под» узлы */}
           <g className="pipe-labels-layer" pointerEvents="none">
             {pipes.map((pipe) => {
@@ -598,10 +494,24 @@ export function SchemeViewer() {
       </div>
       </div>
 
-      <div className="scheme-hint">
-        <span className="scheme-hint-ctrl" aria-hidden />
-        Зелёный контур — управление · Клик — выбор · Двойной клик — полное окно
-        · Зоны сверху — переход · Колёсико — масштаб
+      <div className="scheme-footer">
+        <div className="scheme-hint">
+          <span className="scheme-hint-ctrl" aria-hidden />
+          Зелёный контур — управление · Клик — выбор · Двойной клик — полное окно
+          · Зоны сверху — переход · Колёсико — масштаб
+        </div>
+        <div className="scheme-pipe-legend" aria-label="Цвета трубопроводов">
+          {PIPE_LEGEND.map(({ kind, short }) => (
+            <span key={kind} className="scheme-pipe-legend-item" title={PIPE_KIND_LABELS[kind]}>
+              <span
+                className="scheme-pipe-legend-swatch"
+                style={{ background: PIPE_COLORS[kind] }}
+                aria-hidden
+              />
+              {short}
+            </span>
+          ))}
+        </div>
       </div>
       <div className="scheme-zoom">
         <button

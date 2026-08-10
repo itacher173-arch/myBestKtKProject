@@ -347,11 +347,19 @@
   user-select: none;
 }
 
-.scheme-hint {
+.scheme-footer {
   position: absolute;
   left: 12px;
   bottom: 12px;
   z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: min(520px, calc(100% - 140px));
+  pointer-events: none;
+}
+
+.scheme-hint {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -361,8 +369,6 @@
   background: color-mix(in srgb, var(--surface) 88%, transparent);
   border: 1px solid var(--border);
   border-radius: 6px;
-  pointer-events: none;
-  max-width: min(420px, calc(100% - 140px));
 }
 
 .scheme-hint-ctrl {
@@ -372,6 +378,33 @@
   border: 1.5px dashed var(--success);
   border-radius: 3px;
   box-shadow: 0 0 0 1px rgba(62, 207, 154, 0.15);
+}
+
+.scheme-pipe-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  padding: 6px 10px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.scheme-pipe-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.scheme-pipe-legend-swatch {
+  width: 18px;
+  height: 3px;
+  border-radius: 1px;
+  box-shadow: 0 0 0 1px color-mix(in srgb, currentColor 12%, transparent);
 }
 
 @keyframes equip-control-pulse {

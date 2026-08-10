@@ -355,8 +355,8 @@ export const EMERGENCY_ACTIONS: EmergencyActionDef[] = [
       "Авария: скорректирован уровень воды E-1/E-2, предотвращён занос в колонны (SC-11)",
     clearsFaults: ['highWaterE12'],
     apply: () => ({
-      levelWaterE1: 35,
-      levelWaterE2: 35,
+      levelWaterE1: 25,
+      levelWaterE2: 25,
     }),
   },
   {
@@ -367,6 +367,7 @@ export const EMERGENCY_ACTIONS: EmergencyActionDef[] = [
     clearsFaults: ['lowLevelK1'],
     apply: (p) => ({
       fuelGasPercent: 0,
+      levelSetpointK1: 50,
       levelK1: Math.max(p.levelK1, 25),
       safeShutdownInitiated: true,
     }),
@@ -379,6 +380,7 @@ export const EMERGENCY_ACTIONS: EmergencyActionDef[] = [
     clearsFaults: ['lowReflux'],
     apply: () => ({
       levelReflux: 45,
+      levelSetpointK2: 50,
       fuelGasPercent: 40,
     }),
   },
