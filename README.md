@@ -8,9 +8,9 @@
 frontend/         # КТК (Vite + React), в Docker → /app/
 auth-frontend/    # Портал входа, в Docker → /
 admin-frontend/   # Админ-панель, в Docker → /admin/
-backend/auth/     # отдельный сервис авторизации и пользователей
-backend/          # рабочий API (gateway, storage, knowledge, training, presence)
-deploy/railway/   # единый UI-образ (web) + инструкция Railway
+backend/auth/     # авторизация и пользователи
+backend/          # gateway, storage, knowledge, training, presence
+deploy/docker/    # единый UI-образ (web)
 docker-compose.yml
 ```
 
@@ -21,9 +21,11 @@ docker-compose.yml
 ```bash
 npm install --prefix frontend
 npm install --prefix admin-frontend
+npm install --prefix auth-frontend
 npm run backend   # API :8000
 npm run dev       # КТК :5173
 npm run dev:admin # админка :5174
+npm run dev:auth  # вход :5175
 ```
 
 ### Docker Compose
@@ -36,37 +38,20 @@ npm run docker:up
 # поднимает web + auth-api + system-api + postgres + redis
 ```
 
-### Railway (auto-deploy из GitHub)
-
-Нужны **4 сервиса** в одном проекте: `web` + `api` + Postgres + Redis.  
-Один connect GitHub поднимает только UI — остальное добавляется через **+ Create**.  
-Инструкция: [`deploy/railway/README.md`](deploy/railway/README.md).
-
-Учётные данные первого администратора передаются только через окружение (либо
-менеджер секретов) и не хранятся в репозитории. Он создаётся при первом запуске
-новой БД; последующие перезапуски его пароль не меняют.
+Единый UI собирается внутри образа `web` (multi-stage).  
+Учётные данные первого администратора — только через окружение.
 
 | Сервис       | URL                                    | Образ                        |
 | ------------ | -------------------------------------- | ---------------------------- |
 | UI (web)     | http://localhost:8080/                 | единый nginx (auth+КТК+admin)|
 | КТК          | http://localhost:8080/app/             | ↑                            |
 | Админ-панель | http://localhost:8080/admin/           | ↑                            |
-| API системы  | http://localhost:8000/api/health       | `python:3.12-slim` + psycopg |
-| Auth API     | внутренняя сеть Docker                 | `python:3.12-slim` + psycopg |
+| API системы  | http://localhost:8000/api/health       | `python:3.12-slim`           |
+| Auth API     | внутренняя сеть Docker                 | `python:3.12-slim`           |
 | Postgres     | внутренняя сеть Docker                 | `postgres:16-alpine`         |
 | Redis        | внутренняя сеть Docker                 | `redis:7-alpine`             |
 
-Postgres — пользователи, группы, отчёты и аудит (порты 5432/6379 наружу не публикуются).
-Redis — presence, антибрутфорс логина и серверные сессии.
-API users/groups/reports/audit требуют серверную сессию; CRUD пользователей — только admin.
-Auth-блок обслуживает `/api/auth/*` и `/api/users/*`; рабочий backend — остальные
-маршруты. Gateway на `:8000` сохраняет единый публичный API.
-Bootstrap-админ создаётся один раз из переменных `KTK_ADMIN_LOGIN` и
-`KTK_ADMIN_PASSWORD` (пароль при рестарте не сбрасывается).
-
-Вход в КТК — через http://localhost:8080/ ; тренажёр — `/app/` (без сессии редирект на вход).
-Админ-панель — `/admin/`.
-Вход в КТК — логин (латиница) + пароль; ФИО задаётся при создании пользователя.
+Вход: http://localhost:8080/ · тренажёр: `/app/` · админка: `/admin/`.
 
 Подробнее: `backend/README.md`.
 

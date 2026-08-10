@@ -1,8 +1,6 @@
-# Не используются Railway / docker-compose (единый UI: deploy/railway/Dockerfile.web).
-FROM alpine:3.20
-RUN printf '%s\n' \
-  "Use deploy/railway/Dockerfile.web with build context = repository root." \
-  "Example: docker build -f deploy/railway/Dockerfile.web -t ktk-web ." \
-  > /message.txt \
- && cat /message.txt >&2 \
- && exit 1
+# Runtime-only: dist собирается на хосте (`npm run build` в auth-frontend/)
+FROM nginx:1.27-alpine
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY dist /usr/share/nginx/html
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
