@@ -50,8 +50,3 @@ npm run docker:up
 npm run docker:logs   # следить за логами
 npm run docker:down   # остановить стек
 ```
-
-### Переменные
-
-Пример — `.env.example`. Обязательны для compose: `KTK_ADMIN_LOGIN`, `KTK_ADMIN_PASSWORD`.  
-Опционально: `KTK_AI_ENABLED`, `KTK_AI_PROVIDER`, `KTK_AUDIT_HMAC_SECRET`.
