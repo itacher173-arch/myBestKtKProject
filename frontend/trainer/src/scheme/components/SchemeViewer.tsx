@@ -9,7 +9,9 @@ import {
 import {
   VIEWBOX,
   equipment,
+  equipmentById,
   pipes,
+  type PipeEdge,
   type PipeKind,
 } from '../../scheme'
 import {
@@ -37,6 +39,37 @@ const PIPE_COLORS: Record<PipeKind, string> = {
 }
 
 const ZONE_SEPARATORS = [300, 620, 1040, 1500, 1940, 2460, 2980]
+
+function equipCenter(id: string): [number, number] | null {
+  const eq = equipmentById[id]
+  if (!eq) return null
+  return [eq.x + eq.w / 2, eq.y + eq.h / 2]
+}
+
+/** Направление polyline от `from` к `to`, чтобы markerEnd смотрел на приёмник. */
+function orientedPipePoints(pipe: PipeEdge): [number, number][] {
+  const pts = pipe.points
+  if (pts.length < 2) return pts
+  const from = equipCenter(pipe.from)
+  const to = equipCenter(pipe.to)
+  if (!from || !to) return pts
+
+  const dist2 = (a: [number, number], b: [number, number]) =>
+    (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2
+  const first = pts[0]
+  const last = pts[pts.length - 1]
+  const forward =
+    dist2(first, from) + dist2(last, to) <=
+    dist2(last, from) + dist2(first, to)
+  return forward ? pts : [...pts].reverse()
+}
+
+function pipeMarkerId(kind: PipeKind): string {
+  if (kind === 'oil') return 'url(#arrow-oil)'
+  if (kind === 'steam') return 'url(#arrow-steam)'
+  if (kind === 'utility') return 'url(#arrow-utility)'
+  return 'url(#arrow-product)'
+}
 
 export function SchemeViewer() {
   const {
@@ -250,7 +283,7 @@ export function SchemeViewer() {
     (e: ReactPointerEvent) => {
       if (e.button !== 0) return
       const target = e.target as Element
-      if (target.closest('[data-equip]')) return
+      if (target.closest('[data-equip], .scheme-zoom, .scheme-hint, button')) return
       dragRef.current = {
         active: true,
         startX: e.clientX,
@@ -289,21 +322,22 @@ export function SchemeViewer() {
   }, [activeZone])
 
   return (
-    <div
-      ref={containerRef}
-      className="scheme-viewer"
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onClick={() => onSelect(null)}
-    >
+    <div className="scheme-viewer-shell">
       <div
-        className="scheme-transform"
-        style={{
-          transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
-          transformOrigin: '0 0',
-        }}
+        ref={containerRef}
+        className="scheme-viewer"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onClick={() => onSelect(null)}
       >
+        <div
+          className="scheme-transform"
+          style={{
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
+            transformOrigin: '0 0',
+          }}
+        >
         <svg
           width={VIEWBOX.width}
           height={VIEWBOX.height}
@@ -314,33 +348,51 @@ export function SchemeViewer() {
             <EquipmentSymbolDefs />
             <marker
               id="arrow-oil"
+              viewBox="0 0 10 6"
               markerWidth="8"
               markerHeight="8"
-              refX="6"
+              refX="9"
               refY="3"
               orient="auto"
+              markerUnits="strokeWidth"
             >
-              <path d="M0,0 L6,3 L0,6 Z" fill={PIPE_COLORS.oil} />
+              <path d="M0,0 L10,3 L0,6 Z" fill={PIPE_COLORS.oil} />
             </marker>
             <marker
               id="arrow-product"
+              viewBox="0 0 10 6"
               markerWidth="8"
               markerHeight="8"
-              refX="6"
+              refX="9"
               refY="3"
               orient="auto"
+              markerUnits="strokeWidth"
             >
-              <path d="M0,0 L6,3 L0,6 Z" fill={PIPE_COLORS.product} />
+              <path d="M0,0 L10,3 L0,6 Z" fill={PIPE_COLORS.product} />
             </marker>
             <marker
               id="arrow-steam"
+              viewBox="0 0 10 6"
               markerWidth="8"
               markerHeight="8"
-              refX="6"
+              refX="9"
               refY="3"
               orient="auto"
+              markerUnits="strokeWidth"
             >
-              <path d="M0,0 L6,3 L0,6 Z" fill={PIPE_COLORS.steam} />
+              <path d="M0,0 L10,3 L0,6 Z" fill={PIPE_COLORS.steam} />
+            </marker>
+            <marker
+              id="arrow-utility"
+              viewBox="0 0 10 6"
+              markerWidth="8"
+              markerHeight="8"
+              refX="9"
+              refY="3"
+              orient="auto"
+              markerUnits="strokeWidth"
+            >
+              <path d="M0,0 L10,3 L0,6 Z" fill={PIPE_COLORS.utility} />
             </marker>
             <pattern
               id="grid"
@@ -392,18 +444,12 @@ export function SchemeViewer() {
           <g className="pipes-layer">
             {pipes.map((pipe) => {
               const focused = pipeInFocus(pipe.from, pipe.to)
-              const d = pipe.points
+              const points = orientedPipePoints(pipe)
+              const d = points
                 .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p[0]} ${p[1]}`)
                 .join(' ')
-              const marker =
-                !focused
-                  ? undefined
-                  : pipe.kind === 'oil'
-                    ? 'url(#arrow-oil)'
-                    : pipe.kind === 'steam'
-                      ? 'url(#arrow-steam)'
-                      : 'url(#arrow-product)'
-              const mid = pipe.points[Math.floor(pipe.points.length / 2)]
+              const marker = focused ? pipeMarkerId(pipe.kind) : undefined
+              const mid = points[Math.floor(points.length / 2)]
               return (
                 <g key={pipe.id} opacity={focused ? 0.9 : 0.12}>
                   <path
@@ -481,6 +527,7 @@ export function SchemeViewer() {
           </g>
         </svg>
       </div>
+      </div>
 
       <div className="scheme-hint">
         <span className="scheme-hint-ctrl" aria-hidden />
@@ -490,7 +537,8 @@ export function SchemeViewer() {
       <div className="scheme-zoom">
         <button
           type="button"
-          onClick={() => {
+          onClick={(e) => {
+            e.stopPropagation()
             const el = containerRef.current
             if (!el) return
             const rect = el.getBoundingClientRect()
@@ -502,7 +550,8 @@ export function SchemeViewer() {
         <span>{Math.round(scale * 100)}%</span>
         <button
           type="button"
-          onClick={() => {
+          onClick={(e) => {
+            e.stopPropagation()
             const el = containerRef.current
             if (!el) return
             const rect = el.getBoundingClientRect()
@@ -513,7 +562,8 @@ export function SchemeViewer() {
         </button>
         <button
           type="button"
-          onClick={() => {
+          onClick={(e) => {
+            e.stopPropagation()
             setScale(0.48)
             setPan({ x: 20, y: 10 })
             setActiveZoneId(null)

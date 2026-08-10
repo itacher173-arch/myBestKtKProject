@@ -1,7 +1,7 @@
 .sc-check {
   position: absolute;
   left: 12px;
-  bottom: 12px;
+  bottom: 54px;
   width: min(320px, calc(100% - 24px));
   max-height: 38vh;
   overflow: auto;
