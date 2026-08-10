@@ -1,0 +1,82 @@
+.work-role-bar-wrap {
+  max-width: 1480px;
+  margin: 0 auto 13px;
+}
+
+.dashboard-role-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow-xs);
+}
+
+.dashboard-role-bar > span {
+  color: var(--text-muted);
+  font-size: 8px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.dashboard-role-bar .mode-switch {
+  flex: 1;
+}
+
+.dashboard-logout {
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: 9px;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.dashboard-role-bar .mode-switch {
+  display: flex;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--surface-muted);
+}
+
+.dashboard-role-bar .mode-switch button {
+  height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 9px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.dashboard-role-bar .mode-switch button.active {
+  background: var(--surface-raised);
+  color: var(--accent);
+  box-shadow: var(--shadow-xs);
+}
+
+.dashboard-role-bar .mode-switch svg {
+  width: 14px;
+}
+
+@media (max-width: 620px) {
+  .dashboard-role-bar {
+    flex-wrap: wrap;
+  }
+
+  .dashboard-role-bar .mode-switch {
+    order: 3;
+    flex-basis: 100%;
+  }
+}

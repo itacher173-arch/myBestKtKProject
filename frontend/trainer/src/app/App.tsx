@@ -24,6 +24,7 @@ import { SchemeQuickBar } from '../simulator/components/SchemeQuickBar'
 import { TrendStrip } from '../simulator/components/TrendStrip'
 import { ReportsPage } from '../storage/pages/ReportsPage'
 import { StartScreen } from './pages/StartScreen'
+import { WorkRoleBar } from './components/WorkRoleBar'
 import { EquipmentPanel } from '../scheme/components/EquipmentPanel'
 import { SchemeViewer } from '../scheme/components/SchemeViewer'
 import { TrainerProvider, useTrainer } from '../simulator/TrainerContext'
@@ -116,11 +117,21 @@ function TrainerApp() {
   let fullBleed = false
 
   if (session.view === 'start') {
-    content = <StartScreen />
+    content = (
+      <>
+        <WorkRoleBar />
+        <StartScreen />
+      </>
+    )
   } else if (session.view === 'reports') {
     title = 'Кабинет инструктора'
     subtitle = 'Группы, отчёты квалификации и управление обучением'
-    content = <ReportsPage />
+    content = (
+      <>
+        <WorkRoleBar />
+        <ReportsPage />
+      </>
+    )
   } else {
     fullBleed = true
     const exercise = getExercise(session.exerciseId)
