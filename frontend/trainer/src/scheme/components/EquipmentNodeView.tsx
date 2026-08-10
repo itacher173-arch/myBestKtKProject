@@ -156,8 +156,34 @@ export function EquipmentNodeView({
   onActivate,
   onHover,
 }: Props) {
-  const lines = node.label.split('\n')
+  const showTrays =
+    (selected || hovered) &&
+    node.type === 'column' &&
+    Boolean(node.meta?.trays)
+  const traySuffix = showTrays ? `${node.meta!.trays} тар.` : null
+  const rawLines = node.label.split('\n').filter((l) => l.trim().length > 0)
+  const lines = traySuffix ? [...rawLines, traySuffix] : rawLines
   const isBackground = node.type === 'group'
+  const isAnnotation =
+    node.type === 'label' &&
+    !isZoneBanner(node.id) &&
+    (node.id.startsWith('frac-') ||
+      node.id.startsWith('gas-') ||
+      node.id.startsWith('reagent-') ||
+      node.id.startsWith('UTIL-') ||
+      node.id.startsWith('mazut-') ||
+      [
+        'lin-339',
+        'butane',
+        'pbf-gfu',
+        'to-opu',
+        'transfer-steam',
+        'desalted-oil',
+        'offspec-n10',
+        'flare-stack',
+        'nekonditsiya',
+        'ELOU-2-label',
+      ].includes(node.id))
   const overlay = overlayText(node.id, process)
   const controllable = isControllableEquip(node.id)
   const highlightControl = controllable && showControlRing
@@ -165,11 +191,13 @@ export function EquipmentNodeView({
   const pad = 3
   const fontSize = zoneBanner
     ? 12
-    : node.type === 'label' || node.type === 'signal'
-      ? 10
-      : node.type === 'column'
-        ? 13
-        : 11
+    : isAnnotation
+      ? 9
+      : node.type === 'label' || node.type === 'signal'
+        ? 10
+        : node.type === 'column'
+          ? 13
+          : 11
 
   const vs = visualState(node, process)
   const alarm = Boolean(vs.alarm || alarmHighlight)
@@ -195,7 +223,13 @@ export function EquipmentNodeView({
       }}
       onMouseEnter={() => onHover(node.id)}
       onMouseLeave={() => onHover(null)}
-      opacity={isBackground && !selected && !hovered ? 0.88 : 1}
+      opacity={
+        isBackground && !selected && !hovered
+          ? 0.72
+          : isAnnotation && !selected && !hovered
+            ? 0.78
+            : 1
+      }
     >
       {alarmHighlight && (
         <rect
@@ -239,6 +273,7 @@ export function EquipmentNodeView({
         active={vs.active}
         alarm={alarm}
       />
+      {lines.length > 0 && (
       <text
         x={zoneBanner ? node.w / 2 + 2 : node.w / 2}
         y={
@@ -277,6 +312,7 @@ export function EquipmentNodeView({
           </tspan>
         ))}
       </text>
+      )}
       {overlay && (
         <text
           x={node.w / 2}

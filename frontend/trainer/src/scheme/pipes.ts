@@ -1,4 +1,5 @@
 import type { PipeEdge } from './types'
+import { pipesExtras } from './pipesExtras'
 
 /** Основные потоки между узлами мнемосхемы (не вся арматура P&ID). */
 export const pipes: PipeEdge[] = [
@@ -130,11 +131,9 @@ export const pipes: PipeEdge[] = [
     to: 'E-15',
     kind: 'oil',
     points: [
-      [930, 380],
-      [960, 380],
-      [960, 370],
+      [920, 370],
+      [958, 370],
     ],
-    label: 'обессол. нефть',
   },
   {
     id: 'p-e15-hx',
@@ -142,9 +141,10 @@ export const pipes: PipeEdge[] = [
     to: 'HX-desalted',
     kind: 'oil',
     points: [
-      [1040, 370],
-      [1080, 370],
-      [1080, 340],
+      [1042, 370],
+      [1060, 370],
+      [1060, 340],
+      [1078, 340],
     ],
   },
   {
@@ -163,8 +163,8 @@ export const pipes: PipeEdge[] = [
     to: 'E-15',
     kind: 'utility',
     points: [
-      [988, 306],
-      [988, 320],
+      [1000, 306],
+      [1000, 318],
     ],
   },
 
@@ -471,7 +471,7 @@ export const pipes: PipeEdge[] = [
     points: [
       [2080, 380],
       [2200, 380],
-      [2200, 388],
+      [2200, 416],
     ],
     label: '2 ц.о.',
   },
@@ -483,7 +483,7 @@ export const pipes: PipeEdge[] = [
     points: [
       [2080, 460],
       [2200, 460],
-      [2200, 468],
+      [2200, 496],
     ],
     label: '3 ц.о.',
   },
@@ -774,8 +774,7 @@ export const pipes: PipeEdge[] = [
     to: 'X-20',
     kind: 'product',
     points: [
-      [3110, 300],
-      [3140, 300],
+      [3110, 304],
       [3140, 304],
     ],
   },
@@ -785,9 +784,8 @@ export const pipes: PipeEdge[] = [
     to: 'X-22',
     kind: 'product',
     points: [
-      [3310, 250],
-      [3320, 250],
-      [3320, 244],
+      [3310, 244],
+      [3360, 244],
     ],
   },
   {
@@ -820,4 +818,6 @@ export const pipes: PipeEdge[] = [
       [2820, 928],
     ],
   },
+
+  ...pipesExtras,
 ]

@@ -63,7 +63,7 @@ export function StartScreen() {
         return
       }
       setAuthed(user)
-      const initialRole = resolveWorkRole(user)
+      const initialRole = resolveWorkRole(user) ?? 'trainee'
       setWorkRole(initialRole)
       setActiveWorkRole(initialRole)
       setRole(initialRole)

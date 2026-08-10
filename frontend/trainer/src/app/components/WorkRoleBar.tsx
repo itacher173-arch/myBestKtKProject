@@ -36,10 +36,9 @@ export function WorkRoleBar() {
   }
 
   const goTraining = () => {
-    if (view === 'start') return
     setActiveWorkRole('trainee')
     setRole('trainee')
-    resetToStart()
+    if (view !== 'start') resetToStart()
   }
 
   const goReports = () => {

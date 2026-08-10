@@ -42,7 +42,7 @@ export interface PipeEdge {
   label?: string
 }
 
-export const VIEWBOX = { width: 3400, height: 1400 } as const
+export const VIEWBOX = { width: 3400, height: 1240 } as const
 
 export const EQUIPMENT_TYPE_LABELS: Record<EquipmentType, string> = {
   column: 'Колонна',

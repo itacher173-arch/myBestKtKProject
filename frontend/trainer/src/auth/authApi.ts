@@ -56,9 +56,9 @@ export function resolveWorkRole(
   const saved = getActiveWorkRole()
   if (saved === 'trainee' && canTrain) return 'trainee'
   if (saved === 'instructor' && canInstruct) return 'instructor'
-  if (canTrain && canInstruct) return null
-  if (canInstruct) return 'instructor'
+  // По умолчанию — режим «Обучение», чтобы сразу был каталог/тело экрана
   if (canTrain) return 'trainee'
+  if (canInstruct) return 'instructor'
   return null
 }
 

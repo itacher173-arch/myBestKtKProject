@@ -61,14 +61,114 @@ function orientedPipePoints(pipe: PipeEdge): [number, number][] {
   const forward =
     dist2(first, from) + dist2(last, to) <=
     dist2(last, from) + dist2(first, to)
-  return forward ? pts : [...pts].reverse()
+  return sanitizePipePoints(forward ? pts : [...pts].reverse())
 }
 
-function pipeMarkerId(kind: PipeKind): string {
-  if (kind === 'oil') return 'url(#arrow-oil)'
-  if (kind === 'steam') return 'url(#arrow-steam)'
-  if (kind === 'utility') return 'url(#arrow-utility)'
-  return 'url(#arrow-product)'
+/** Ортогональный snap + достаточная длина последнего сегмента под стрелку. */
+function sanitizePipePoints(pts: [number, number][]): [number, number][] {
+  if (pts.length < 2) return pts
+  const out: [number, number][] = pts.map(([x, y]) => [x, y])
+
+  for (let i = 1; i < out.length; i++) {
+    const prev = out[i - 1]
+    const cur = out[i]
+    const dx = cur[0] - prev[0]
+    const dy = cur[1] - prev[1]
+    if (Math.abs(dx) <= Math.abs(dy)) cur[0] = prev[0]
+    else cur[1] = prev[1]
+  }
+
+  // убрать совпадающие точки
+  const cleaned: [number, number][] = [out[0]]
+  for (let i = 1; i < out.length; i++) {
+    const prev = cleaned[cleaned.length - 1]
+    if (out[i][0] !== prev[0] || out[i][1] !== prev[1]) cleaned.push(out[i])
+  }
+  if (cleaned.length < 2) return pts
+
+  const minTip = 18
+  const a = cleaned[cleaned.length - 2]
+  const b = cleaned[cleaned.length - 1]
+  const dx = b[0] - a[0]
+  const dy = b[1] - a[1]
+  const len = Math.hypot(dx, dy)
+  if (len > 0.01 && len < minTip) {
+    const s = minTip / len
+    cleaned[cleaned.length - 1] = [a[0] + dx * s, a[1] + dy * s]
+  }
+
+  // целые координаты — без субпиксельного «перекоса» стрелок
+  return cleaned.map(([x, y]) => [Math.round(x), Math.round(y)])
+}
+
+const ARROW_LEN = 11
+const ARROW_HALF = 4
+
+/** Наконечник стрелки как polygon — не ломается от CSS-scale родителя. */
+function arrowHeadPoints(
+  points: [number, number][],
+): { line: [number, number][]; tip: string } | null {
+  if (points.length < 2) return null
+  const line = points.map(([x, y]) => [x, y] as [number, number])
+  const a = line[line.length - 2]
+  const b = line[line.length - 1]
+  let dx = b[0] - a[0]
+  let dy = b[1] - a[1]
+  // строго ортогональный наконечник
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    dy = 0
+    dx = dx === 0 ? 1 : dx
+  } else {
+    dx = 0
+    dy = dy === 0 ? 1 : dy
+  }
+  const len = Math.hypot(dx, dy)
+  if (len < 0.01) return null
+  const ux = dx / len
+  const uy = dy / len
+  const tipLen = ARROW_LEN
+  line[line.length - 1] = [
+    Math.round(b[0] - ux * (tipLen - 1)),
+    Math.round(b[1] - uy * (tipLen - 1)),
+  ]
+  const baseX = b[0] - ux * tipLen
+  const baseY = b[1] - uy * tipLen
+  const p1x = Math.round(baseX - uy * ARROW_HALF)
+  const p1y = Math.round(baseY + ux * ARROW_HALF)
+  const p2x = Math.round(baseX + uy * ARROW_HALF)
+  const p2y = Math.round(baseY - ux * ARROW_HALF)
+  return {
+    line,
+    tip: `${b[0]},${b[1]} ${p1x},${p1y} ${p2x},${p2y}`,
+  }
+}
+
+/** Подпись трубы — сбоку от сегмента, не поверх оборудования. */
+function pipeLabelPos(
+  points: [number, number][],
+): { x: number; y: number } | null {
+  if (points.length < 2) return null
+  // на самом длинном сегменте
+  let best = 0
+  let bestLen = -1
+  for (let i = 0; i < points.length - 1; i++) {
+    const len = Math.hypot(
+      points[i + 1][0] - points[i][0],
+      points[i + 1][1] - points[i][1],
+    )
+    if (len > bestLen) {
+      bestLen = len
+      best = i
+    }
+  }
+  const a = points[best]
+  const b = points[best + 1]
+  const mx = (a[0] + b[0]) / 2
+  const my = (a[1] + b[1]) / 2
+  const horiz = Math.abs(b[0] - a[0]) >= Math.abs(b[1] - a[1])
+  return horiz
+    ? { x: mx, y: my - 10 }
+    : { x: mx + 8, y: my }
 }
 
 export function SchemeViewer() {
@@ -346,54 +446,6 @@ export function SchemeViewer() {
         >
           <defs>
             <EquipmentSymbolDefs />
-            <marker
-              id="arrow-oil"
-              viewBox="0 0 10 6"
-              markerWidth="8"
-              markerHeight="8"
-              refX="9"
-              refY="3"
-              orient="auto"
-              markerUnits="strokeWidth"
-            >
-              <path d="M0,0 L10,3 L0,6 Z" fill={PIPE_COLORS.oil} />
-            </marker>
-            <marker
-              id="arrow-product"
-              viewBox="0 0 10 6"
-              markerWidth="8"
-              markerHeight="8"
-              refX="9"
-              refY="3"
-              orient="auto"
-              markerUnits="strokeWidth"
-            >
-              <path d="M0,0 L10,3 L0,6 Z" fill={PIPE_COLORS.product} />
-            </marker>
-            <marker
-              id="arrow-steam"
-              viewBox="0 0 10 6"
-              markerWidth="8"
-              markerHeight="8"
-              refX="9"
-              refY="3"
-              orient="auto"
-              markerUnits="strokeWidth"
-            >
-              <path d="M0,0 L10,3 L0,6 Z" fill={PIPE_COLORS.steam} />
-            </marker>
-            <marker
-              id="arrow-utility"
-              viewBox="0 0 10 6"
-              markerWidth="8"
-              markerHeight="8"
-              refX="9"
-              refY="3"
-              orient="auto"
-              markerUnits="strokeWidth"
-            >
-              <path d="M0,0 L10,3 L0,6 Z" fill={PIPE_COLORS.utility} />
-            </marker>
             <pattern
               id="grid"
               width="40"
@@ -445,33 +497,24 @@ export function SchemeViewer() {
             {pipes.map((pipe) => {
               const focused = pipeInFocus(pipe.from, pipe.to)
               const points = orientedPipePoints(pipe)
-              const d = points
+              const arrow = focused ? arrowHeadPoints(points) : null
+              const drawPts = arrow?.line ?? points
+              const d = drawPts
                 .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p[0]} ${p[1]}`)
                 .join(' ')
-              const marker = focused ? pipeMarkerId(pipe.kind) : undefined
-              const mid = points[Math.floor(points.length / 2)]
+              const color = PIPE_COLORS[pipe.kind]
               return (
                 <g key={pipe.id} opacity={focused ? 0.9 : 0.12}>
                   <path
                     d={d}
                     fill="none"
-                    stroke={PIPE_COLORS[pipe.kind]}
+                    stroke={color}
                     strokeWidth={pipe.kind === 'steam' ? 1.5 : 2.5}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    markerEnd={marker}
+                    strokeLinecap="butt"
+                    strokeLinejoin="miter"
                   />
-                  {focused && pipe.label && mid && (
-                    <text
-                      x={mid[0] + 4}
-                      y={mid[1] - 6}
-                      fill={PIPE_COLORS[pipe.kind]}
-                      fontSize={10}
-                      fontFamily="IBM Plex Sans, Segoe UI, sans-serif"
-                      opacity={0.85}
-                    >
-                      {pipe.label}
-                    </text>
+                  {arrow && (
+                    <polygon points={arrow.tip} fill={color} stroke="none" />
                   )}
                 </g>
               )
@@ -524,6 +567,32 @@ export function SchemeViewer() {
                 />
               </g>
             ))}
+          </g>
+
+          {/* Подписи труб поверх оборудования — не уходят «под» узлы */}
+          <g className="pipe-labels-layer" pointerEvents="none">
+            {pipes.map((pipe) => {
+              if (!pipe.label || !pipeInFocus(pipe.from, pipe.to)) return null
+              const points = orientedPipePoints(pipe)
+              const pos = pipeLabelPos(points)
+              if (!pos) return null
+              return (
+                <text
+                  key={`lbl-${pipe.id}`}
+                  x={pos.x}
+                  y={pos.y}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fill={PIPE_COLORS[pipe.kind]}
+                  fontSize={10}
+                  fontFamily="IBM Plex Sans, Segoe UI, sans-serif"
+                  opacity={0.9}
+                  style={{ paintOrder: 'stroke', stroke: 'var(--scheme-canvas)', strokeWidth: 3 }}
+                >
+                  {pipe.label}
+                </text>
+              )
+            })}
           </g>
         </svg>
       </div>

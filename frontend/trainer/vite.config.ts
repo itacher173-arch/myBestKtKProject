@@ -1,9 +1,10 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-export default defineConfig({
+/** В Docker UI живёт под /app/; локальный vite — в корне :5173. */
+export default defineConfig(({ command }) => ({
   plugins: [react()],
-  base: '/',
+  base: command === 'build' ? '/app/' : '/',
   server: {
     proxy: {
       '/api': {
@@ -30,4 +31,4 @@ export default defineConfig({
       },
     },
   },
-})
+}))

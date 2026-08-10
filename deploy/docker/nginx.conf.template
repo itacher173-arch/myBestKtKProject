@@ -135,12 +135,21 @@ server {
         return 302 /admin/;
     }
 
+    # Статика без сессии — иначе SPA не поднимается при 302 на JS/CSS
+    location /admin/assets/ {
+        try_files $uri =404;
+    }
+
     location /admin/ {
         try_files $uri $uri/ /admin/index.html;
     }
 
     location = /app {
         return 302 /app/;
+    }
+
+    location /app/assets/ {
+        try_files $uri =404;
     }
 
     location /app/ {

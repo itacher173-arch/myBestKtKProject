@@ -1,4 +1,5 @@
 import type { EquipmentNode } from './types'
+import { equipmentExtras } from './equipmentExtras'
 
 /**
  * Каталог оборудования мнемосхемы ЭЛОУ-АВТ по схеме КТС + регламенту.
@@ -1714,6 +1715,8 @@ export const equipment: EquipmentNode[] = [
     h: 32,
     meta: { zone: '7. Вторичная' },
   },
+
+  ...equipmentExtras,
 ]
 
 export const equipmentById = Object.fromEntries(
