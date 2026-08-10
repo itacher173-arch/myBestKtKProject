@@ -59,6 +59,7 @@ SCHEMA_STATEMENTS = (
         full_name TEXT NOT NULL,
         password_hash TEXT NOT NULL,
         role TEXT NOT NULL CHECK (role IN ('trainee', 'instructor', 'admin')),
+        roles TEXT[] NOT NULL DEFAULT ARRAY['trainee']::TEXT[],
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         UNIQUE (login)
     )
@@ -102,6 +103,31 @@ MIGRATION_STATEMENTS = (
     """,
     """
     ALTER TABLE users ADD COLUMN IF NOT EXISTS login TEXT
+    """,
+    """
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS roles TEXT[]
+    """,
+    """
+    UPDATE users SET roles = ARRAY[role]::TEXT[]
+    WHERE roles IS NULL OR cardinality(roles) = 0
+    """,
+    """
+    ALTER TABLE users ALTER COLUMN roles
+        SET DEFAULT ARRAY['trainee']::TEXT[]
+    """,
+    """
+    ALTER TABLE users ALTER COLUMN roles SET NOT NULL
+    """,
+    """
+    ALTER TABLE users DROP CONSTRAINT IF EXISTS users_roles_check
+    """,
+    """
+    ALTER TABLE users
+        ADD CONSTRAINT users_roles_check
+        CHECK (
+            cardinality(roles) > 0
+            AND roles <@ ARRAY['trainee', 'instructor', 'admin']::TEXT[]
+        )
     """,
     """
     ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS prev_hash TEXT

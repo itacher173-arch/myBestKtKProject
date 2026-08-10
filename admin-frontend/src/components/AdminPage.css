@@ -334,6 +334,44 @@
   cursor: not-allowed;
 }
 
+.admin-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(6, 12, 18, 0.72);
+}
+
+.admin-modal {
+  width: min(420px, 100%);
+  padding: 20px;
+  border: 1px solid #3a556c;
+  border-radius: 12px;
+  background: #1a2834;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+}
+
+.admin-modal h3 {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+
+.admin-modal p {
+  margin: 0 0 18px;
+  color: #c5d5e2;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.admin-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 @media (max-width: 860px) {
   .admin-layout {
     grid-template-columns: 1fr;

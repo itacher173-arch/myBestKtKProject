@@ -36,7 +36,7 @@ import {
   applyFault,
 } from './faultEngine'
 import { appendAudit } from './auditStorage'
-import { getAuthedUser } from './authApi'
+import { getAuthedUser, resolveWorkRole } from './authApi'
 import { processInterlockReason, criticalFailReasonText } from './pazGuards'
 import {
   createServerSimSession,
@@ -1487,7 +1487,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'RESET_TO_START' })
     const user = getAuthedUser()
     if (user) {
-      dispatch({ type: 'SET_ROLE', role: user.role })
+      dispatch({ type: 'SET_ROLE', role: resolveWorkRole(user) })
       dispatch({ type: 'SET_NAME', name: user.fullName })
     }
   }, [])
@@ -1503,12 +1503,11 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     }
     const user = getAuthedUser()
     if (user) {
-      dispatch({ type: 'SET_ROLE', role: user.role })
       dispatch({ type: 'SET_NAME', name: user.fullName })
     }
     const cur = {
       ...stateRef.current.session,
-      role: user?.role ?? stateRef.current.session.role,
+      role: stateRef.current.session.role,
       userName: user?.fullName ?? stateRef.current.session.userName,
     }
     const training =

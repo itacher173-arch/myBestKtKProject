@@ -3,6 +3,9 @@ dist
 release
 .DS_Store
 *.local
+.env
+.env.*
+!.env.example
 .tmp_plan
 .venv
 backend/runtime/*

@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { ApiError } from './api/client'
 import { AdminPage } from './components/AdminPage'
 import {
+  authPortalUrl,
   getAuthedUser,
+  hasRole,
   loginAdmin,
   logoutUser,
   type AuthUser,
@@ -62,7 +64,7 @@ export default function App() {
     }
   }
 
-  if (authed?.role === 'admin') {
+  if (authed && hasRole(authed, 'admin')) {
     return <AdminPage onLogout={onLogout} />
   }
 
@@ -103,6 +105,16 @@ export default function App() {
 
         <button type="button" disabled={busy} onClick={() => void onLogin()}>
           {busy ? 'Вход…' : 'Войти'}
+        </button>
+        <button
+          type="button"
+          className="ghost"
+          disabled={busy}
+          onClick={() => {
+            window.location.href = authPortalUrl()
+          }}
+        >
+          Перейти на вход системы КТК
         </button>
       </div>
     </div>

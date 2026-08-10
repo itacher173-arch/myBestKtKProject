@@ -1,4 +1,4 @@
-"""Запуск всех сервисов КТК в одном процессе (для разработки)."""
+"""Запуск рабочего backend-блока без сервиса авторизации."""
 
 from __future__ import annotations
 
@@ -7,8 +7,6 @@ import os
 import threading
 from http.server import ThreadingHTTPServer
 
-from backend.auth.app import Handler as AuthHandler
-from backend.auth.app import bootstrap as bootstrap_auth
 from backend.gateway.app import Handler as GatewayHandler
 from backend.knowledge.app import Handler as KnowledgeHandler
 from backend.presence import start_presence_server
@@ -42,10 +40,9 @@ def _serve_fastapi(host: str, port: int) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="КТК backend (AVT-style)")
+    parser = argparse.ArgumentParser(description="КТК system backend")
     parser.add_argument("--host", default=os.environ.get("KTK_HOST", "127.0.0.1"))
     parser.add_argument("--gateway-port", type=int, default=8000)
-    parser.add_argument("--auth-port", type=int, default=8102)
     parser.add_argument("--training-port", type=int, default=8103)
     parser.add_argument("--knowledge-port", type=int, default=8104)
     parser.add_argument("--storage-port", type=int, default=8105)
@@ -58,13 +55,12 @@ def main() -> None:
     args = parser.parse_args()
 
     RUNTIME.mkdir(parents=True, exist_ok=True)
-    bootstrap_auth()
     bootstrap_storage()
     start_ticker()
-    start_presence_server(args.host if args.host != "127.0.0.1" else "0.0.0.0", args.presence_port)
+    presence_host = args.host if args.host != "127.0.0.1" else "0.0.0.0"
+    start_presence_server(presence_host, args.presence_port)
 
     workers = [
-        ("auth", args.auth_port, AuthHandler),
         ("training", args.training_port, TrainingHandler),
         ("knowledge", args.knowledge_port, KnowledgeHandler),
         ("storage", args.storage_port, StorageHandler),
@@ -82,20 +78,18 @@ def main() -> None:
         threads.append(thread)
 
     fastapi_host = args.host if args.host != "127.0.0.1" else "0.0.0.0"
-    threads.append(
-        threading.Thread(
-            target=_serve_fastapi,
-            args=(fastapi_host, args.fastapi_port),
-            name="ktk-fastapi",
-            daemon=True,
-        )
+    fastapi_thread = threading.Thread(
+        target=_serve_fastapi,
+        args=(fastapi_host, args.fastapi_port),
+        name="ktk-fastapi",
+        daemon=True,
     )
-    threads[-1].start()
+    fastapi_thread.start()
+    threads.append(fastapi_thread)
 
     print(
-        f"[ktk] API http://{args.host}:{args.gateway_port}/api/health · "
-        f"FastAPI :{args.fastapi_port} · WS :{args.presence_port}/ · "
-        f"данные → PostgreSQL + Redis · серверный такт симуляции",
+        f"[ktk-system] API http://{args.host}:{args.gateway_port}/api/health · "
+        f"FastAPI :{args.fastapi_port} · WS :{args.presence_port}/",
         flush=True,
     )
     for thread in threads:

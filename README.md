@@ -5,11 +5,12 @@
 ## Структура
 
 ```text
-frontend/         # КТК (Vite + React + Electron) → :8080
-auth-frontend/    # Портал входа → :8082
-admin-frontend/   # Админ-панель → :8081
-backend/          # Python API (gateway, storage, knowledge, training, presence)
-docs/
+frontend/         # КТК (Vite + React), в Docker → /app/
+auth-frontend/    # Портал входа, в Docker → /
+admin-frontend/   # Админ-панель, в Docker → /admin/
+backend/auth/     # отдельный сервис авторизации и пользователей
+backend/          # рабочий API (gateway, storage, knowledge, training, presence)
+deploy/railway/   # единый UI-образ (web) + инструкция Railway
 docker-compose.yml
 ```
 
@@ -28,26 +29,42 @@ npm run dev:admin # админка :5174
 ### Docker Compose
 
 ```bash
+read -r "KTK_ADMIN_LOGIN?Логин первого администратора: "
+read -rs "KTK_ADMIN_PASSWORD?Пароль первого администратора: "; echo
+export KTK_ADMIN_LOGIN KTK_ADMIN_PASSWORD
 npm run docker:up
-# собирает frontend + admin-frontend и поднимает контейнеры
+# поднимает web + auth-api + system-api + postgres + redis
 ```
+
+### Railway (auto-deploy из GitHub)
+
+Тот же образ `web` (`/` + `/app/` + `/admin/`), API и БД — отдельно.  
+Инструкция: [`deploy/railway/README.md`](deploy/railway/README.md).
+
+Учётные данные первого администратора передаются только через окружение (либо
+менеджер секретов) и не хранятся в репозитории. Он создаётся при первом запуске
+новой БД; последующие перезапуски его пароль не меняют.
 
 | Сервис       | URL                                    | Образ                        |
 | ------------ | -------------------------------------- | ---------------------------- |
-| Вход (auth)  | http://localhost:8082                  | `nginx:1.27-alpine`          |
-| КТК (nginx)  | http://localhost:8080                  | `nginx:1.27-alpine`          |
-| Админ-панель | http://localhost:8081                  | `nginx:1.27-alpine`          |
-| API          | http://localhost:8000/api/health       | `python:3.12-slim` + psycopg |
-| Postgres     | внутренняя сеть Docker             | `postgres:16-alpine`         |
-| Redis        | внутренняя сеть Docker             | `redis:7-alpine`             |
+| UI (web)     | http://localhost:8080/                 | единый nginx (auth+КТК+admin)|
+| КТК          | http://localhost:8080/app/             | ↑                            |
+| Админ-панель | http://localhost:8080/admin/           | ↑                            |
+| API системы  | http://localhost:8000/api/health       | `python:3.12-slim` + psycopg |
+| Auth API     | внутренняя сеть Docker                 | `python:3.12-slim` + psycopg |
+| Postgres     | внутренняя сеть Docker                 | `postgres:16-alpine`         |
+| Redis        | внутренняя сеть Docker                 | `redis:7-alpine`             |
 
 Postgres — пользователи, группы, отчёты и аудит (порты 5432/6379 наружу не публикуются).
 Redis — presence, антибрутфорс логина и серверные сессии.
 API users/groups/reports/audit требуют серверную сессию; CRUD пользователей — только admin.
-Bootstrap-админ создаётся один раз (пароль при рестарте не сбрасывается).
+Auth-блок обслуживает `/api/auth/*` и `/api/users/*`; рабочий backend — остальные
+маршруты. Gateway на `:8000` сохраняет единый публичный API.
+Bootstrap-админ создаётся один раз из переменных `KTK_ADMIN_LOGIN` и
+`KTK_ADMIN_PASSWORD` (пароль при рестарте не сбрасывается).
 
-Вход в КТК — только через портал `:8082`. Прямой доступ к `:8080` без сессии перенаправляет на авторизацию.
-Админ-панель: логин `admin` / пароль `admin` на `:8081`.
+Вход в КТК — через http://localhost:8080/ ; тренажёр — `/app/` (без сессии редирект на вход).
+Админ-панель — `/admin/`.
 Вход в КТК — логин (латиница) + пароль; ФИО задаётся при создании пользователя.
 
 Подробнее: `backend/README.md`.

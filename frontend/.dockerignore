@@ -1,6 +1,5 @@
 node_modules
 release
-electron
 scripts
 *.md
 .DS_Store

@@ -6,6 +6,7 @@ export interface AdminUser {
   login: string
   fullName: string
   role: UserRole
+  roles: UserRole[]
   createdAt?: number | null
 }
 
@@ -26,7 +27,7 @@ export function createAdminUser(input: {
   login: string
   fullName: string
   password: string
-  role: UserRole
+  roles: UserRole[]
 }): Promise<AdminUser> {
   return apiPost<{ ok: boolean; user: AdminUser }>('/users', input).then(
     (r) => {
@@ -44,7 +45,7 @@ export function updateAdminUser(
     login?: string
     fullName?: string
     password?: string
-    role?: UserRole
+    roles?: UserRole[]
   },
 ): Promise<AdminUser> {
   return apiPatch<{ ok: boolean; user: AdminUser }>(

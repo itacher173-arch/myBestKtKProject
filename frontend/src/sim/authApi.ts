@@ -11,10 +11,12 @@ export interface AuthUser {
   login?: string
   fullName: string
   role: UserRole
+  roles: UserRole[]
   createdAt?: number | null
 }
 
 const USER_KEY = 'ktk-elou-avt-auth-user'
+const ACTIVE_ROLE_KEY = 'ktk-elou-avt-active-role'
 const SESSION_COOKIE = 'ktk_session'
 
 export function authPortalUrl(): string {
@@ -32,20 +34,58 @@ export function getAuthedUser(): AuthUser | null {
   }
 }
 
+export function getActiveWorkRole(): 'trainee' | 'instructor' | null {
+  const value = sessionStorage.getItem(ACTIVE_ROLE_KEY)
+  if (value === 'trainee' || value === 'instructor') return value
+  return null
+}
+
+export function setActiveWorkRole(role: 'trainee' | 'instructor' | null): void {
+  if (!role) {
+    sessionStorage.removeItem(ACTIVE_ROLE_KEY)
+    return
+  }
+  sessionStorage.setItem(ACTIVE_ROLE_KEY, role)
+}
+
+export function resolveWorkRole(
+  user: AuthUser,
+): 'trainee' | 'instructor' | null {
+  const canTrain = hasRole(user, 'trainee')
+  const canInstruct = hasRole(user, 'instructor')
+  const saved = getActiveWorkRole()
+  if (saved === 'trainee' && canTrain) return 'trainee'
+  if (saved === 'instructor' && canInstruct) return 'instructor'
+  if (canTrain && canInstruct) return null
+  if (canInstruct) return 'instructor'
+  if (canTrain) return 'trainee'
+  return null
+}
+
 export function setAuthedUser(user: AuthUser | null): void {
   if (!user) {
     sessionStorage.removeItem(USER_KEY)
+    sessionStorage.removeItem(ACTIVE_ROLE_KEY)
     setInstructorAuthed(false)
-    return
+  } else {
+    sessionStorage.setItem(USER_KEY, JSON.stringify(user))
+    setInstructorAuthed(hasRole(user, 'instructor'))
   }
-  sessionStorage.setItem(USER_KEY, JSON.stringify(user))
-  setInstructorAuthed(user.role === 'instructor')
+  window.dispatchEvent(new Event('ktk-auth-changed'))
 }
 
 export function roleLabel(role: UserRole | string): string {
   if (role === 'admin') return 'администратор'
   if (role === 'instructor') return 'инструктор'
   return 'обучаемый'
+}
+
+export function hasRole(user: AuthUser, role: UserRole): boolean {
+  return (user.roles ?? [user.role]).includes(role)
+}
+
+export function rolesLabel(user: AuthUser): string {
+  return (user.roles ?? [user.role]).map(roleLabel).join(', ')
 }
 
 export function validateFullName(name: string): string | null {
@@ -61,7 +101,7 @@ export function validatePassword(password: string): string | null {
 export async function fetchSessionUser(): Promise<AuthUser | null> {
   try {
     const data = await apiGet<{ ok: boolean; user: AuthUser }>('/auth/me')
-    if (!data.user || data.user.role === 'admin') {
+    if (!data.user || hasRole(data.user, 'admin')) {
       setAuthedUser(null)
       return null
     }

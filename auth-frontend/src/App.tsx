@@ -3,6 +3,7 @@ import { ApiError } from './api/client'
 import {
   clearClientSession,
   fetchMe,
+  hasRole,
   loginAppUser,
   redirectTarget,
   validateLogin,
@@ -21,7 +22,7 @@ export default function App() {
     void (async () => {
       try {
         const user = await fetchMe()
-        if (user && user.role !== 'admin') {
+        if (user && !hasRole(user, 'admin')) {
           window.location.replace(redirectTarget())
           return
         }
@@ -113,7 +114,8 @@ export default function App() {
         </button>
 
         <p className="hint">
-          Администраторам — панель на порту 8081 (логин admin).
+          Администраторам — панель <a href="/admin/">/admin/</a>
+          {" "}(локально: порт 8081).
         </p>
       </div>
     </div>

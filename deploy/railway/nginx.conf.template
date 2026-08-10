@@ -1,15 +1,15 @@
 server {
-    listen 80;
+    listen ${PORT};
+    listen [::]:${PORT};
     server_name _;
     root /usr/share/nginx/html;
     index index.html;
 
-    resolver 127.0.0.11 valid=10s ipv6=off;
+    resolver ${DNS_RESOLVER} valid=10s ipv6=on;
 
-    # Проверка серверной сессии (cookie ktk_session)
     location = /_auth {
         internal;
-        set $api_upstream system-api:8000;
+        set $api_upstream ${API_HOST}:${GATEWAY_PORT};
         proxy_pass http://$api_upstream/api/auth/session;
         proxy_pass_request_body off;
         proxy_set_header Content-Length "";
@@ -18,12 +18,12 @@ server {
     }
 
     location @go_auth {
-        return 302 http://localhost:8082/?next=$scheme://$http_host$request_uri;
+        return 302 ${AUTH_REDIRECT_PATH}?next=$scheme://$http_host$request_uri;
     }
 
     location @api_unauthorized {
         default_type application/json;
-        return 401 '{"error":"Требуется авторизация. Войдите через портал на порту 8082."}';
+        return 401 '{"error":"Требуется авторизация. Войдите через портал."}';
     }
 
     location @api_unavailable {
@@ -31,24 +31,17 @@ server {
         return 503 '{"error":"Сервер API временно недоступен. Подождите и обновите страницу."}';
     }
 
-    location / {
-        auth_request /_auth;
-        error_page 401 = @go_auth;
-        try_files $uri $uri/ /index.html;
-    }
-
     location = /api/health {
-        set $api_upstream system-api:8000;
+        set $api_upstream ${API_HOST}:${GATEWAY_PORT};
         proxy_pass http://$api_upstream$request_uri;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
     }
 
-    # Серверный симулятор (HTTP + WS) → FastAPI :8010
     location /api/sim/ {
         auth_request /_auth;
         error_page 401 = @api_unauthorized;
-        set $sim_upstream system-api:8010;
+        set $sim_upstream ${API_HOST}:${FASTAPI_PORT};
         proxy_pass http://$sim_upstream$request_uri;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
@@ -63,7 +56,7 @@ server {
     location /api/scenarios/ {
         auth_request /_auth;
         error_page 401 = @api_unauthorized;
-        set $sim_upstream system-api:8010;
+        set $sim_upstream ${API_HOST}:${FASTAPI_PORT};
         proxy_pass http://$sim_upstream$request_uri;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
@@ -71,10 +64,42 @@ server {
         proxy_set_header Authorization $http_authorization;
     }
 
+    # Публичные auth-эндпоинты (без auth_request)
+    location = /api/auth/login {
+        set $api_upstream ${API_HOST}:${GATEWAY_PORT};
+        proxy_pass http://$api_upstream$request_uri;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Cookie $http_cookie;
+        proxy_pass_header Set-Cookie;
+    }
+
+    location = /api/auth/logout {
+        set $api_upstream ${API_HOST}:${GATEWAY_PORT};
+        proxy_pass http://$api_upstream$request_uri;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header Cookie $http_cookie;
+        proxy_pass_header Set-Cookie;
+    }
+
+    location = /api/auth/me {
+        set $api_upstream ${API_HOST}:${GATEWAY_PORT};
+        proxy_pass http://$api_upstream$request_uri;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header Cookie $http_cookie;
+        proxy_set_header Authorization $http_authorization;
+        proxy_pass_header Set-Cookie;
+    }
+
     location /api/ {
         auth_request /_auth;
         error_page 401 = @api_unauthorized;
-        set $api_upstream system-api:8000;
+        set $api_upstream ${API_HOST}:${GATEWAY_PORT};
         proxy_pass http://$api_upstream$request_uri;
         proxy_http_version 1.1;
         proxy_connect_timeout 5s;
@@ -92,7 +117,7 @@ server {
     location /ws {
         auth_request /_auth;
         error_page 401 = @go_auth;
-        set $ws_upstream system-api:8106;
+        set $ws_upstream ${API_HOST}:${PRESENCE_PORT};
         rewrite ^/ws/?$ / break;
         rewrite ^/ws/(.*)$ /$1 break;
         proxy_pass http://$ws_upstream;
@@ -104,5 +129,27 @@ server {
         proxy_set_header Cookie $http_cookie;
         proxy_read_timeout 3600s;
         proxy_send_timeout 3600s;
+    }
+
+    location = /admin {
+        return 302 /admin/;
+    }
+
+    location /admin/ {
+        try_files $uri $uri/ /admin/index.html;
+    }
+
+    location = /app {
+        return 302 /app/;
+    }
+
+    location /app/ {
+        auth_request /_auth;
+        error_page 401 = @go_auth;
+        try_files $uri $uri/ /app/index.html;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
     }
 }

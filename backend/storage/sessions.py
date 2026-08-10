@@ -27,6 +27,7 @@ def create_session(user: dict[str, Any]) -> str:
             "login": user.get("login") or "",
             "fullName": user["fullName"],
             "role": user["role"],
+            "roles": user.get("roles") or [user["role"]],
             "createdAt": user.get("createdAt"),
         },
         "createdAt": int(time.time() * 1000),
@@ -51,6 +52,30 @@ def get_session(token: str | None) -> dict[str, Any] | None:
     # sliding TTL
     r.expire(_key(token.strip()), SESSION_TTL_SEC)
     return data
+
+
+def update_session_user(token: str | None, user: dict[str, Any]) -> dict[str, Any] | None:
+    """Обновляет snapshot пользователя в Redis-сессии (например, после смены ролей)."""
+    if not token or not token.strip():
+        return None
+    session = get_session(token)
+    if not session:
+        return None
+    session["user"] = {
+        "id": user["id"],
+        "login": user.get("login") or "",
+        "fullName": user["fullName"],
+        "role": user["role"],
+        "roles": user.get("roles") or [user["role"]],
+        "createdAt": user.get("createdAt"),
+    }
+    r = get_redis()
+    r.set(
+        _key(token.strip()),
+        json.dumps(session, ensure_ascii=False),
+        ex=SESSION_TTL_SEC,
+    )
+    return session
 
 
 def delete_session(token: str | None) -> None:

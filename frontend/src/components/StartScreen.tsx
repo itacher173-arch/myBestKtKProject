@@ -2,9 +2,12 @@ import { useEffect, useState } from 'react'
 import {
   fetchSessionUser,
   getAuthedUser,
+  hasRole,
   logoutUser,
   redirectToAuthPortal,
-  roleLabel,
+  resolveWorkRole,
+  rolesLabel,
+  setActiveWorkRole,
   type AuthUser,
 } from '../sim/authApi'
 import { appendAudit, isInstructorAuthed } from '../sim/auditStorage'
@@ -33,6 +36,12 @@ export function StartScreen() {
   } = useTrainer()
   const { role, userName, exerciseId, mode } = state.session
   const [authed, setAuthed] = useState<AuthUser | null>(() => getAuthedUser())
+  const [workRole, setWorkRole] = useState<'trainee' | 'instructor' | null>(
+    () => {
+      const user = getAuthedUser()
+      return user ? resolveWorkRole(user) : null
+    },
+  )
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -45,14 +54,17 @@ export function StartScreen() {
         return
       }
       setAuthed(user)
-      setRole(user.role)
+      const initialRole = resolveWorkRole(user)
+      setWorkRole(initialRole)
+      setActiveWorkRole(initialRole)
+      setRole(initialRole)
       setName(user.fullName)
       setLoading(false)
       void appendAudit({
         actor: user.fullName,
-        role: user.role,
+        role: initialRole ?? user.role,
         action: 'auth_ok',
-        detail: user.role,
+        detail: (user.roles ?? [user.role]).join(','),
       })
     })()
     return () => {
@@ -60,7 +72,7 @@ export function StartScreen() {
     }
   }, [setName, setRole])
 
-  const effectiveRole = role ?? authed?.role ?? null
+  const effectiveRole = workRole ?? role
   const effectiveName = userName.trim() || authed?.fullName.trim() || ''
   const canStart =
     effectiveRole === 'trainee' &&
@@ -74,6 +86,8 @@ export function StartScreen() {
     void (async () => {
       await logoutUser()
       setAuthed(null)
+      setWorkRole(null)
+      setActiveWorkRole(null)
       setRole(null)
       setName('')
       redirectToAuthPortal()
@@ -81,13 +95,22 @@ export function StartScreen() {
   }
 
   const goInstructorCabinet = () => {
-    if (!authed || authed.role !== 'instructor' || !isInstructorAuthed()) return
+    if (!authed || !hasRole(authed, 'instructor') || !isInstructorAuthed()) return
+    setWorkRole('instructor')
+    setActiveWorkRole('instructor')
+    setRole('instructor')
     void appendAudit({
       actor: authed.fullName,
       role: 'instructor',
       action: 'open_reports',
     })
     openReports()
+  }
+
+  const goTraining = () => {
+    setWorkRole('trainee')
+    setActiveWorkRole('trainee')
+    setRole('trainee')
   }
 
   if (loading || !authed) {
@@ -120,7 +143,7 @@ export function StartScreen() {
             <strong>{authed.fullName}</strong>
             <span>
               {' '}
-              · {roleLabel(authed.role)}
+              · {rolesLabel(authed)}
             </span>
           </p>
           <button type="button" className="linkish" onClick={onLogout}>
@@ -128,7 +151,29 @@ export function StartScreen() {
           </button>
         </section>
 
-        {authed.role === 'instructor' && (
+        {hasRole(authed, 'trainee') && hasRole(authed, 'instructor') && (
+          <section>
+            <h2>Выберите режим работы</h2>
+            <div className="role-row">
+              <button
+                type="button"
+                className={effectiveRole === 'trainee' ? 'active' : ''}
+                onClick={goTraining}
+              >
+                Перейти в обучение
+              </button>
+              <button
+                type="button"
+                className={effectiveRole === 'instructor' ? 'active' : ''}
+                onClick={goInstructorCabinet}
+              >
+                Перейти в отчёты
+              </button>
+            </div>
+          </section>
+        )}
+
+        {effectiveRole === 'instructor' && (
           <section>
             <h2>Кабинет инструктора</h2>
             <p className="hint">
@@ -144,7 +189,7 @@ export function StartScreen() {
           </section>
         )}
 
-        {authed.role === 'trainee' && (
+        {effectiveRole === 'trainee' && (
           <>
             <section>
               <h2>Формат обучения</h2>

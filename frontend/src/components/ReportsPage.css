@@ -2,8 +2,11 @@
   min-height: 100%;
   display: flex;
   flex-direction: column;
-  background: #0d1318;
-  color: #e8eef4;
+  background: var(--surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
 }
 
 .reports-header {
@@ -52,6 +55,18 @@
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: #7f97ab;
+}
+
+.reports-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.reports-list-head h2 {
+  margin: 0;
 }
 
 .reports-list ul {

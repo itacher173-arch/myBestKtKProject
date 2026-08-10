@@ -15,6 +15,14 @@ class Forbidden(Exception):
     status = 403
 
 
+def user_roles(user: dict[str, Any]) -> set[str]:
+    roles = user.get("roles")
+    if isinstance(roles, list):
+        return {str(role) for role in roles}
+    role = user.get("role")
+    return {str(role)} if role else set()
+
+
 def request_user(handler: Any) -> dict[str, Any]:
     token = extract_token(
         cookie_header=handler.headers.get("Cookie"),
@@ -24,22 +32,22 @@ def request_user(handler: Any) -> dict[str, Any]:
     if not session or not session.get("user"):
         raise AuthRequired("Требуется авторизация")
     user = session["user"]
-    if not isinstance(user, dict) or not user.get("id") or not user.get("role"):
+    if not isinstance(user, dict) or not user.get("id") or not user_roles(user):
         raise AuthRequired("Требуется авторизация")
     return user
 
 
 def require_roles(user: dict[str, Any], *roles: str) -> None:
-    if user.get("role") not in roles:
+    if not user_roles(user).intersection(roles):
         raise Forbidden("Недостаточно прав")
 
 
 def is_admin(user: dict[str, Any]) -> bool:
-    return user.get("role") == "admin"
+    return "admin" in user_roles(user)
 
 
 def is_instructor(user: dict[str, Any]) -> bool:
-    return user.get("role") == "instructor"
+    return "instructor" in user_roles(user)
 
 
 def can_manage_group(user: dict[str, Any], group: dict[str, Any]) -> bool:

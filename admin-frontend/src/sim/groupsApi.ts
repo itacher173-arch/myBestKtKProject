@@ -5,6 +5,7 @@ export interface GroupUser {
   login?: string
   fullName: string
   role: string
+  roles: string[]
   createdAt?: number | null
   addedAt?: number | null
 }

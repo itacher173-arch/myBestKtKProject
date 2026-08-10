@@ -6,7 +6,6 @@
 **/node_modules
 **/dist
 **/release
-frontend/electron
 frontend/scripts
 backend/runtime/*
 !backend/runtime/.gitkeep

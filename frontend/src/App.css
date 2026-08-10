@@ -5,6 +5,40 @@
   min-height: 100vh;
 }
 
+.app.in-shell {
+  min-height: 0;
+  height: 100%;
+  background: var(--app-bg);
+  color: var(--text-primary);
+}
+
+.exercise-statusbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.exercise-statusbar strong {
+  color: var(--text-primary);
+}
+
+.shell-speed {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.shell-speed .shell-action {
+  min-width: 40px;
+  padding-inline: 8px;
+  justify-content: center;
+}
+
 .app-header {
   display: flex;
   align-items: center;

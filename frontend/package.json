@@ -2,18 +2,13 @@
   "name": "ktk-elou-avt-frontend",
   "private": true,
   "version": "0.1.0",
-  "description": "КТК ЭЛОУ-АВТ — UI (Vite + React + Electron)",
+  "description": "КТК ЭЛОУ-АВТ — UI (Vite + React)",
   "author": "Ч2026/ГПН",
   "type": "module",
-  "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview",
-    "electron": "npm run build && electron .",
-    "dist:win": "npm run build && electron-builder --win portable --x64",
-    "dist:mac": "npm run build && electron-builder --mac dir --arm64",
-    "dist": "npm run build && electron-builder --win portable --x64"
+    "preview": "vite preview"
   },
   "dependencies": {
     "react": "^18.3.1",
@@ -23,46 +18,7 @@
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
-    "electron": "^33.2.0",
-    "electron-builder": "^25.1.8",
     "typescript": "~5.6.2",
     "vite": "^5.4.11"
-  },
-  "build": {
-    "appId": "ru.gpn.ktk.elou-avt",
-    "productName": "KTK-ELOU-AVT",
-    "directories": {
-      "output": "release"
-    },
-    "files": [
-      "dist/**/*",
-      "electron/main.cjs",
-      "package.json"
-    ],
-    "win": {
-      "target": [
-        {
-          "target": "portable",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
-      "artifactName": "KTK-ELOU-AVT-${version}-win.${ext}"
-    },
-    "mac": {
-      "target": [
-        {
-          "target": "dir",
-          "arch": [
-            "arm64"
-          ]
-        }
-      ],
-      "category": "public.app-category.education"
-    },
-    "portable": {
-      "artifactName": "KTK-ELOU-AVT-${version}-portable.exe"
-    }
   }
 }

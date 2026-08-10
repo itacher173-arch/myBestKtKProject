@@ -80,6 +80,13 @@
   cursor: pointer;
 }
 
+.admin-login-card > button.ghost {
+  margin-top: 10px;
+  border: 1px solid #c6e0ee;
+  background: transparent;
+  color: var(--gpn-deep);
+}
+
 .admin-login-card > button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
@@ -87,4 +94,9 @@
 
 .admin-login-card > button:hover:not(:disabled) {
   background: var(--gpn-deep);
+}
+
+.admin-login-card > button.ghost:hover:not(:disabled) {
+  background: #eef6fb;
+  color: var(--gpn-deep);
 }

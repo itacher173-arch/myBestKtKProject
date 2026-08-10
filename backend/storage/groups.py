@@ -31,9 +31,9 @@ def list_trainees() -> list[dict]:
     with connect() as conn:
         rows = conn.execute(
             """
-            SELECT id, login, full_name, role, created_at
+            SELECT id, login, full_name, role, roles, created_at
             FROM users
-            WHERE role = 'trainee'
+            WHERE 'trainee' = ANY(roles)
             ORDER BY full_name
             """
         ).fetchall()
@@ -43,6 +43,7 @@ def list_trainees() -> list[dict]:
             "login": row.get("login") or "",
             "fullName": row["full_name"],
             "role": row["role"],
+            "roles": row.get("roles") or [row["role"]],
             "createdAt": int(row["created_at"].timestamp() * 1000)
             if hasattr(row["created_at"], "timestamp")
             else None,
@@ -55,9 +56,9 @@ def list_instructors() -> list[dict]:
     with connect() as conn:
         rows = conn.execute(
             """
-            SELECT id, login, full_name, role, created_at
+            SELECT id, login, full_name, role, roles, created_at
             FROM users
-            WHERE role = 'instructor'
+            WHERE 'instructor' = ANY(roles)
             ORDER BY full_name
             """
         ).fetchall()
@@ -67,6 +68,7 @@ def list_instructors() -> list[dict]:
             "login": row.get("login") or "",
             "fullName": row["full_name"],
             "role": row["role"],
+            "roles": row.get("roles") or [row["role"]],
             "createdAt": int(row["created_at"].timestamp() * 1000)
             if hasattr(row["created_at"], "timestamp")
             else None,
@@ -141,10 +143,12 @@ def create_group(name: str, instructor_id: str) -> dict:
         raise ValueError("instructorId обязателен")
     with connect() as conn:
         instructor = conn.execute(
-            "SELECT id, full_name, role FROM users WHERE id = %s",
+            "SELECT id, full_name, role, roles FROM users WHERE id = %s",
             (instructor_id,),
         ).fetchone()
-        if not instructor or instructor["role"] != "instructor":
+        if not instructor or "instructor" not in (
+            instructor.get("roles") or [instructor["role"]]
+        ):
             raise ValueError("Инструктор не найден")
         exists = conn.execute(
             """
@@ -186,10 +190,12 @@ def set_group_instructor(group_id: str, instructor_id: str) -> dict:
         if not group:
             raise ValueError("Группа не найдена")
         instructor = conn.execute(
-            "SELECT id, full_name, role FROM users WHERE id = %s",
+            "SELECT id, full_name, role, roles FROM users WHERE id = %s",
             (instructor_id,),
         ).fetchone()
-        if not instructor or instructor["role"] != "instructor":
+        if not instructor or "instructor" not in (
+            instructor.get("roles") or [instructor["role"]]
+        ):
             raise ValueError("Инструктор не найден")
         clash = conn.execute(
             """
@@ -286,7 +292,7 @@ def list_members(group_id: str) -> list[dict]:
             raise ValueError("Группа не найдена")
         rows = conn.execute(
             """
-            SELECT u.id, u.login, u.full_name, u.role, m.added_at
+            SELECT u.id, u.login, u.full_name, u.role, u.roles, m.added_at
             FROM group_members m
             JOIN users u ON u.id = m.user_id
             WHERE m.group_id = %s
@@ -300,6 +306,7 @@ def list_members(group_id: str) -> list[dict]:
             "login": row.get("login") or "",
             "fullName": row["full_name"],
             "role": row["role"],
+            "roles": row.get("roles") or [row["role"]],
             "addedAt": int(row["added_at"].timestamp() * 1000)
             if hasattr(row["added_at"], "timestamp")
             else None,
@@ -319,12 +326,12 @@ def add_member(group_id: str, user_id: str) -> dict:
         if not group:
             raise ValueError("Группа не найдена")
         user = conn.execute(
-            "SELECT id, full_name, role FROM users WHERE id = %s",
+            "SELECT id, full_name, role, roles FROM users WHERE id = %s",
             (user_id,),
         ).fetchone()
         if not user:
             raise ValueError("Пользователь не найден")
-        if user["role"] != "trainee":
+        if "trainee" not in (user.get("roles") or [user["role"]]):
             raise ValueError("В группу можно добавить только обучаемого")
         conn.execute(
             """

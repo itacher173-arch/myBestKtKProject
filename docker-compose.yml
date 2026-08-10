@@ -1,36 +1,48 @@
 services:
-  auth:
+  web:
     build:
-      context: ./auth-frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: deploy/railway/Dockerfile.web
     ports:
-      - "8082:80"
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+      API_HOST: "system-api"
+      GATEWAY_PORT: "8000"
+      FASTAPI_PORT: "8010"
+      PRESENCE_PORT: "8106"
+      AUTH_REDIRECT_PATH: "/"
+      DNS_RESOLVER: "127.0.0.11"
     depends_on:
-      - backend
+      system-api:
+        condition: service_healthy
     restart: unless-stopped
 
-  frontend:
+  auth-api:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    ports:
-      - "8080:80"
+      context: .
+      dockerfile: backend/Dockerfile
+    command: ["python", "-m", "backend.auth.app", "--host", "0.0.0.0", "--port", "8102"]
+    environment:
+      DATABASE_URL: "postgresql://ktk:ktk@postgres:5432/ktk"
+      REDIS_URL: "redis://redis:6379/0"
+      KTK_ADMIN_LOGIN: "${KTK_ADMIN_LOGIN:?Задайте KTK_ADMIN_LOGIN вне репозитория}"
+      KTK_ADMIN_NAME: "${KTK_ADMIN_NAME:-Администратор}"
+      KTK_ADMIN_PASSWORD: "${KTK_ADMIN_PASSWORD:?Задайте KTK_ADMIN_PASSWORD вне репозитория}"
     depends_on:
-      - backend
-      - auth
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8102/health', timeout=3)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
     restart: unless-stopped
 
-  admin:
-    build:
-      context: ./admin-frontend
-      dockerfile: Dockerfile
-    ports:
-      - "8081:80"
-    depends_on:
-      - backend
-    restart: unless-stopped
-
-  backend:
+  system-api:
     build:
       context: .
       dockerfile: backend/Dockerfile
@@ -42,15 +54,17 @@ services:
       KTK_HOST: "0.0.0.0"
       DATABASE_URL: "postgresql://ktk:ktk@postgres:5432/ktk"
       REDIS_URL: "redis://redis:6379/0"
-      KTK_ADMIN_LOGIN: "admin"
-      KTK_ADMIN_NAME: "Администратор"
-      KTK_ADMIN_PASSWORD: "admin"
+      KTK_AUTH_URL: "http://auth-api:8102"
       KTK_AUDIT_HMAC_SECRET: "ktk-dev-audit-secret-change-me"
       KTK_FASTAPI_PORT: "8010"
       KTK_FASTAPI_URL: "http://127.0.0.1:8010"
+      KTK_CORS_ORIGINS: "http://localhost:8080"
+    command: ["python", "-m", "backend.run_system", "--host", "0.0.0.0"]
     volumes:
       - backend_runtime:/app/backend/runtime
     depends_on:
+      auth-api:
+        condition: service_healthy
       postgres:
         condition: service_healthy
       redis:
@@ -69,7 +83,6 @@ services:
       POSTGRES_USER: ktk
       POSTGRES_PASSWORD: ktk
       POSTGRES_DB: ktk
-    # Порт наружу не публикуем (доступ только из docker-сети)
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -81,7 +94,6 @@ services:
 
   redis:
     image: redis:7-alpine
-    # Порт наружу не публикуем (доступ только из docker-сети)
     volumes:
       - redis_data:/data
     command: ["redis-server", "--appendonly", "yes"]

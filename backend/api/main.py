@@ -47,6 +47,13 @@ def current_user(
     return session["user"]
 
 
+def has_any_role(user: dict[str, Any], *roles: str) -> bool:
+    assigned = user.get("roles")
+    if not isinstance(assigned, list):
+        assigned = [user.get("role")]
+    return bool(set(roles).intersection(str(role) for role in assigned if role))
+
+
 @app.get("/api/health")
 def health() -> dict[str, Any]:
     return {"status": "ok", "service": "fastapi", "metrics": snapshot()}
@@ -64,7 +71,7 @@ def live() -> dict[str, str]:
 
 @app.get("/api/metrics")
 def metrics(user: dict[str, Any] = Depends(current_user)) -> dict[str, Any]:
-    if user.get("role") not in ("admin", "instructor"):
+    if not has_any_role(user, "admin", "instructor"):
         raise HTTPException(403, "Недостаточно прав")
     return snapshot()
 
@@ -78,7 +85,7 @@ def validate_scenario(
     body: ScenarioIn,
     user: dict[str, Any] = Depends(current_user),
 ) -> dict[str, Any]:
-    if user.get("role") not in ("admin", "instructor"):
+    if not has_any_role(user, "admin", "instructor"):
         raise HTTPException(403, "Недостаточно прав")
     return validate_scenario_dict(body.scenario)
 
@@ -122,7 +129,7 @@ def get_sim_session(
     sess = store.get(session_id)
     if not sess:
         raise HTTPException(404, "Сессия не найдена")
-    if sess.user_id != user["id"] and user.get("role") not in ("admin", "instructor"):
+    if sess.user_id != user["id"] and not has_any_role(user, "admin", "instructor"):
         raise HTTPException(404, "Сессия не найдена")
     return {"ok": True, "session": sess.public()}
 
@@ -137,7 +144,7 @@ def sim_command(
 
     sess = store.get(session_id)
     if not sess or (
-        sess.user_id != user["id"] and user.get("role") not in ("admin", "instructor")
+        sess.user_id != user["id"] and not has_any_role(user, "admin", "instructor")
     ):
         raise HTTPException(404, "Сессия не найдена")
     result = store.apply_command(session_id, body.action, body.payload)

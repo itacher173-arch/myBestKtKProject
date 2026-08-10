@@ -110,10 +110,31 @@ def validate_login(login: str) -> str:
     return value.lower()
 
 
+def normalize_roles(roles: str | list[str] | tuple[str, ...]) -> list[str]:
+    values = [roles] if isinstance(roles, str) else list(roles)
+    normalized: list[str] = []
+    for role in values:
+        value = str(role).strip().lower()
+        if value not in VALID_ROLES:
+            raise ValueError("Роли: обучаемый, инструктор или администратор")
+        if value not in normalized:
+            normalized.append(value)
+    if not normalized:
+        raise ValueError("Выберите минимум одну роль")
+    return normalized
+
+
+def primary_role(roles: list[str]) -> str:
+    for role in ("admin", "instructor", "trainee"):
+        if role in roles:
+            return role
+    raise ValueError("Выберите минимум одну роль")
+
+
 def _validate_credentials(
     full_name: str,
     password: str | None,
-    role: str | None = None,
+    roles: str | list[str] | tuple[str, ...] | None = None,
     *,
     login: str | None = None,
 ) -> None:
@@ -124,27 +145,52 @@ def _validate_credentials(
         validate_login(login)
     if password is not None and len(password) < 4:
         raise ValueError("Пароль: минимум 4 символа")
-    if role is not None and role not in VALID_ROLES:
-        raise ValueError("Роль: обучаемый, инструктор или администратор")
+    if roles is not None:
+        normalize_roles(roles)
 
 
 def public_user(row: dict) -> dict:
+    roles = normalize_roles(row.get("roles") or row["role"])
     return {
         "id": row["id"],
         "login": row.get("login") or "",
         "fullName": row["full_name"],
-        "role": row["role"],
+        "role": primary_role(roles),
+        "roles": roles,
         "createdAt": int(row["created_at"].timestamp() * 1000)
         if hasattr(row["created_at"], "timestamp")
         else None,
     }
 
 
-def create_user(full_name: str, password: str, role: str, login: str) -> dict:
+def get_user_by_id(user_id: str) -> dict | None:
+    if not user_id.strip():
+        return None
+    with connect() as conn:
+        row = conn.execute(
+            """
+            SELECT id, login, full_name, role, roles, created_at
+            FROM users WHERE id = %s
+            """,
+            (user_id,),
+        ).fetchone()
+    if not row:
+        return None
+    return public_user(dict(row))
+
+
+def create_user(
+    full_name: str,
+    password: str,
+    roles: str | list[str] | tuple[str, ...],
+    login: str,
+) -> dict:
     """Создание пользователя (только админ-панель / API)."""
-    _validate_credentials(full_name, password, role, login=login)
+    _validate_credentials(full_name, password, roles, login=login)
     name = full_name.strip()
     login_norm = validate_login(login)
+    roles_norm = normalize_roles(roles)
+    role = primary_role(roles_norm)
     user_id = _uid()
     password_hash = hash_password(password)
     try:
@@ -157,13 +203,16 @@ def create_user(full_name: str, password: str, role: str, login: str) -> dict:
                 raise ValueError("Пользователь с таким логином уже есть")
             conn.execute(
                 """
-                INSERT INTO users (id, login, full_name, password_hash, role)
-                VALUES (%s, %s, %s, %s, %s)
+                INSERT INTO users (id, login, full_name, password_hash, role, roles)
+                VALUES (%s, %s, %s, %s, %s, %s)
                 """,
-                (user_id, login_norm, name, password_hash, role),
+                (user_id, login_norm, name, password_hash, role, roles_norm),
             )
             row = conn.execute(
-                "SELECT id, login, full_name, role, created_at FROM users WHERE id = %s",
+                """
+                SELECT id, login, full_name, role, roles, created_at
+                FROM users WHERE id = %s
+                """,
                 (user_id,),
             ).fetchone()
             conn.commit()
@@ -183,7 +232,7 @@ def login_user(login: str, password: str, client_ip: str = "") -> dict:
     with connect() as conn:
         row = conn.execute(
             """
-            SELECT id, login, full_name, password_hash, role, created_at
+            SELECT id, login, full_name, password_hash, role, roles, created_at
             FROM users
             WHERE lower(login) = lower(%s)
             """,
@@ -203,9 +252,9 @@ def list_users(role: str | None = None) -> list[dict]:
                 raise ValueError("Неизвестная роль")
             rows = conn.execute(
                 """
-                SELECT id, login, full_name, role, created_at
+                SELECT id, login, full_name, role, roles, created_at
                 FROM users
-                WHERE role = %s
+                WHERE %s = ANY(roles)
                 ORDER BY full_name
                 """,
                 (role,),
@@ -213,7 +262,7 @@ def list_users(role: str | None = None) -> list[dict]:
         else:
             rows = conn.execute(
                 """
-                SELECT id, login, full_name, role, created_at
+                SELECT id, login, full_name, role, roles, created_at
                 FROM users
                 ORDER BY
                     CASE role
@@ -234,13 +283,21 @@ def update_user(
     full_name: str | None = None,
     password: str | None = None,
     role: str | None = None,
+    roles: list[str] | tuple[str, ...] | None = None,
 ) -> dict:
     if not user_id.strip():
         raise ValueError("userId обязателен")
-    if login is None and full_name is None and password is None and role is None:
+    if (
+        login is None
+        and full_name is None
+        and password is None
+        and role is None
+        and roles is None
+    ):
         raise ValueError("Нечего обновлять")
-    if role is not None and role not in VALID_ROLES:
-        raise ValueError("Роль: обучаемый, инструктор или администратор")
+    roles_norm = normalize_roles(roles if roles is not None else role) if (
+        roles is not None or role is not None
+    ) else None
     if password is not None and len(password) < 4:
         raise ValueError("Пароль: минимум 4 символа")
     login_norm = validate_login(login) if login is not None else None
@@ -253,7 +310,10 @@ def update_user(
 
     with connect() as conn:
         row = conn.execute(
-            "SELECT id, login, full_name, role, created_at FROM users WHERE id = %s",
+            """
+            SELECT id, login, full_name, role, roles, created_at
+            FROM users WHERE id = %s
+            """,
             (user_id,),
         ).fetchone()
         if not row:
@@ -283,16 +343,17 @@ def update_user(
                 (name, user_id),
             )
 
-        if role is not None:
-            if row["role"] == "admin" and role != "admin":
+        if roles_norm is not None:
+            old_roles = normalize_roles(row.get("roles") or row["role"])
+            if "admin" in old_roles and "admin" not in roles_norm:
                 admins = conn.execute(
-                    "SELECT COUNT(*) AS c FROM users WHERE role = 'admin'"
+                    "SELECT COUNT(*) AS c FROM users WHERE 'admin' = ANY(roles)"
                 ).fetchone()["c"]
                 if int(admins) <= 1:
                     raise ValueError("Нельзя снять роль у единственного администратора")
             conn.execute(
-                "UPDATE users SET role = %s WHERE id = %s",
-                (role, user_id),
+                "UPDATE users SET role = %s, roles = %s WHERE id = %s",
+                (primary_role(roles_norm), roles_norm, user_id),
             )
 
         if password is not None:
@@ -302,7 +363,10 @@ def update_user(
             )
 
         updated = conn.execute(
-            "SELECT id, login, full_name, role, created_at FROM users WHERE id = %s",
+            """
+            SELECT id, login, full_name, role, roles, created_at
+            FROM users WHERE id = %s
+            """,
             (user_id,),
         ).fetchone()
         conn.commit()
@@ -314,14 +378,14 @@ def delete_user(user_id: str) -> dict:
         raise ValueError("userId обязателен")
     with connect() as conn:
         row = conn.execute(
-            "SELECT id, role FROM users WHERE id = %s",
+            "SELECT id, role, roles FROM users WHERE id = %s",
             (user_id,),
         ).fetchone()
         if not row:
             raise ValueError("Пользователь не найден")
-        if row["role"] == "admin":
+        if "admin" in normalize_roles(row.get("roles") or row["role"]):
             admins = conn.execute(
-                "SELECT COUNT(*) AS c FROM users WHERE role = 'admin'"
+                "SELECT COUNT(*) AS c FROM users WHERE 'admin' = ANY(roles)"
             ).fetchone()["c"]
             if int(admins) <= 1:
                 raise ValueError("Нельзя удалить единственного администратора")
@@ -335,32 +399,52 @@ def users_count() -> int:
         return int(conn.execute("SELECT COUNT(*) AS c FROM users").fetchone()["c"])
 
 
-def ensure_bootstrap_admin() -> None:
-    """Создаёт админа только если в БД ещё нет ни одного admin. Пароль не перезаписывает."""
-    login = (os.environ.get("KTK_ADMIN_LOGIN") or "admin").strip().lower()
+def _bootstrap_admin_credentials() -> tuple[str, str, str]:
+    login = (os.environ.get("KTK_ADMIN_LOGIN") or "").strip().lower()
     full_name = (os.environ.get("KTK_ADMIN_NAME") or "Администратор").strip()
-    password = (os.environ.get("KTK_ADMIN_PASSWORD") or "admin").strip()
+    password = os.environ.get("KTK_ADMIN_PASSWORD") or ""
+    if not login or not password:
+        raise RuntimeError(
+            "Для новой БД задайте KTK_ADMIN_LOGIN и KTK_ADMIN_PASSWORD "
+            "через переменные окружения или менеджер секретов"
+        )
     if not LOGIN_RE.match(login):
         raise ValueError("KTK_ADMIN_LOGIN некорректен")
     if len(full_name) < 1 or len(password) < 4:
         raise ValueError("KTK_ADMIN_NAME/PASSWORD некорректны")
+    return login, full_name, password
+
+
+def ensure_bootstrap_admin() -> None:
+    """Создаёт первого админа из окружения, не перезаписывая его пароль."""
     with connect() as conn:
         admin_count = int(
             conn.execute(
-                "SELECT COUNT(*) AS c FROM users WHERE role = 'admin'"
+                "SELECT COUNT(*) AS c FROM users WHERE 'admin' = ANY(roles)"
             ).fetchone()["c"]
         )
         if admin_count > 0:
             conn.commit()
             print(f"[storage] bootstrap admin: already present ({admin_count})", flush=True)
             return
+
+        login, full_name, password = _bootstrap_admin_credentials()
+
         by_login = conn.execute(
             "SELECT id FROM users WHERE lower(login) = lower(%s)",
             (login,),
         ).fetchone()
         if by_login:
             conn.execute(
-                "UPDATE users SET role = 'admin' WHERE id = %s",
+                """
+                UPDATE users
+                SET role = 'admin',
+                    roles = CASE
+                        WHEN 'admin' = ANY(roles) THEN roles
+                        ELSE array_append(roles, 'admin')
+                    END
+                WHERE id = %s
+                """,
                 (by_login["id"],),
             )
             conn.commit()
@@ -368,8 +452,8 @@ def ensure_bootstrap_admin() -> None:
             return
         conn.execute(
             """
-            INSERT INTO users (id, login, full_name, password_hash, role)
-            VALUES (%s, %s, %s, %s, 'admin')
+            INSERT INTO users (id, login, full_name, password_hash, role, roles)
+            VALUES (%s, %s, %s, %s, 'admin', ARRAY['admin']::TEXT[])
             """,
             (_uid(), login, full_name, hash_password(password)),
         )

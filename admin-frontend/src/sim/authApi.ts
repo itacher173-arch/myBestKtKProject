@@ -7,11 +7,17 @@ export interface AuthUser {
   login?: string
   fullName: string
   role: UserRole
+  roles: UserRole[]
   createdAt?: number | null
 }
 
 const USER_KEY = 'ktk-elou-avt-admin-auth-user'
 const LOGIN_RE = /^[a-zA-Z][a-zA-Z0-9_]{2,31}$/
+
+export function authPortalUrl(): string {
+  const fromEnv = import.meta.env.VITE_AUTH_URL as string | undefined
+  return (fromEnv && fromEnv.trim()) || 'http://localhost:8082'
+}
 
 export function getAuthedUser(): AuthUser | null {
   try {
@@ -35,6 +41,14 @@ export function roleLabel(role: UserRole | string): string {
   if (role === 'admin') return 'администратор'
   if (role === 'instructor') return 'инструктор'
   return 'обучаемый'
+}
+
+export function hasRole(user: AuthUser, role: UserRole): boolean {
+  return (user.roles ?? [user.role]).includes(role)
+}
+
+export function rolesLabel(roles: UserRole[]): string {
+  return roles.map(roleLabel).join(', ')
 }
 
 export function validateLogin(login: string): string | null {
@@ -69,7 +83,7 @@ export async function loginAdmin(input: {
       password: input.password,
     },
   )
-  if (data.user.role !== 'admin') {
+  if (!hasRole(data.user, 'admin')) {
     throw new Error('Доступ только для администратора. Используйте портал входа КТК.')
   }
   if (!data.token) {

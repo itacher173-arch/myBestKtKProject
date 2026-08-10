@@ -21,16 +21,6 @@ from backend.storage.access import (
     require_roles,
 )
 from backend.storage.audit_chain import hash_entry, verify_chain
-from backend.storage.auth import (
-    LoginRateLimitError,
-    create_user,
-    delete_user,
-    ensure_bootstrap_admin,
-    list_users,
-    login_user,
-    update_user,
-    users_count,
-)
 from backend.storage.groups import (
     add_member,
     create_group,
@@ -38,20 +28,10 @@ from backend.storage.groups import (
     get_group,
     group_reports,
     list_groups,
-    list_instructors,
     list_members,
-    list_trainees,
     remove_member,
     rename_group,
     set_group_instructor,
-)
-from backend.storage.sessions import (
-    SESSION_COOKIE,
-    SESSION_TTL_SEC,
-    create_session,
-    delete_session,
-    extract_token,
-    get_session,
 )
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
@@ -287,23 +267,14 @@ def clear_audit() -> dict:
     return {"ok": True}
 
 
-def _counts() -> tuple[int, int, int]:
+def _counts() -> tuple[int, int]:
     with connect() as conn:
         reports = conn.execute("SELECT COUNT(*) AS c FROM trainee_reports").fetchone()["c"]
         audit = conn.execute("SELECT COUNT(*) AS c FROM audit_log").fetchone()["c"]
-    return int(reports), int(audit), users_count()
+    return int(reports), int(audit)
 
 
 class Handler(JsonHandler):
-    def _session_cookie(self, token: str) -> str:
-        return (
-            f"{SESSION_COOKIE}={token}; Path=/; Max-Age={SESSION_TTL_SEC}; "
-            "HttpOnly; SameSite=Lax"
-        )
-
-    def _clear_session_cookie(self) -> str:
-        return f"{SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax"
-
     def _handle_auth_errors(self, exc: Exception) -> bool:
         if isinstance(exc, AuthRequired):
             self.send_error_json(exc, 401)
@@ -319,7 +290,7 @@ class Handler(JsonHandler):
         query = parse_qs(parsed.query)
         if path == "/health":
             try:
-                reports, audit, users = _counts()
+                reports, audit = _counts()
                 redis = redis_status()
                 status = "ok" if redis.get("status") == "ok" else "degraded"
                 return self.send_json(
@@ -331,7 +302,6 @@ class Handler(JsonHandler):
                         "redis": redis,
                         "reports": reports,
                         "audit": audit,
-                        "users": users,
                     }
                 )
             except Exception as exc:
@@ -345,19 +315,6 @@ class Handler(JsonHandler):
                     503,
                 )
         try:
-            if path == "/auth/session":
-                token = extract_token(
-                    cookie_header=self.headers.get("Cookie"),
-                    authorization=self.headers.get("Authorization"),
-                )
-                session = get_session(token)
-                if not session:
-                    return self.send_error_json("Требуется авторизация", 401)
-                return self.send_json({"ok": True, "user": session["user"]})
-            if path == "/auth/me":
-                user = request_user(self)
-                return self.send_json({"ok": True, "user": user})
-
             user = request_user(self)
 
             if path == "/reports":
@@ -374,25 +331,6 @@ class Handler(JsonHandler):
                 from backend.common.metrics import snapshot
 
                 return self.send_json(snapshot())
-            if path == "/users":
-                role = (query.get("role") or [""])[0].strip()
-                if role == "trainee":
-                    require_roles(user, "admin", "instructor")
-                    return self.send_json(list_trainees())
-                if role == "instructor":
-                    require_roles(user, "admin")
-                    return self.send_json(list_instructors())
-                require_roles(user, "admin")
-                if role:
-                    return self.send_json(list_users(role))
-                return self.send_json(list_users())
-            if path.startswith("/users/") and path.count("/") == 2:
-                require_roles(user, "admin")
-                user_id = path[len("/users/") :]
-                users = [u for u in list_users() if u["id"] == user_id]
-                if not users:
-                    return self.send_error_json("Пользователь не найден", 404)
-                return self.send_json(users[0])
             if path == "/groups":
                 instructor_id = (query.get("instructorId") or [""])[0]
                 all_flag = (query.get("all") or [""])[0].lower() in (
@@ -437,44 +375,6 @@ class Handler(JsonHandler):
         path = urlparse(self.path).path
         try:
             body = self.read_json()
-            if path == "/auth/register":
-                return self.send_error_json(
-                    "Регистрация отключена. Пользователей создаёт администратор.",
-                    403,
-                )
-            if path == "/auth/login":
-                forwarded = self.headers.get("X-Forwarded-For") or ""
-                client_ip = (
-                    forwarded.split(",")[0].strip()
-                    or self.headers.get("X-Real-IP")
-                    or self.client_address[0]
-                    or ""
-                )
-                try:
-                    user = login_user(
-                        str(body.get("login") or body.get("fullName") or ""),
-                        str(body.get("password") or ""),
-                        client_ip=client_ip,
-                    )
-                except LoginRateLimitError as exc:
-                    return self.send_error_json(exc, 429)
-                token = create_session(user)
-                return self.send_json(
-                    {"ok": True, "user": user, "token": token},
-                    extra_headers={"Set-Cookie": self._session_cookie(token)},
-                )
-            if path == "/auth/logout":
-                token = extract_token(
-                    cookie_header=self.headers.get("Cookie"),
-                    authorization=self.headers.get("Authorization"),
-                    body_token=str(body.get("token") or "") or None,
-                )
-                delete_session(token)
-                return self.send_json(
-                    {"ok": True},
-                    extra_headers={"Set-Cookie": self._clear_session_cookie()},
-                )
-
             user = request_user(self)
 
             if path == "/reports":
@@ -491,15 +391,6 @@ class Handler(JsonHandler):
                     "role": user.get("role") or "trainee",
                 }
                 return self.send_json(append_audit(safe), 201)
-            if path == "/users":
-                require_roles(user, "admin")
-                created = create_user(
-                    str(body.get("fullName") or ""),
-                    str(body.get("password") or ""),
-                    str(body.get("role") or ""),
-                    str(body.get("login") or ""),
-                )
-                return self.send_json({"ok": True, "user": created}, 201)
             if path == "/groups":
                 require_roles(user, "admin", "instructor")
                 instructor_id = str(body.get("instructorId") or "")
@@ -520,8 +411,6 @@ class Handler(JsonHandler):
         except Exception as exc:
             if self._handle_auth_errors(exc):
                 return
-            if isinstance(exc, LoginRateLimitError):
-                return self.send_error_json(exc, 429)
             if isinstance(exc, ValueError):
                 return self.send_error_json(exc, 400)
             self.send_error_json(exc)
@@ -531,25 +420,6 @@ class Handler(JsonHandler):
         try:
             body = self.read_json()
             user = request_user(self)
-            if path.startswith("/users/"):
-                require_roles(user, "admin")
-                user_id = path[len("/users/") :]
-                if not user_id or "/" in user_id:
-                    return self.send_error_json("userId required", 400)
-                full_name = body.get("fullName")
-                password = body.get("password")
-                role = body.get("role")
-                login = body.get("login")
-                updated = update_user(
-                    user_id,
-                    login=str(login) if login is not None else None,
-                    full_name=str(full_name) if full_name is not None else None,
-                    password=str(password)
-                    if password is not None and str(password)
-                    else None,
-                    role=str(role) if role is not None else None,
-                )
-                return self.send_json({"ok": True, "user": updated})
             if path.startswith("/groups/"):
                 rest = path[len("/groups/") :]
                 if "/" in rest:
@@ -594,12 +464,6 @@ class Handler(JsonHandler):
             if path == "/audit":
                 require_roles(user, "admin", "instructor")
                 return self.send_json(clear_audit())
-            if path.startswith("/users/"):
-                require_roles(user, "admin")
-                user_id = path[len("/users/") :]
-                if not user_id or "/" in user_id:
-                    return self.send_error_json("userId required", 400)
-                return self.send_json(delete_user(user_id))
             if path.startswith("/groups/") and "/members/" in path:
                 rest = path[len("/groups/") :]
                 group_id, _, member_part = rest.partition("/members/")
@@ -631,7 +495,6 @@ def bootstrap() -> None:
     init_schema()
     wait_for_redis()
     _migrate_json_if_needed()
-    ensure_bootstrap_admin()
     print(f"[storage] PostgreSQL {safe_db_label()}", flush=True)
     print(f"[storage] Redis {redis_status().get('url') or 'ok'}", flush=True)
 

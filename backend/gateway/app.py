@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[2]
 FRONTEND_DIST = ROOT / "frontend" / "dist"
 TRAINING_URL = os.getenv("KTK_TRAINING_URL", "http://127.0.0.1:8103")
 KNOWLEDGE_URL = os.getenv("KTK_KNOWLEDGE_URL", "http://127.0.0.1:8104")
+AUTH_URL = os.getenv("KTK_AUTH_URL", "http://127.0.0.1:8102")
 STORAGE_URL = os.getenv("KTK_STORAGE_URL", "http://127.0.0.1:8105")
 FASTAPI_URL = os.getenv("KTK_FASTAPI_URL", "http://127.0.0.1:8010")
 
@@ -86,6 +87,7 @@ class Handler(JsonHandler):
         if path == "/api/health":
             services = {}
             for name, url in (
+                ("auth", AUTH_URL),
                 ("training", TRAINING_URL),
                 ("knowledge", KNOWLEDGE_URL),
                 ("storage", STORAGE_URL),
@@ -120,9 +122,9 @@ class Handler(JsonHandler):
         if path == "/api/reports" or path.startswith("/api/reports/"):
             return self.proxy(STORAGE_URL, path[len("/api") :])
         if path.startswith("/api/auth/"):
-            return self.proxy(STORAGE_URL, path[len("/api") :])
+            return self.proxy(AUTH_URL, path[len("/api") :])
         if path == "/api/users" or path.startswith("/api/users/"):
-            return self.proxy(STORAGE_URL, self.path[len("/api") :])
+            return self.proxy(AUTH_URL, self.path[len("/api") :])
         if path == "/api/groups" or path.startswith("/api/groups/"):
             return self.proxy(STORAGE_URL, self.path[len("/api") :])
         if path.startswith("/api/"):
@@ -140,9 +142,9 @@ class Handler(JsonHandler):
         if path.startswith("/api/scenarios/") or path.startswith("/api/sim/"):
             return self.proxy(FASTAPI_URL, path)
         if path.startswith("/api/auth/"):
-            return self.proxy(STORAGE_URL, path[len("/api") :])
+            return self.proxy(AUTH_URL, path[len("/api") :])
         if path == "/api/users" or path.startswith("/api/users/"):
-            return self.proxy(STORAGE_URL, path[len("/api") :])
+            return self.proxy(AUTH_URL, path[len("/api") :])
         if path == "/api/groups" or path.startswith("/api/groups/"):
             return self.proxy(STORAGE_URL, path[len("/api") :])
         self.send_error_json("not found", 404)
@@ -150,7 +152,7 @@ class Handler(JsonHandler):
     def do_PATCH(self) -> None:
         path = urlparse(self.path).path
         if path.startswith("/api/users/"):
-            return self.proxy(STORAGE_URL, path[len("/api") :])
+            return self.proxy(AUTH_URL, path[len("/api") :])
         if path.startswith("/api/groups/"):
             return self.proxy(STORAGE_URL, path[len("/api") :])
         self.send_error_json("not found", 404)
@@ -162,7 +164,7 @@ class Handler(JsonHandler):
         if path == "/api/audit" or path.startswith("/api/audit/"):
             return self.proxy(STORAGE_URL, path[len("/api") :])
         if path.startswith("/api/users/"):
-            return self.proxy(STORAGE_URL, path[len("/api") :])
+            return self.proxy(AUTH_URL, path[len("/api") :])
         if path.startswith("/api/groups/"):
             return self.proxy(STORAGE_URL, path[len("/api") :])
         self.send_error_json("not found", 404)

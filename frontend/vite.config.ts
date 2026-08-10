@@ -3,8 +3,7 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  // Нужно для Electron (загрузка через file://)
-  base: './',
+  base: '/',
   server: {
     proxy: {
       '/api': {

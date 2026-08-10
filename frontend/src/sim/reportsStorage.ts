@@ -89,7 +89,7 @@ function isDuplicate(list: TraineeReport[], report: TraineeReport): boolean {
   )
 }
 
-/** Синхронный кэш/офлайн-фолбэк (Electron file:// без API). */
+/** Синхронный кэш/офлайн-фолбэк, если API недоступен. */
 export function loadReportsSync(): TraineeReport[] {
   return loadLocalReports()
 }

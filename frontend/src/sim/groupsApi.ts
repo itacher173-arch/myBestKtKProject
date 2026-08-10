@@ -1,9 +1,10 @@
-import { apiDelete, apiGet, apiPost } from '../api/client'
+import { apiDelete, apiGet, apiPatch, apiPost } from '../api/client'
 
 export interface GroupUser {
   id: string
   fullName: string
   role: string
+  roles: string[]
   createdAt?: number | null
   addedAt?: number | null
 }
@@ -36,6 +37,15 @@ export function createGroup(input: {
   instructorId: string
 }): Promise<TrainingGroup> {
   return apiPost<TrainingGroup>('/groups', input)
+}
+
+export function renameGroup(
+  groupId: string,
+  name: string,
+): Promise<TrainingGroup> {
+  return apiPatch<TrainingGroup>(`/groups/${encodeURIComponent(groupId)}`, {
+    name: name.trim(),
+  })
 }
 
 export function listGroupMembers(groupId: string): Promise<GroupUser[]> {

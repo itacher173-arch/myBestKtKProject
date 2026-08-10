@@ -7,12 +7,17 @@ export interface AuthUser {
   login?: string
   fullName: string
   role: UserRole
+  roles: UserRole[]
   createdAt?: number | null
 }
 
 const SESSION_COOKIE = 'ktk_session'
 const TOKEN_KEY = 'ktk-elou-avt-session-token'
 const LOGIN_RE = /^[a-zA-Z][a-zA-Z0-9_]{2,31}$/
+
+export function hasRole(user: AuthUser, role: UserRole): boolean {
+  return (user.roles ?? [user.role]).includes(role)
+}
 
 export function appUrl(): string {
   const fromEnv = import.meta.env.VITE_APP_URL as string | undefined
@@ -32,7 +37,9 @@ export function validatePassword(password: string): string | null {
 }
 
 function setClientCookie(token: string) {
-  document.cookie = `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; Max-Age=${12 * 60 * 60}; SameSite=Lax`
+  const secure =
+    window.location.protocol === 'https:' ? '; Secure' : ''
+  document.cookie = `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; Max-Age=${12 * 60 * 60}; SameSite=Lax${secure}`
   sessionStorage.setItem(TOKEN_KEY, token)
 }
 
@@ -56,7 +63,7 @@ export async function loginAppUser(input: {
       password: input.password,
     },
   )
-  if (data.user.role === 'admin') {
+  if (hasRole(data.user, 'admin')) {
     clearClientSession()
     try {
       await apiPost('/auth/logout', {})
@@ -89,7 +96,19 @@ export async function fetchMe(): Promise<AuthUser | null> {
 export function redirectTarget(): string {
   const params = new URLSearchParams(window.location.search)
   const next = params.get('next')
-  if (next && next.startsWith('http://localhost:8080')) return next
-  if (next && next.startsWith('http://127.0.0.1:8080')) return next
+  if (next) {
+    try {
+      const url = new URL(next, window.location.origin)
+      if (url.origin === window.location.origin) return url.href
+    } catch {
+      /* ignore */
+    }
+    if (
+      next.startsWith('http://localhost:8080') ||
+      next.startsWith('http://127.0.0.1:8080')
+    ) {
+      return next
+    }
+  }
   return appUrl()
 }

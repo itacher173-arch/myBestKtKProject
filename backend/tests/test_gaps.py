@@ -2,11 +2,20 @@
 
 from __future__ import annotations
 
+from backend.gateway import app as gateway_app
 from backend.scenarios.schema import validate_scenario_dict
 from backend.simulator.paz import interlock_reason
 from backend.simulator.process_model import create_initial_process, tick_process
 from backend.simulator.session import SessionStore
+from backend.storage.access import is_admin, is_instructor, require_roles
 from backend.storage.audit_chain import hash_entry, verify_chain
+from backend.storage.auth import (
+    _bootstrap_admin_credentials,
+    hash_password,
+    normalize_roles,
+    primary_role,
+    verify_password,
+)
 
 
 def test_process_tick_advances_time():
@@ -65,6 +74,54 @@ def test_audit_hmac_chain():
     assert verify_chain([e1, e2])["ok"] is True
     e2["entry_hash"] = "deadbeef"
     assert verify_chain([e1, e2])["ok"] is False
+
+
+def test_bootstrap_admin_credentials_are_required(monkeypatch):
+    monkeypatch.delenv("KTK_ADMIN_LOGIN", raising=False)
+    monkeypatch.delenv("KTK_ADMIN_PASSWORD", raising=False)
+    try:
+        _bootstrap_admin_credentials()
+    except RuntimeError as exc:
+        assert "KTK_ADMIN_LOGIN" in str(exc)
+    else:
+        raise AssertionError("bootstrap credentials must be required")
+
+
+def test_bootstrap_admin_password_is_hashed(monkeypatch):
+    monkeypatch.setenv("KTK_ADMIN_LOGIN", "First_Admin")
+    monkeypatch.setenv("KTK_ADMIN_PASSWORD", "test-only-password")
+    login, _, password = _bootstrap_admin_credentials()
+    encoded = hash_password(password)
+    assert login == "first_admin"
+    assert password not in encoded
+    assert verify_password(password, encoded)
+
+
+def test_multiple_roles_are_normalized_and_authorized():
+    roles = normalize_roles(["trainee", "instructor", "trainee"])
+    assert roles == ["trainee", "instructor"]
+    assert primary_role(roles) == "instructor"
+    user = {"id": "u1", "role": "instructor", "roles": roles}
+    assert is_instructor(user)
+    assert not is_admin(user)
+    require_roles(user, "trainee")
+    require_roles(user, "instructor")
+
+
+def test_gateway_routes_auth_and_users_to_auth_service():
+    handler = gateway_app.Handler.__new__(gateway_app.Handler)
+    calls = []
+    handler.proxy = lambda base, path: calls.append((base, path))
+
+    handler.path = "/api/auth/me"
+    handler.do_GET()
+    handler.path = "/api/users?role=trainee"
+    handler.do_GET()
+
+    assert calls == [
+        (gateway_app.AUTH_URL, "/auth/me"),
+        (gateway_app.AUTH_URL, "/users?role=trainee"),
+    ]
 
 
 def test_scenario_schema_ok():

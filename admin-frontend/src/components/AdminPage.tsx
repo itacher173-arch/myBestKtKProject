@@ -20,7 +20,8 @@ import {
 } from '../sim/adminApi'
 import {
   getAuthedUser,
-  roleLabel,
+  hasRole,
+  rolesLabel,
   type UserRole,
   validateFullName,
   validateLogin,
@@ -58,7 +59,7 @@ export function AdminPage({ onLogout }: { onLogout: () => void }) {
   const [formLogin, setFormLogin] = useState('')
   const [formName, setFormName] = useState('')
   const [formPassword, setFormPassword] = useState('')
-  const [formRole, setFormRole] = useState<UserRole>('trainee')
+  const [formRoles, setFormRoles] = useState<UserRole[]>(['trainee'])
 
   const [groups, setGroups] = useState<AdminGroup[]>([])
   const [trainees, setTrainees] = useState<GroupUser[]>([])
@@ -66,13 +67,16 @@ export function AdminPage({ onLogout }: { onLogout: () => void }) {
   const [members, setMembers] = useState<GroupUser[]>([])
   const [newGroupName, setNewGroupName] = useState('')
   const [newGroupInstructorId, setNewGroupInstructorId] = useState('')
+  const [renamingGroup, setRenamingGroup] = useState(false)
+  const [renameGroupName, setRenameGroupName] = useState('')
   const [membersTab, setMembersTab] = useState<'inGroup' | 'all'>('inGroup')
   const [memberSearch, setMemberSearch] = useState('')
   const [membersPage, setMembersPage] = useState(1)
+  const [userToDelete, setUserToDelete] = useState<AdminUser | null>(null)
   const PAGE_SIZE = 8
 
   const instructors = useMemo(
-    () => users.filter((u) => u.role === 'instructor'),
+    () => users.filter((u) => u.roles.includes('instructor')),
     [users],
   )
   const selectedUser = useMemo(
@@ -101,7 +105,7 @@ export function AdminPage({ onLogout }: { onLogout: () => void }) {
   }, [])
 
   useEffect(() => {
-    if (!admin || admin.role !== 'admin') return
+    if (!admin || !hasRole(admin, 'admin')) return
     let cancelled = false
     void (async () => {
       try {
@@ -135,6 +139,8 @@ export function AdminPage({ onLogout }: { onLogout: () => void }) {
   useEffect(() => {
     if (!activeGroupId) {
       setMembers([])
+      setRenamingGroup(false)
+      setRenameGroupName('')
       return
     }
     setMembersTab('inGroup')
@@ -144,6 +150,11 @@ export function AdminPage({ onLogout }: { onLogout: () => void }) {
       setError(err instanceof Error ? err.message : 'Ошибка участников')
     })
   }, [activeGroupId, refreshMembers])
+
+  useEffect(() => {
+    setRenamingGroup(false)
+    setRenameGroupName(activeGroup?.name ?? '')
+  }, [activeGroup?.id, activeGroup?.name])
 
   useEffect(() => {
     if (instructors.length && !newGroupInstructorId) {
@@ -157,7 +168,7 @@ export function AdminPage({ onLogout }: { onLogout: () => void }) {
     setFormLogin('')
     setFormName('')
     setFormPassword('')
-    setFormRole('trainee')
+    setFormRoles(['trainee'])
   }
 
   const startCreateUser = () => {
@@ -167,7 +178,7 @@ export function AdminPage({ onLogout }: { onLogout: () => void }) {
     setFormLogin('')
     setFormName('')
     setFormPassword('')
-    setFormRole('trainee')
+    setFormRoles(['trainee'])
   }
 
   const startEditUser = (user: AdminUser) => {
@@ -177,7 +188,16 @@ export function AdminPage({ onLogout }: { onLogout: () => void }) {
     setFormLogin(user.login || '')
     setFormName(user.fullName)
     setFormPassword('')
-    setFormRole(user.role)
+    setFormRoles(user.roles ?? [user.role])
+  }
+
+  const toggleFormRole = (role: UserRole) => {
+    setFormRoles((current) => {
+      if (current.includes(role)) {
+        return current.length > 1 ? current.filter((item) => item !== role) : current
+      }
+      return [...current, role]
+    })
   }
 
   const saveUser = async (event?: FormEvent<HTMLFormElement>) => {
@@ -224,12 +244,12 @@ export function AdminPage({ onLogout }: { onLogout: () => void }) {
         const payload: {
           login: string
           fullName: string
-          role: UserRole
+          roles: UserRole[]
           password?: string
         } = {
           login: loginValue.trim().toLowerCase(),
           fullName: nameValue.trim(),
-          role: formRole,
+          roles: formRoles,
         }
         if (passwordValue.trim()) payload.password = passwordValue
         const user = await updateAdminUser(selectedUserId, payload)
@@ -237,7 +257,7 @@ export function AdminPage({ onLogout }: { onLogout: () => void }) {
           actor: admin?.fullName || 'admin',
           role: 'admin',
           action: 'admin_update_user',
-          detail: `${user.login}:${user.role}`,
+          detail: `${user.login}:${user.roles.join(',')}`,
         })
         await refreshUsers()
         startEditUser(user)
@@ -247,13 +267,13 @@ export function AdminPage({ onLogout }: { onLogout: () => void }) {
           login: loginValue.trim().toLowerCase(),
           fullName: nameValue.trim(),
           password: passwordValue,
-          role: formRole,
+          roles: formRoles,
         })
         void appendAudit({
           actor: admin?.fullName || 'admin',
           role: 'admin',
           action: 'admin_create_user',
-          detail: `${user.login}:${user.role}`,
+          detail: `${user.login}:${user.roles.join(',')}`,
         })
         await refreshUsers()
         startEditUser(user)
@@ -273,7 +293,6 @@ export function AdminPage({ onLogout }: { onLogout: () => void }) {
   }
 
   const removeUser = async (user: AdminUser) => {
-    if (!window.confirm(`Удалить пользователя «${user.fullName}»?`)) return
     setBusy(true)
     setError('')
     try {
@@ -285,6 +304,7 @@ export function AdminPage({ onLogout }: { onLogout: () => void }) {
         detail: user.fullName,
       })
       if (selectedUserId === user.id) resetUserForm()
+      setUserToDelete(null)
       await refreshUsers()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ошибка удаления')
@@ -385,12 +405,21 @@ export function AdminPage({ onLogout }: { onLogout: () => void }) {
 
   const onRenameGroup = async () => {
     if (!activeGroup) return
-    const name = window.prompt('Новое название группы', activeGroup.name)
-    if (!name || name.trim() === activeGroup.name) return
+    const name = renameGroupName.trim()
+    if (!name) {
+      setError('Название группы не может быть пустым')
+      return
+    }
+    if (name === activeGroup.name) {
+      setRenamingGroup(false)
+      return
+    }
     setBusy(true)
+    setError('')
     try {
       await renameAdminGroup(activeGroup.id, name)
       await refreshGroups()
+      setRenamingGroup(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ошибка переименования')
     } finally {
@@ -428,7 +457,7 @@ export function AdminPage({ onLogout }: { onLogout: () => void }) {
     membersPageSafe * PAGE_SIZE,
   )
 
-  if (!admin || admin.role !== 'admin') {
+  if (!admin || !hasRole(admin, 'admin')) {
     return (
       <div className="admin-page">
         <header className="admin-header">
@@ -501,7 +530,7 @@ export function AdminPage({ onLogout }: { onLogout: () => void }) {
                     <strong>
                       @{u.login || '—'} · {u.fullName}
                     </strong>
-                    <span>{roleLabel(u.role)}</span>
+                    <span>{rolesLabel(u.roles ?? [u.role])}</span>
                   </button>
                 </li>
               ))}
@@ -554,14 +583,15 @@ export function AdminPage({ onLogout }: { onLogout: () => void }) {
                 />
               </label>
               <fieldset className="admin-roles">
-                <legend>Роль</legend>
+                <legend>Роли (можно выбрать несколько)</legend>
                 <div className="role-row">
                   {ROLE_OPTIONS.map((opt) => (
                     <button
                       key={opt.value}
                       type="button"
-                      className={formRole === opt.value ? 'active' : ''}
-                      onClick={() => setFormRole(opt.value)}
+                      className={formRoles.includes(opt.value) ? 'active' : ''}
+                      aria-pressed={formRoles.includes(opt.value)}
+                      onClick={() => toggleFormRole(opt.value)}
                     >
                       {opt.label}
                     </button>
@@ -577,7 +607,7 @@ export function AdminPage({ onLogout }: { onLogout: () => void }) {
                     type="button"
                     className="hdr-btn danger"
                     disabled={busy}
-                    onClick={() => void removeUser(selectedUser)}
+                    onClick={() => setUserToDelete(selectedUser)}
                   >
                     Удалить
                   </button>
@@ -661,14 +691,53 @@ export function AdminPage({ onLogout }: { onLogout: () => void }) {
                     </p>
                   </div>
                   <div className="admin-actions">
-                    <button
-                      type="button"
-                      className="hdr-btn ghost"
-                      disabled={busy}
-                      onClick={() => void onRenameGroup()}
-                    >
-                      Переименовать
-                    </button>
+                    {renamingGroup ? (
+                      <>
+                        <input
+                          type="text"
+                          value={renameGroupName}
+                          autoFocus
+                          disabled={busy}
+                          aria-label="Новое название группы"
+                          onChange={(e) => setRenameGroupName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') void onRenameGroup()
+                            if (e.key === 'Escape') setRenamingGroup(false)
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className="hdr-btn"
+                          disabled={busy || !renameGroupName.trim()}
+                          onClick={() => void onRenameGroup()}
+                        >
+                          Сохранить
+                        </button>
+                        <button
+                          type="button"
+                          className="hdr-btn ghost"
+                          disabled={busy}
+                          onClick={() => {
+                            setRenameGroupName(activeGroup.name)
+                            setRenamingGroup(false)
+                          }}
+                        >
+                          Отмена
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        className="hdr-btn ghost"
+                        disabled={busy}
+                        onClick={() => {
+                          setRenameGroupName(activeGroup.name)
+                          setRenamingGroup(true)
+                        }}
+                      >
+                        Переименовать
+                      </button>
+                    )}
                     <button
                       type="button"
                       className="hdr-btn danger"
@@ -795,6 +864,48 @@ export function AdminPage({ onLogout }: { onLogout: () => void }) {
               </>
             )}
           </section>
+        </div>
+      )}
+
+      {userToDelete && (
+        <div
+          className="admin-modal-backdrop"
+          role="presentation"
+          onClick={() => {
+            if (!busy) setUserToDelete(null)
+          }}
+        >
+          <div
+            className="admin-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="admin-delete-user-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="admin-delete-user-title">Удаление пользователя</h3>
+            <p>
+              Вы действительно хотите удалить &quot;{userToDelete.fullName}&quot;
+              пользователя?
+            </p>
+            <div className="admin-modal-actions">
+              <button
+                type="button"
+                className="hdr-btn ghost"
+                disabled={busy}
+                onClick={() => setUserToDelete(null)}
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                className="hdr-btn danger"
+                disabled={busy}
+                onClick={() => void removeUser(userToDelete)}
+              >
+                Удалить
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
