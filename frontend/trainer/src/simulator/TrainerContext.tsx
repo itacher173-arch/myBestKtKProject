@@ -40,7 +40,9 @@ import { getAuthedUser, resolveWorkRole } from '../auth/authApi'
 import { processInterlockReason, criticalFailReasonText } from './pazGuards'
 import {
   createServerSimSession,
-  mirrorServerCommand,
+  getServerSimSession,
+  sendServerSimCommand,
+  type ServerSimSession,
 } from './serverSimApi'
 import { sequenceBlockReason, type GuardedAction } from './scenarioGuards'
 import { getAnalogs, getUtilityAlarms, tickProcess } from './processModel'
@@ -63,6 +65,7 @@ import type {
   TrainerState,
 } from './types'
 import { usePreferences } from '../settings/PreferencesContext'
+import { useConfirm } from '../common/ui/ConfirmDialog'
 import { apiPost } from '../api/client'
 import {
   createInitialProcess,
@@ -91,6 +94,7 @@ type Action =
   | { type: 'LOG_SYSTEM'; id: string; at: number; description: string }
   | { type: 'TICK'; dt: number }
   | { type: 'SET_PROCESS'; patch: Partial<ProcessState> }
+  | { type: 'REPLACE_PROCESS'; process: ProcessState }
   | { type: 'FAULT_TRIGGERED' }
   | { type: 'FAULT_RESPONDED'; seconds: number; inTime: boolean }
   | { type: 'SET_PAUSED'; paused: boolean }
@@ -288,6 +292,26 @@ function reducer(state: TrainerState, action: Action): TrainerState {
       }
     case 'SET_PROCESS':
       return { ...state, process: { ...state.process, ...action.patch } }
+    case 'REPLACE_PROCESS': {
+      const process = action.process
+      const sample = {
+        t: process.simTimeSec,
+        pressureN1: process.pressureN1,
+        tempFurnaceOut: process.tempFurnaceOut,
+        saltMgL: process.saltMgL,
+        pressureK1: process.pressureK1,
+        levelK1: process.levelK1,
+        levelK2: process.levelK2,
+        feedFlow: process.feedFlow,
+        pressureAfterElou: process.pressureAfterElou,
+      }
+      const last = state.analogHistory[state.analogHistory.length - 1]
+      const history =
+        last && Math.abs(last.t - sample.t) < 0.05
+          ? state.analogHistory
+          : [...state.analogHistory, sample].slice(-90)
+      return { ...state, process, analogHistory: history }
+    }
     case 'FAULT_TRIGGERED':
       return { ...state, faultTriggered: true, faultAt: Date.now() }
     case 'FAULT_RESPONDED':
@@ -492,6 +516,7 @@ const initialState: TrainerState = {
 
 export function TrainerProvider({ children }: { children: ReactNode }) {
   const { aiEnabled } = usePreferences()
+  const confirm = useConfirm()
   const [state, dispatch] = useReducer(reducer, initialState)
   const stateRef = useRef(state)
   stateRef.current = state
@@ -500,6 +525,17 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
   const saltAlarmLogged = useRef(false)
   const criticalFailHandled = useRef(false)
   const serverSimIdRef = useRef<string | null>(null)
+  const [serverSimId, setServerSimId] = useState<string | null>(null)
+  const serverSimMetaRef = useRef<{
+    seed: number | null
+    modelVersion: string
+    scenarioVersion: string
+  }>({
+    seed: null,
+    modelVersion: MODEL_VERSION,
+    scenarioVersion: SCENARIO_VERSION,
+  })
+  const lastPolledSimTime = useRef(-1)
 
   const [trainingMode, setTrainingModeState] = useState<'full' | 'mini'>('full')
   const [selectedMiniTrainingId, setSelectedMiniTrainingId] = useState<
@@ -586,6 +622,8 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     setKnowledgeArticleId(null)
     setAiAnalysis(null)
     setAiAnalysisStatus(aiEnabled ? 'idle' : 'disabled')
+    serverSimIdRef.current = null
+    setServerSimId(null)
     dispatch({ type: 'RESET_TO_START' })
     const user = getAuthedUser()
     if (user) {
@@ -647,6 +685,70 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
+  const applyServerSession = useCallback(
+    (session: ServerSimSession) => {
+      dispatch({
+        type: 'REPLACE_PROCESS',
+        process: session.process as ProcessState,
+      })
+      if (session.faultTriggered && !stateRef.current.faultTriggered) {
+        dispatch({ type: 'FAULT_TRIGGERED' })
+      }
+      if (session.paused !== stateRef.current.session.paused) {
+        dispatch({ type: 'SET_PAUSED', paused: session.paused })
+      }
+      const scale = session.timeScale as TimeScale
+      if (
+        scale &&
+        scale !== stateRef.current.session.timeScale &&
+        [0.25, 0.5, 1, 2, 4].includes(scale)
+      ) {
+        dispatch({ type: 'SET_TIME_SCALE', timeScale: scale })
+      }
+      for (const msg of session.systemMessages ?? []) {
+        pushSystem(msg)
+      }
+      serverSimMetaRef.current = {
+        seed: session.seed ?? null,
+        modelVersion: session.modelVersion || MODEL_VERSION,
+        scenarioVersion: session.scenarioVersion || SCENARIO_VERSION,
+      }
+      lastPolledSimTime.current = session.simTimeSec
+    },
+    [pushSystem],
+  )
+
+  const serverCommand = useCallback(
+    async (
+      action: string,
+      payload: Record<string, unknown> = {},
+    ): Promise<boolean> => {
+      const id = serverSimIdRef.current
+      if (!id) {
+        pushSystem('Нет серверной сессии симуляции.')
+        return false
+      }
+      try {
+        const result = await sendServerSimCommand(id, action, payload)
+        if (!result.ok) {
+          pushSystem(result.reason || 'Команда отклонена сервером.')
+          if (result.session) applyServerSession(result.session)
+          return false
+        }
+        if (result.session) applyServerSession(result.session)
+        return true
+      } catch (reason) {
+        pushSystem(
+          reason instanceof Error
+            ? reason.message
+            : 'Ошибка связи с сервером симуляции.',
+        )
+        return false
+      }
+    },
+    [applyServerSession, pushSystem],
+  )
+
   const assertMiniAction = useCallback(
     (token: string) => {
       if (trainingMode !== 'mini' || !activeMiniTraining) return true
@@ -659,8 +761,9 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     [activeMiniTraining, pushSystem, trainingMode],
   )
 
-  // Simulation tick (пауза останавливает модель и таймер отказа)
+  // Simulation tick: только локальный fallback запрещён — при serverSimId тик на сервере
   useEffect(() => {
+    if (serverSimId) return
     if (state.session.view !== 'exercise') return
     if (!state.session.started || state.session.completed) return
     if (state.session.paused) return
@@ -670,12 +773,44 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     }, 1000)
     return () => clearInterval(id)
   }, [
+    serverSimId,
     state.session.view,
     state.session.started,
     state.session.completed,
     state.session.paused,
     state.session.briefingAccepted,
     state.session.timeScale,
+  ])
+
+  // Poll серверного состояния (источник правды)
+  useEffect(() => {
+    if (!serverSimId) return
+    if (state.session.view !== 'exercise') return
+    if (!state.session.started || state.session.completed) return
+    let cancelled = false
+    const poll = async () => {
+      try {
+        const session = await getServerSimSession(serverSimId)
+        if (cancelled) return
+        applyServerSession(session)
+      } catch {
+        /* сеть — следующий цикл */
+      }
+    }
+    void poll()
+    const id = window.setInterval(() => {
+      void poll()
+    }, 400)
+    return () => {
+      cancelled = true
+      clearInterval(id)
+    }
+  }, [
+    serverSimId,
+    state.session.view,
+    state.session.started,
+    state.session.completed,
+    applyServerSession,
   ])
 
   // Фиксация времени появления тревог (для HMI: время / RTN при исчезновении)
@@ -729,8 +864,9 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     pushSystem,
   ])
 
-  // Отказ по simTimeSec (корректно работает с паузой)
+  // Отказ по simTimeSec — только если нет серверной сессии (сервер инжектит сам)
   useEffect(() => {
+    if (serverSimId) return
     if (state.session.view !== 'exercise') return
     if (!state.session.started || state.session.completed) return
     if (state.session.paused || state.faultTriggered) return
@@ -745,6 +881,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'FAULT_TRIGGERED' })
     pushSystem(`--- Запущена нештатная ситуация: «${ex.name}» ---`)
   }, [
+    serverSimId,
     state.session.view,
     state.session.started,
     state.session.completed,
@@ -862,7 +999,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     [pushSystem],
   )
 
-  const startPumpN1 = useCallback(() => {
+  const startPumpN1 = useCallback(async () => {
     if (!canControl) return
     if (!assertMiniAction(pumpActionToken('N-1'))) return
     if (blockSequence('start-N1')) return
@@ -873,26 +1010,23 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     }
     const p = proc.pumpN1
     if (p === 'running' || p === 'starting') return
-    if (
-      !window.confirm(
-        'Подтвердите пуск сырьевого насоса Н-1 (критическая операция).',
-      )
-    )
-      return
+    const ok = await confirm({
+      title: 'Пуск Н-1',
+      message: 'Подтвердите пуск сырьевого насоса Н-1 (критическая операция).',
+      confirmLabel: 'Пуск',
+    })
+    if (!ok) return
     logAction("Насос 'Н-1': нажата кнопка 'Пуск'")
-    mirrorServerCommand(serverSimIdRef.current, 'start-N1')
-    dispatch({ type: 'SET_PROCESS', patch: { pumpN1: 'starting' } })
-    if (pumpStartTimer.current) clearTimeout(pumpStartTimer.current)
-    pumpStartTimer.current = window.setTimeout(() => {
-      if (
-        stateRef.current.process.pumpN1 === 'starting' &&
-        stateRef.current.process.powerOk
-      ) {
-        dispatch({ type: 'SET_PROCESS', patch: { pumpN1: 'running' } })
-        pushSystem('Н-1 вышел на режим (Running).')
-      }
-    }, 1500)
-  }, [canControl, logAction, pushSystem, blockSequence, assertMiniAction])
+    void serverCommand('start-N1')
+  }, [
+    canControl,
+    logAction,
+    pushSystem,
+    blockSequence,
+    assertMiniAction,
+    serverCommand,
+    confirm,
+  ])
 
   const stopPumpN1 = useCallback(() => {
     if (!canControl) return
@@ -900,18 +1034,14 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     if (blockSequence('shutdown-stop-N1')) return
     if (stateRef.current.process.pumpN1 === 'stopped') return
     logAction("Насос 'Н-1': нажата кнопка 'Стоп'")
-    mirrorServerCommand(serverSimIdRef.current, 'stop-N1')
     if (pumpStartTimer.current) clearTimeout(pumpStartTimer.current)
-    dispatch({
-      type: 'SET_PROCESS',
-      patch: { pumpN1: 'stopped', pressureN1: 0 },
-    })
-  }, [canControl, logAction, blockSequence, assertMiniAction])
+    void serverCommand('stop-N1')
+  }, [canControl, logAction, blockSequence, assertMiniAction, serverCommand])
 
   const startPump = useCallback(
-    (id: 'N-1' | 'N-2' | 'N-3') => {
+    async (id: 'N-1' | 'N-2' | 'N-3') => {
       if (id === 'N-1') {
-        startPumpN1()
+        await startPumpN1()
         return
       }
       if (!canControl) return
@@ -924,21 +1054,25 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
       }
       const key = id === 'N-2' ? 'pumpN2' : 'pumpN3'
       if (proc[key] === 'running' || proc[key] === 'starting') return
-      if (
-        !window.confirm(
-          `Подтвердите пуск насоса ${id} (подача в печной тракт).`,
-        )
-      ) {
-        return
-      }
+      const ok = await confirm({
+        title: `Пуск ${id}`,
+        message: `Подтвердите пуск насоса ${id} (подача в печной тракт).`,
+        confirmLabel: 'Пуск',
+      })
+      if (!ok) return
       logAction(`Насос '${id}': нажата кнопка 'Пуск'`)
-      mirrorServerCommand(
-        serverSimIdRef.current,
-        id === 'N-2' ? 'start-N2' : 'start-N3',
-      )
-      dispatch({ type: 'SET_PROCESS', patch: { [key]: 'running' } })
+      void serverCommand(id === 'N-2' ? 'start-N2' : 'start-N3')
     },
-    [canControl, logAction, pushSystem, startPumpN1, blockSequence, assertMiniAction],
+    [
+      canControl,
+      logAction,
+      pushSystem,
+      startPumpN1,
+      blockSequence,
+      assertMiniAction,
+      serverCommand,
+      confirm,
+    ],
   )
 
   const stopPump = useCallback(
@@ -953,13 +1087,9 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
       const key = id === 'N-2' ? 'pumpN2' : 'pumpN3'
       if (stateRef.current.process[key] === 'stopped') return
       logAction(`Насос '${id}': нажата кнопка 'Стоп'`)
-      mirrorServerCommand(
-        serverSimIdRef.current,
-        id === 'N-2' ? 'stop-N2' : 'stop-N3',
-      )
-      dispatch({ type: 'SET_PROCESS', patch: { [key]: 'stopped' } })
+      void serverCommand(id === 'N-2' ? 'stop-N2' : 'stop-N3')
     },
-    [canControl, logAction, stopPumpN1, blockSequence, assertMiniAction],
+    [canControl, logAction, stopPumpN1, blockSequence, assertMiniAction, serverCommand],
   )
 
   const openValve = useCallback(
@@ -981,16 +1111,9 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
           "Электрозадвижка 'Л-3 (вывод товарного мазута)' нажата кнопка 'Открыть'",
       }
       logAction(names[id])
-      mirrorServerCommand(serverSimIdRef.current, guard)
-      const patch: Partial<ProcessState> =
-        id === 'L-1'
-          ? { valveL1Motion: 'opening' }
-          : id === 'L-2'
-            ? { valveL2Motion: 'opening' }
-            : { valveL3Motion: 'opening' }
-      dispatch({ type: 'SET_PROCESS', patch })
+      void serverCommand(guard)
     },
-    [canControl, logAction, pushSystem, blockSequence, assertMiniAction],
+    [canControl, logAction, pushSystem, blockSequence, assertMiniAction, serverCommand],
   )
 
   const closeValve = useCallback(
@@ -1009,31 +1132,23 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
           "Электрозадвижка 'Л-3 (вывод товарного мазута)' нажата кнопка 'Закрыть'",
       }
       logAction(names[id])
-      const patch: Partial<ProcessState> =
-        id === 'L-1'
-          ? { valveL1Motion: 'closing' }
-          : id === 'L-2'
-            ? { valveL2Motion: 'closing' }
-            : { valveL3Motion: 'closing' }
-      dispatch({ type: 'SET_PROCESS', patch })
+      const action =
+        id === 'L-1' ? 'close-L1' : id === 'L-2' ? 'close-L2' : 'close-L3'
+      void serverCommand(action)
     },
-    [canControl, logAction, pushSystem, assertMiniAction],
+    [canControl, logAction, pushSystem, assertMiniAction, serverCommand],
   )
 
   const stopValve = useCallback(
     (id: 'L-1' | 'L-2' | 'L-3') => {
       if (!canControl) return
       if (!assertMiniAction(valveActionToken(id))) return
-      const patch: Partial<ProcessState> =
-        id === 'L-1'
-          ? { valveL1Motion: 'idle' }
-          : id === 'L-2'
-            ? { valveL2Motion: 'idle' }
-            : { valveL3Motion: 'idle' }
-      dispatch({ type: 'SET_PROCESS', patch })
+      const action =
+        id === 'L-1' ? 'stop-L1' : id === 'L-2' ? 'stop-L2' : 'stop-L3'
+      void serverCommand(action)
       logAction(`Электрозадвижка '${id}': останов привода`)
     },
-    [canControl, logAction, assertMiniAction],
+    [canControl, logAction, assertMiniAction, serverCommand],
   )
 
   const setDemulsifier = useCallback(
@@ -1043,9 +1158,9 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
       if (on && blockSequence('elou-demulsifier')) return
       if (on) logAction("ЭЛОУ 'Э-1..Э-6': подача деэмульгатора включена")
       else logAction("ЭЛОУ 'Э-1..Э-6': подача деэмульгатора отключена")
-      dispatch({ type: 'SET_PROCESS', patch: { demulsifierOn: on } })
+      void serverCommand('elou-demulsifier', { on })
     },
-    [canControl, logAction, blockSequence, assertMiniAction],
+    [canControl, logAction, blockSequence, assertMiniAction, serverCommand],
   )
 
   const setElectricField = useCallback(
@@ -1055,9 +1170,9 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
       if (on && blockSequence('elou-field')) return
       if (on) logAction("ЭЛОУ 'Э-1..Э-6': электрическое поле включено")
       else logAction("ЭЛОУ 'Э-1..Э-6': электрическое поле отключено")
-      dispatch({ type: 'SET_PROCESS', patch: { electricFieldOn: on } })
+      void serverCommand('elou-field', { on })
     },
-    [canControl, logAction, blockSequence, assertMiniAction],
+    [canControl, logAction, blockSequence, assertMiniAction, serverCommand],
   )
 
   const setWashWater = useCallback(
@@ -1067,9 +1182,9 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
       if (on && blockSequence('elou-wash')) return
       if (on) logAction("ЭЛОУ 'Э-1..Э-6': промывная вода включена")
       else logAction("ЭЛОУ 'Э-1..Э-6': промывная вода отключена")
-      dispatch({ type: 'SET_PROCESS', patch: { washWaterOn: on } })
+      void serverCommand('elou-wash', { on })
     },
-    [canControl, logAction, blockSequence, assertMiniAction],
+    [canControl, logAction, blockSequence, assertMiniAction, serverCommand],
   )
 
   const setLevelSetpoint = useCallback(
@@ -1079,36 +1194,33 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
       const v = Math.max(10, Math.min(90, Math.round(percent)))
       if (column === 'K-1') {
         logAction(`Колонна 'К-1': задан уровень куба ${v}%`)
-        dispatch({ type: 'SET_PROCESS', patch: { levelSetpointK1: v } })
       } else {
         logAction(`Колонна 'К-2': задан уровень куба ${v}%`)
-        dispatch({ type: 'SET_PROCESS', patch: { levelSetpointK2: v } })
       }
+      void serverCommand('set-level-setpoint', { column, percent: v })
     },
-    [canControl, logAction, assertMiniAction],
+    [canControl, logAction, assertMiniAction, serverCommand],
   )
 
   const drainVesselWater = useCallback(
-    (id: 'E-1-vessel' | 'E-2-vessel') => {
+    async (id: 'E-1-vessel' | 'E-2-vessel') => {
       if (!canControl) return
       if (!assertMiniAction(drainActionToken(id))) return
       const label = id === 'E-1-vessel' ? 'E-1' : 'E-2'
-      if (
-        !window.confirm(
-          `Подтвердите дренаж воды из ${label} (и парной ёмкости E-1/E-2)?`,
-        )
-      ) {
-        return
-      }
-      dispatch({
-        type: 'SET_PROCESS',
+      const ok = await confirm({
+        title: `Дренаж ${label}`,
+        message: `Подтвердите дренаж воды из ${label} (и парной ёмкости E-1/E-2)?`,
+        danger: true,
+      })
+      if (!ok) return
+      void serverCommand('patch', {
         patch: { levelWaterE1: 25, levelWaterE2: 25 },
       })
       logAction(
         "Авария: скорректирован уровень воды E-1/E-2, предотвращён занос в колонны (SC-11)",
       )
     },
-    [canControl, logAction, assertMiniAction],
+    [canControl, logAction, assertMiniAction, serverCommand, confirm],
   )
 
   const setAvoFan = useCallback(
@@ -1120,13 +1232,13 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
           ? "АВО 'АВЗ-3': вентилятор включён"
           : "АВО 'АВЗ-3': вентилятор отключён",
       )
-      dispatch({ type: 'SET_PROCESS', patch: { avoFanOn: on } })
+      void serverCommand('set-avo', { on })
     },
-    [canControl, logAction, assertMiniAction],
+    [canControl, logAction, assertMiniAction, serverCommand],
   )
 
   const setUtility = useCallback(
-    (
+    async (
       key:
         | 'steamOk'
         | 'powerOk'
@@ -1146,13 +1258,14 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
         ventOpsOk: 'Вентиляция операторной/РУ',
         ventElouOk: 'Вентиляция насосных ЭЛОУ',
       }
-      if (
-        !ok &&
-        !window.confirm(
-          `Подтвердите отключение утилиты «${names[key]}» (критично для процесса)?`,
-        )
-      ) {
-        return
+      if (!ok) {
+        const approved = await confirm({
+          title: 'Отключение утилиты',
+          message: `Подтвердите отключение утилиты «${names[key]}» (критично для процесса)?`,
+          danger: true,
+          confirmLabel: 'Отключить',
+        })
+        if (!approved) return
       }
       logAction(
         ok
@@ -1167,28 +1280,26 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
       if (key === 'steamOk' && !ok) {
         patch.fuelGasPercent = 0
       }
-      dispatch({ type: 'SET_PROCESS', patch })
+      void serverCommand('patch', { patch })
     },
-    [canControl, logAction, assertMiniAction],
+    [canControl, logAction, assertMiniAction, serverCommand, confirm],
   )
 
   const protectColumnLevel = useCallback(
-    (column: 'K-1' | 'K-2') => {
+    async (column: 'K-1' | 'K-2') => {
       if (!canControl) return
       if (!assertMiniAction(protectLevelToken(column))) return
-      if (
-        !window.confirm(
-          `Подтвердите разгрузку печи и защиту уровня ${column}?`,
-        )
-      ) {
-        return
-      }
+      const approved = await confirm({
+        title: `Защита ${column}`,
+        message: `Подтвердите разгрузку печи и защиту уровня ${column}?`,
+        danger: true,
+      })
+      if (!approved) return
       if (column === 'K-1') {
         logAction(
           "Авария: разгрузка печи и меры по сохранению минимального уровня K-1 (SC-12)",
         )
-        dispatch({
-          type: 'SET_PROCESS',
+        void serverCommand('patch', {
           patch: {
             fuelGasPercent: 0,
             levelSetpointK1: 50,
@@ -1200,8 +1311,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
         logAction(
           "Авария: восстановление рефлюкса и снижение нагрузки (SC-13)",
         )
-        dispatch({
-          type: 'SET_PROCESS',
+        void serverCommand('patch', {
           patch: {
             levelReflux: 45,
             levelSetpointK2: 50,
@@ -1213,7 +1323,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
         })
       }
     },
-    [canControl, logAction, assertMiniAction],
+    [canControl, logAction, assertMiniAction, serverCommand, confirm],
   )
 
   const setFuelGas = useCallback(
@@ -1234,14 +1344,13 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
       const p = Math.max(0, Math.min(100, Math.round(percent)))
       if (blockSequence('fuel', p)) return
       logAction(`Печь 'П-1': Изменена подача топливного газа на ${p}%`)
-      mirrorServerCommand(serverSimIdRef.current, 'fuel', { fuelTarget: p })
-      dispatch({ type: 'SET_PROCESS', patch: { fuelGasPercent: p } })
+      void serverCommand('fuel', { fuelTarget: p })
     },
-    [canControl, logAction, pushSystem, blockSequence, assertMiniAction],
+    [canControl, logAction, pushSystem, blockSequence, assertMiniAction, serverCommand],
   )
 
   const performEmergencyAction = useCallback(
-    (actionId: string) => {
+    async (actionId: string) => {
       if (!canControl) return
       const def = EMERGENCY_ACTIONS.find((a) => a.id === actionId)
       if (!def) return
@@ -1265,20 +1374,23 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
         actionId === 'cut-fuel-steam' ||
         actionId === 'sc02-safe-stop' ||
         actionId === 'isolate-leak'
-      if (
-        needsConfirm &&
-        !window.confirm(`Подтвердите аварийное действие:\n«${def.label}»`)
-      ) {
-        return
+      if (needsConfirm) {
+        const approved = await confirm({
+          title: 'Аварийное действие',
+          message: `Подтвердите аварийное действие:\n«${def.label}»`,
+          danger: true,
+          confirmLabel: 'Выполнить',
+        })
+        if (!approved) return
       }
       const patch = def.apply?.(cur.process) ?? {}
       if (Object.keys(patch).length) {
-        dispatch({ type: 'SET_PROCESS', patch })
+        void serverCommand('patch', { patch })
       }
       logAction(def.logDescription)
       pushSystem(`Выполнено: ${def.label}`)
     },
-    [canControl, logAction, pushSystem],
+    [canControl, logAction, pushSystem, serverCommand, confirm],
   )
 
   const openPanelForEquip = useCallback((equipId: string) => {
@@ -1472,8 +1584,10 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
         recommendExerciseId: recommendExerciseId ?? null,
         recommendReason: recommendReason ?? null,
         protocolVersion: PROTOCOL_VERSION,
-        modelVersion: MODEL_VERSION,
-        scenarioVersion: SCENARIO_VERSION,
+        modelVersion: serverSimMetaRef.current.modelVersion,
+        scenarioVersion: serverSimMetaRef.current.scenarioVersion,
+        seed: serverSimMetaRef.current.seed,
+        serverSessionId: serverSimIdRef.current,
         sessionMode: cur.session.mode,
         analogSample,
         actionsLog: cur.actionsLog.map(({ at, description }) => ({
@@ -1557,6 +1671,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     (paused: boolean) => {
       if (stateRef.current.session.view !== 'exercise') return
       if (stateRef.current.session.completed) return
+      void serverCommand(paused ? 'pause' : 'resume')
       dispatch({ type: 'SET_PAUSED', paused })
       pushSystem(paused ? 'Симуляция на паузе.' : 'Симуляция продолжена.')
       void appendAudit({
@@ -1565,13 +1680,21 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
         action: paused ? 'pause' : 'resume',
       })
     },
-    [pushSystem],
+    [pushSystem, serverCommand],
   )
 
   const resetToStart = useCallback(() => {
     recoveryLogged.current = false
     saltAlarmLogged.current = false
     criticalFailHandled.current = false
+    serverSimIdRef.current = null
+    setServerSimId(null)
+    lastPolledSimTime.current = -1
+    serverSimMetaRef.current = {
+      seed: null,
+      modelVersion: MODEL_VERSION,
+      scenarioVersion: SCENARIO_VERSION,
+    }
     if (pumpStartTimer.current) {
       clearTimeout(pumpStartTimer.current)
       pumpStartTimer.current = null
@@ -1595,6 +1718,8 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     saltAlarmLogged.current = false
     criticalFailHandled.current = false
     serverSimIdRef.current = null
+    setServerSimId(null)
+    lastPolledSimTime.current = -1
     if (pumpStartTimer.current) {
       clearTimeout(pumpStartTimer.current)
       pumpStartTimer.current = null
@@ -1616,49 +1741,90 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     if (trainingMode === 'full' && !getExercise(cur.exerciseId)) return
     if (cur.role !== 'trainee' || !cur.userName.trim()) return
 
-    if (training) {
-      dispatch({ type: 'SET_EXERCISE', id: training.id })
-      void appendAudit({
-        actor: cur.userName || 'trainee',
-        role: 'trainee',
-        action: 'start_session',
-        detail: `${training.id} · mini`,
-      })
-      setHintsUsed(0)
-      setVisibleHint(null)
-      dispatch({
-        type: 'START_SESSION',
-        process: applyMiniPreset(training.id),
-        label: training.title,
-        skipBriefing: true,
-      })
-      void createServerSimSession({
-        exerciseId: training.id,
-        initial: applyMiniPreset(training.id) as unknown as Record<
-          string,
-          unknown
-        >,
-      })
-        .then((s) => {
-          serverSimIdRef.current = s.id
+    const begin = async () => {
+      try {
+        if (training) {
+          const initial = applyMiniPreset(training.id)
+        const session = await createServerSimSession({
+          exerciseId: training.id,
+          initial: initial as unknown as Record<string, unknown>,
+          modelVersion: MODEL_VERSION,
+          scenarioVersion: SCENARIO_VERSION,
+          timeScale: stateRef.current.session.timeScale,
         })
-        .catch(() => undefined)
-      return
-    }
+          serverSimIdRef.current = session.id
+          serverSimMetaRef.current = {
+            seed: session.seed ?? null,
+            modelVersion: session.modelVersion || MODEL_VERSION,
+            scenarioVersion: session.scenarioVersion || SCENARIO_VERSION,
+          }
+          dispatch({ type: 'SET_EXERCISE', id: training.id })
+          void appendAudit({
+            actor: cur.userName || 'trainee',
+            role: 'trainee',
+            action: 'start_session',
+            detail: `${training.id} · mini · seed=${session.seed}`,
+          })
+          setHintsUsed(0)
+          setVisibleHint(null)
+          dispatch({
+            type: 'START_SESSION',
+            process: session.process as ProcessState,
+            label: training.title,
+            skipBriefing: true,
+          })
+          setServerSimId(session.id)
+          for (const msg of session.systemMessages ?? []) pushSystem(msg)
+          return
+        }
 
-    void appendAudit({
-      actor: cur.userName || 'trainee',
-      role: 'trainee',
-      action: 'start_session',
-      detail: `${cur.exerciseId ?? '?'} · ${cur.mode}`,
-    })
-    dispatch({ type: 'START_SESSION' })
-    void createServerSimSession({ exerciseId: cur.exerciseId })
-      .then((s) => {
-        serverSimIdRef.current = s.id
-      })
-      .catch(() => undefined)
-  }, [selectedMiniTrainingId, trainingMode])
+        const ex = getExercise(cur.exerciseId)
+        const session = await createServerSimSession({
+          exerciseId: cur.exerciseId,
+          warmStart: Boolean(ex?.warmStart),
+          modelVersion: MODEL_VERSION,
+          scenarioVersion: SCENARIO_VERSION,
+          faultType: ex?.faultType ?? null,
+          triggerDelaySeconds: ex?.triggerDelaySeconds ?? null,
+          timeScale: stateRef.current.session.timeScale,
+        })
+        serverSimIdRef.current = session.id
+        serverSimMetaRef.current = {
+          seed: session.seed ?? null,
+          modelVersion: session.modelVersion || MODEL_VERSION,
+          scenarioVersion: session.scenarioVersion || SCENARIO_VERSION,
+        }
+        void appendAudit({
+          actor: cur.userName || 'trainee',
+          role: 'trainee',
+          action: 'start_session',
+          detail: `${cur.exerciseId ?? '?'} · ${cur.mode} · seed=${session.seed}`,
+        })
+        dispatch({
+          type: 'START_SESSION',
+          process: session.process as ProcessState,
+        })
+        setServerSimId(session.id)
+        // Полное упражнение: тик на паузе до принятия брифинга
+        await sendServerSimCommand(session.id, 'pause')
+        dispatch({ type: 'SET_PAUSED', paused: true })
+        if (session.timeScale && session.timeScale !== 1) {
+          dispatch({
+            type: 'SET_TIME_SCALE',
+            timeScale: session.timeScale as TimeScale,
+          })
+        }
+        for (const msg of session.systemMessages ?? []) pushSystem(msg)
+      } catch (reason) {
+        const msg =
+          reason instanceof Error
+            ? reason.message
+            : 'Не удалось создать серверную сессию симуляции.'
+        pushSystem(`Старт отменён: ${msg}`)
+      }
+    }
+    void begin()
+  }, [pushSystem, selectedMiniTrainingId, trainingMode])
 
   const ackAlarm = useCallback((key: string) => {
     dispatch({ type: 'ACK_ALARM', key })
@@ -1677,30 +1843,32 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
       pushSystem('У текущего упражнения нет отказа для ввода.')
       return
     }
-    const applied = applyFault(ex.faultType)
-    dispatch({ type: 'SET_PROCESS', patch: applied.patch })
-    for (const msg of applied.messages) pushSystem(msg)
-    dispatch({ type: 'FAULT_TRIGGERED' })
-    pushSystem(`--- Нештатная ситуация: «${ex.name}» ---`)
-    void appendAudit({
-      actor: 'instructor',
-      role: 'instructor',
-      action: 'inject_fault',
-      detail: ex.faultType,
+    const faultType = ex.faultType
+    void serverCommand('inject-fault', { faultType }).then((ok) => {
+      if (!ok) return
+      void appendAudit({
+        actor: 'instructor',
+        role: 'instructor',
+        action: 'inject_fault',
+        detail: faultType,
+      })
     })
-  }, [pushSystem])
+  }, [pushSystem, serverCommand])
 
   const acceptBriefing = useCallback(() => {
     dispatch({ type: 'ACCEPT_BRIEFING' })
+    void serverCommand('resume')
+    dispatch({ type: 'SET_PAUSED', paused: false })
     pushSystem('Брифинг принят. Симуляция запущена.')
-  }, [pushSystem])
+  }, [pushSystem, serverCommand])
 
   const setTimeScale = useCallback(
     (timeScale: TimeScale) => {
       dispatch({ type: 'SET_TIME_SCALE', timeScale })
+      void serverCommand('set-time-scale', { timeScale })
       pushSystem(`Масштаб времени: ${timeScale}×`)
     },
-    [pushSystem],
+    [pushSystem, serverCommand],
   )
 
   const setInstructorLiveOpen = useCallback((open: boolean) => {

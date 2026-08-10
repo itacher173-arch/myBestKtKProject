@@ -1,6 +1,7 @@
-/** Клиент серверного симулятора (такт + ПАЗ на FastAPI). */
+/** Клиент серверного симулятора (такт + ПАЗ на FastAPI). Источник правды — сервер. */
 
 import { apiGet, apiPost } from '../api/client'
+import type { ProcessState } from './types'
 
 export interface ServerSimSession {
   id: string
@@ -9,21 +10,44 @@ export interface ServerSimSession {
   running: boolean
   paused: boolean
   simTimeSec: number
-  process: Record<string, unknown>
+  seed: number
+  modelVersion: string
+  scenarioVersion: string
+  timeScale: number
+  faultTriggered: boolean
+  faultType?: string | null
+  process: ProcessState
   actionsLog: Array<Record<string, unknown>>
+  systemMessages?: string[]
 }
 
-export async function createServerSimSession(input?: {
+export interface CreateServerSimInput {
   exerciseId?: string | null
   warmStart?: boolean
   initial?: Record<string, unknown>
-}): Promise<ServerSimSession> {
+  seed?: number | string | null
+  modelVersion?: string | null
+  scenarioVersion?: string | null
+  faultType?: string | null
+  triggerDelaySeconds?: number | null
+  timeScale?: number
+}
+
+export async function createServerSimSession(
+  input?: CreateServerSimInput,
+): Promise<ServerSimSession> {
   const res = await apiPost<{ ok: boolean; session: ServerSimSession }>(
-    '/simulator/sessions',
+    '/sim/sessions',
     {
       exerciseId: input?.exerciseId ?? null,
       warmStart: input?.warmStart ?? false,
       initial: input?.initial ?? null,
+      seed: input?.seed ?? null,
+      modelVersion: input?.modelVersion ?? null,
+      scenarioVersion: input?.scenarioVersion ?? null,
+      faultType: input?.faultType ?? null,
+      triggerDelaySeconds: input?.triggerDelaySeconds ?? null,
+      timeScale: input?.timeScale ?? 1,
     },
   )
   return res.session
@@ -33,7 +57,7 @@ export async function getServerSimSession(
   sessionId: string,
 ): Promise<ServerSimSession> {
   const res = await apiGet<{ ok: boolean; session: ServerSimSession }>(
-    `/simulator/sessions/${encodeURIComponent(sessionId)}`,
+    `/sim/sessions/${encodeURIComponent(sessionId)}`,
   )
   return res.session
 }
@@ -43,18 +67,8 @@ export async function sendServerSimCommand(
   action: string,
   payload: Record<string, unknown> = {},
 ): Promise<{ ok: boolean; reason?: string; session?: ServerSimSession }> {
-  return apiPost(`/simulator/sessions/${encodeURIComponent(sessionId)}/command`, {
+  return apiPost(`/sim/sessions/${encodeURIComponent(sessionId)}/command`, {
     action,
     payload,
   })
-}
-
-/** Зеркалирует команду на сервер (best-effort, не блокирует UI). */
-export function mirrorServerCommand(
-  sessionId: string | null | undefined,
-  action: string,
-  payload: Record<string, unknown> = {},
-): void {
-  if (!sessionId) return
-  void sendServerSimCommand(sessionId, action, payload).catch(() => undefined)
 }

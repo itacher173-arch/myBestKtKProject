@@ -28,6 +28,7 @@ import {
   validatePassword,
 } from '../sim/authApi'
 import { appendAudit } from '../sim/auditStorage'
+import { ConfirmProvider, useConfirm } from './ConfirmDialog'
 import {
   addGroupMember,
   createGroup,
@@ -47,6 +48,15 @@ const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
 ]
 
 export function AdminPage({ onLogout }: { onLogout: () => void }) {
+  return (
+    <ConfirmProvider>
+      <AdminPageInner onLogout={onLogout} />
+    </ConfirmProvider>
+  )
+}
+
+function AdminPageInner({ onLogout }: { onLogout: () => void }) {
+  const confirm = useConfirm()
   // Стабильная ссылка: иначе useEffect([admin]) уходит в бесконечный GET /users
   const admin = useMemo(() => getAuthedUser(), [])
   const [tab, setTab] = useState<Tab>('users')
@@ -390,7 +400,13 @@ export function AdminPage({ onLogout }: { onLogout: () => void }) {
 
   const onDeleteGroup = async () => {
     if (!activeGroup) return
-    if (!window.confirm(`Удалить группу «${activeGroup.name}»?`)) return
+    const ok = await confirm({
+      title: 'Удаление группы',
+      message: `Удалить группу «${activeGroup.name}»?`,
+      danger: true,
+      confirmLabel: 'Удалить',
+    })
+    if (!ok) return
     setBusy(true)
     try {
       await deleteAdminGroup(activeGroup.id)

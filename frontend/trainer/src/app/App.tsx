@@ -27,6 +27,7 @@ import { StartScreen } from './pages/StartScreen'
 import { WorkRoleBar } from './components/WorkRoleBar'
 import { EquipmentPanel } from '../scheme/components/EquipmentPanel'
 import { SchemeViewer } from '../scheme/components/SchemeViewer'
+import { ConfirmProvider } from '../common/ui/ConfirmDialog'
 import { TrainerProvider, useTrainer } from '../simulator/TrainerContext'
 import { getExercise } from '../scenarios/exercises'
 import type { TimeScale } from '../simulator/types'
@@ -323,10 +324,12 @@ function TrainerApp() {
 export default function App() {
   return (
     <PreferencesProvider>
-      <TrainerProvider>
-        <PresenceBridge />
-        <TrainerApp />
-      </TrainerProvider>
+      <ConfirmProvider>
+        <TrainerProvider>
+          <PresenceBridge />
+          <TrainerApp />
+        </TrainerProvider>
+      </ConfirmProvider>
     </PreferencesProvider>
   )
 }

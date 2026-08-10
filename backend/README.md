@@ -47,6 +47,8 @@ Health: `http://localhost:8000/api/health`.
 
 Хранение: PostgreSQL (`trainee_reports`, `audit_log`, …). Старые `backend/runtime/*.json` при старте один раз мигрируют в БД, если таблицы пустые.
 
+Симуляция: `POST /api/sim/sessions` создаёт сессию с `seed`, `modelVersion`, `scenarioVersion`; тик в `system-api`; UI только команды + poll состояния.
+
 ## Зависимости образа
 
 `backend/requirements.txt` ставится в `backend/Dockerfile`.  

@@ -3,20 +3,35 @@
 from __future__ import annotations
 
 import copy
+import secrets
 import time
 import uuid
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
+from .faults import apply_fault
 from .paz import interlock_reason
-from .process_model import create_initial_process, create_warm_process, tick_process
+from .process_model import (
+    MODEL_VERSION,
+    create_initial_process,
+    create_warm_process,
+    tick_process,
+)
 
 ProcessState = dict[str, Any]
 ActionDict = dict[str, Any]
 
+DEFAULT_SCENARIO_VERSION = "scenarios-1.1"
+
 
 def _clamp(v: float, lo: float, hi: float) -> float:
     return max(lo, min(hi, v))
+
+
+def _new_seed(explicit: int | str | None) -> int:
+    if explicit is None or explicit == "":
+        return secrets.randbits(31)
+    return int(explicit)
 
 
 @dataclass
@@ -29,10 +44,20 @@ class Session:
     exercise_id: Optional[str] = None
     actions_log: list[dict[str, Any]] = field(default_factory=list)
     sim_time: float = 0.0
+    seed: int = 0
+    model_version: str = MODEL_VERSION
+    scenario_version: str = DEFAULT_SCENARIO_VERSION
+    time_scale: float = 1.0
+    fault_type: Optional[str] = None
+    trigger_delay_sec: Optional[float] = None
+    fault_triggered: bool = False
+    pending_fault_messages: list[str] = field(default_factory=list)
     # Internal: when pump N1 entered "starting" (sim_time), for ~1.5 s ramp
     _pump_n1_start_sim: Optional[float] = field(default=None, repr=False)
 
     def public(self) -> dict[str, Any]:
+        messages = list(self.pending_fault_messages)
+        self.pending_fault_messages.clear()
         return {
             "id": self.id,
             "userId": self.user_id,
@@ -40,8 +65,15 @@ class Session:
             "running": self.running,
             "paused": self.paused,
             "simTimeSec": self.sim_time,
+            "seed": self.seed,
+            "modelVersion": self.model_version,
+            "scenarioVersion": self.scenario_version,
+            "timeScale": self.time_scale,
+            "faultTriggered": self.fault_triggered,
+            "faultType": self.fault_type,
             "process": self.process,
             "actionsLog": self.actions_log[-80:],
+            "systemMessages": messages,
         }
 
 
@@ -62,6 +94,12 @@ class SessionStore:
         warm_start: bool = False,
         session_id: Optional[str] = None,
         initial: Optional[dict[str, Any]] = None,
+        seed: int | str | None = None,
+        model_version: Optional[str] = None,
+        scenario_version: Optional[str] = None,
+        fault_type: Optional[str] = None,
+        trigger_delay_sec: Optional[float] = None,
+        time_scale: float = 1.0,
     ) -> Session:
         sid = session_id or str(uuid.uuid4())
         process = create_warm_process() if warm_start else create_initial_process()
@@ -78,6 +116,16 @@ class SessionStore:
             exercise_id=exercise_id,
             actions_log=[],
             sim_time=float(process.get("simTimeSec", 0)),
+            seed=_new_seed(seed),
+            model_version=(model_version or MODEL_VERSION).strip() or MODEL_VERSION,
+            scenario_version=(
+                scenario_version or DEFAULT_SCENARIO_VERSION
+            ).strip()
+            or DEFAULT_SCENARIO_VERSION,
+            time_scale=_clamp(float(time_scale), 0.25, 4.0),
+            fault_type=fault_type,
+            trigger_delay_sec=trigger_delay_sec,
+            fault_triggered=False,
         )
         self._sessions[sid] = session
         return session
@@ -165,17 +213,59 @@ class SessionStore:
         return {"ok": True, "session": session}
 
     def tick_all(self, dt: float) -> list[Session]:
-        """Advance all non-paused running sessions by dt seconds."""
+        """Advance all non-paused running sessions by dt * time_scale seconds."""
         updated: list[Session] = []
         for session in self._sessions.values():
             if session.paused or not session.running:
                 continue
+            dt_eff = dt * float(session.time_scale or 1.0)
+            if dt_eff <= 0:
+                continue
             session.process["running"] = True
-            session.process = tick_process(session.process, dt)
-            session.sim_time = float(session.process.get("simTimeSec", session.sim_time + dt))
+            session.process = tick_process(session.process, dt_eff)
+            session.sim_time = float(
+                session.process.get("simTimeSec", session.sim_time + dt_eff)
+            )
             self._promote_pump_n1(session)
+            self._maybe_auto_fault(session)
             updated.append(session)
         return updated
+
+    def inject_fault(self, session: Session, fault_type: Optional[str] = None) -> Optional[str]:
+        """Apply fault patch. Returns error reason or None."""
+        ft = fault_type or session.fault_type
+        if not ft:
+            return "No fault type configured"
+        if session.fault_triggered and not fault_type:
+            return "Fault already triggered"
+        try:
+            patch, messages = apply_fault(ft)
+        except ValueError as exc:
+            return str(exc)
+        session.process.update(patch)
+        session.fault_type = ft
+        session.fault_triggered = True
+        session.pending_fault_messages.extend(messages)
+        session.pending_fault_messages.append(
+            f"--- Запущена нештатная ситуация: «{ft}» ---"
+        )
+        self._append_log(
+            session,
+            f"Инжекция отказа: {ft}",
+            rejected=False,
+            action_type="inject-fault",
+        )
+        return None
+
+    def _maybe_auto_fault(self, session: Session) -> None:
+        if session.fault_triggered or not session.fault_type:
+            return
+        delay = session.trigger_delay_sec
+        if delay is None:
+            return
+        if session.sim_time < float(delay):
+            return
+        self.inject_fault(session)
 
     def _promote_pump_n1(self, session: Session) -> None:
         """Mirror frontend 1.5 s starting → running ramp (in sim time)."""
@@ -406,6 +496,32 @@ def _apply_action_to_process(
     if t in ("start-sim",):
         session.running = True
         p["running"] = True
+        return None
+
+    if t in ("set-time-scale", "timeScale", "time-scale"):
+        scale = action.get("timeScale", action.get("value", action.get("scale")))
+        if scale is None:
+            return "set-time-scale requires timeScale/value"
+        session.time_scale = _clamp(float(scale), 0.25, 4.0)
+        return None
+
+    if t in ("inject-fault", "injectFault"):
+        ft = action.get("faultType") or session.fault_type
+        if not ft:
+            return "inject-fault requires faultType"
+        if session.fault_triggered and not action.get("force"):
+            return "Fault already triggered"
+        try:
+            patch, messages = apply_fault(str(ft))
+        except ValueError as exc:
+            return str(exc)
+        p.update(patch)
+        session.fault_type = str(ft)
+        session.fault_triggered = True
+        session.pending_fault_messages.extend(messages)
+        session.pending_fault_messages.append(
+            f"--- Запущена нештатная ситуация: «{ft}» ---"
+        )
         return None
 
     return f"Unknown action type: {action_type}"
