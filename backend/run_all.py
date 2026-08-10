@@ -7,9 +7,9 @@ import os
 import threading
 from http.server import ThreadingHTTPServer
 
+from backend.ai.app import Handler as AiHandler
 from backend.auth.app import Handler as AuthHandler
 from backend.auth.app import bootstrap as bootstrap_auth
-from backend.ai.app import Handler as AiHandler
 from backend.gateway.app import Handler as GatewayHandler
 from backend.knowledge.app import Handler as KnowledgeHandler
 from backend.presence import start_presence_server

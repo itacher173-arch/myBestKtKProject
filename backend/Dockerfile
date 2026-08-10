@@ -6,7 +6,6 @@ COPY backend/requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
 COPY backend /app/backend
-COPY frontend/trainer/src/knowledge/seed.json /app/frontend/trainer/src/knowledge/seed.json
 COPY frontend/trainer/src/training/catalog.json /app/frontend/trainer/src/training/catalog.json
 
 ENV PYTHONUNBUFFERED=1 \

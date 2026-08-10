@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="360" viewBox="0 0 960 360" role="img" aria-labelledby="title desc">
+  <title id="title">Принцип электродегидратора</title><desc id="desc">Нефтяная, эмульсионная и водная зоны, электроды, вход эмульсии и отвод рассола.</desc>
+  <rect width="960" height="360" rx="22" fill="#f2f8fc"/>
+  <g font-family="Arial, sans-serif"><text x="480" y="35" text-anchor="middle" font-size="18" font-weight="700" fill="#082b4c">Принципиальная схема электродегидратора</text>
+    <rect x="205" y="70" width="550" height="235" rx="78" fill="#fff" stroke="#86afc7" stroke-width="3"/>
+    <path d="M208 210h544v28H208z" fill="#dfb66f" opacity=".65"/><path d="M230 238h500v45H230z" fill="#79bce0" opacity=".8"/>
+    <g stroke="#087eb9" stroke-width="5"><path d="M305 112h350"/><path d="M305 160h350"/></g><g stroke="#087eb9" stroke-width="2"><path d="M340 112v48M420 112v48M500 112v48M580 112v48M640 112v48"/></g>
+    <g fill="#3b8fc0"><circle cx="330" cy="195" r="6"/><circle cx="385" cy="202" r="9"/><circle cx="470" cy="190" r="5"/><circle cx="545" cy="198" r="11"/><circle cx="630" cy="192" r="7"/></g>
+    <path d="M75 195h130" stroke="#087eb9" stroke-width="4"/><path d="m205 195-12-7v14z" fill="#087eb9"/><path d="M480 305v36" stroke="#087eb9" stroke-width="4"/><path d="m480 341-7-12h14z" fill="#087eb9"/>
+    <g fill="#082b4c" font-size="12"><text x="80" y="180">эмульсия:</text><text x="80" y="198">нефть + вода</text><text x="675" y="105">электроды</text><text x="675" y="226">эмульсионный слой</text><text x="675" y="266">водная фаза</text><text x="500" y="344">рассол</text></g>
+    <text x="480" y="325" text-anchor="middle" font-size="10" fill="#58748a">уровень границы и дренаж задаются регламентом конкретного аппарата</text>
+  </g>
+</svg>

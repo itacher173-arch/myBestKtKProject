@@ -10,15 +10,15 @@ from typing import Any
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
+from backend.knowledge.catalog import flatten_article, load_articles
+
 ROOT = Path(__file__).resolve().parents[2]
 TRAININGS = json.loads(
     (ROOT / "frontend" / "trainer" / "src" / "training" / "catalog.json").read_text(
         encoding="utf-8"
     )
 )
-ARTICLES = json.loads(
-    (ROOT / "frontend" / "trainer" / "src" / "knowledge" / "seed.json").read_text(encoding="utf-8")
-)
+ARTICLES = load_articles()
 TRAINING_BY_ID = {item["id"]: item for item in TRAININGS}
 ARTICLE_BY_ID = {item["id"]: item for item in ARTICLES}
 
@@ -62,7 +62,7 @@ def search_articles(query: str, limit: int = 4) -> list[dict[str, Any]]:
         title = _tokens(article["title"])
         keywords = _tokens(" ".join(article["keywords"]))
         summary = _tokens(article["summary"])
-        content = _tokens(" ".join(article["content"]))
+        content = _tokens(" ".join(flatten_article(article)))
         score = (
             len(query_tokens & title) * 8
             + len(query_tokens & keywords) * 6
@@ -402,7 +402,8 @@ def _ollama_answer(message: str, articles: list[dict[str, Any]], context: dict[s
     model = os.getenv("KTK_OLLAMA_MODEL", "qwen3:4b-instruct")
     base_url = os.getenv("KTK_OLLAMA_URL", "http://127.0.0.1:11434").rstrip("/")
     sources = "\n\n".join(
-        f"[{article['id']}] {article['title']}\n{article['summary']}\n" + "\n".join(article["content"])
+        f"[{article['id']}] {article['title']}\n{article['summary']}\n"
+        + "\n".join(flatten_article(article))
         for article in articles
     )
     system = (
@@ -446,7 +447,7 @@ def answer_question(payload: dict[str, Any]) -> dict[str, Any]:
         mode = "local-ollama-rag"
     else:
         lead = articles[0]
-        paragraphs = lead["content"][:2]
+        paragraphs = flatten_article(lead)[:3]
         answer = f"{lead['summary']}\n\n" + "\n\n".join(paragraphs)
         process = context.get("process") or {}
         alerts: list[str] = []

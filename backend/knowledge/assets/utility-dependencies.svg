@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="360" viewBox="0 0 960 360" role="img" aria-labelledby="title desc">
+  <title id="title">Зависимости от инженерных систем</title><desc id="desc">Электричество, приборный воздух, пар, охлаждение и топливо связаны с блоками ЭЛОУ-АВТ.</desc>
+  <rect width="960" height="360" rx="22" fill="#f2f8fc"/>
+  <g font-family="Arial, sans-serif" text-anchor="middle"><text x="480" y="36" font-size="18" font-weight="700" fill="#082b4c">Инженерные системы и технологические функции</text>
+    <g stroke="#a9c7d9" stroke-width="2" fill="#fff"><rect x="360" y="125" width="240" height="105" rx="18"/><rect x="60" y="70" width="160" height="52" rx="12"/><rect x="60" y="154" width="160" height="52" rx="12"/><rect x="60" y="238" width="160" height="52" rx="12"/><rect x="740" y="70" width="160" height="52" rx="12"/><rect x="740" y="154" width="160" height="52" rx="12"/><rect x="740" y="238" width="160" height="52" rx="12"/></g>
+    <g stroke="#087eb9" stroke-width="2" fill="none"><path d="M220 96 360 150"/><path d="M220 180h140"/><path d="M220 264 360 205"/><path d="M740 96 600 150"/><path d="M740 180H600"/><path d="M740 264 600 205"/></g>
+    <g fill="#082b4c" font-size="13" font-weight="700"><text x="480" y="165">ЭЛОУ-АВТ</text><text x="480" y="187">перекачка · разделение</text><text x="480" y="209">нагрев · конденсация · защита</text><text x="140" y="101">Электроэнергия</text><text x="140" y="185">Приборный воздух</text><text x="140" y="269">Пар</text><text x="820" y="101">Охлаждение</text><text x="820" y="185">Топливный газ</text><text x="820" y="269">Азот и факел</text></g>
+    <text x="480" y="328" font-size="11" fill="#58748a">восстановление одной среды не означает готовность зависимого оборудования к пуску</text>
+  </g>
+</svg>

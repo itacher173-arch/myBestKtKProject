@@ -28,7 +28,7 @@ Health: `http://localhost:8000/api/health`.
 | gateway    | 8000 | `/api/*` → auth / ai / training / storage / …   |
 | auth       | 8102 | вход, Redis-сессии, CRUD пользователей          |
 | training   | 8103 | каталог мини-уроков, evaluate                   |
-| knowledge  | 8104 | статьи из `frontend/trainer/src/knowledge/seed.json` |
+| knowledge  | 8104 | версионируемые статьи из `backend/knowledge/content/ru` и базовый каталог `backend/knowledge/seed.json` |
 | storage    | 8105 | отчёты, аудит, группы → PostgreSQL              |
 | presence   | 8106 | WebSocket presence → Redis                      |
 | ai         | 8107 | `/analyze`, `/chat` (отключаемый)               |
@@ -50,4 +50,4 @@ Health: `http://localhost:8000/api/health`.
 ## Зависимости образа
 
 `backend/requirements.txt` ставится в `backend/Dockerfile`.  
-В образ также копируются `seed.json` и `training/catalog.json` из trainer.
+В образ также копируются модульный каталог базы знаний и `training/catalog.json`.
