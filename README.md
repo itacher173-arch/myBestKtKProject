@@ -38,7 +38,8 @@ npm run docker:up
 
 ### Railway (auto-deploy из GitHub)
 
-Тот же образ `web` (`/` + `/app/` + `/admin/`), API и БД — отдельно.  
+Нужны **4 сервиса** в одном проекте: `web` + `api` + Postgres + Redis.  
+Один connect GitHub поднимает только UI — остальное добавляется через **+ Create**.  
 Инструкция: [`deploy/railway/README.md`](deploy/railway/README.md).
 
 Учётные данные первого администратора передаются только через окружение (либо

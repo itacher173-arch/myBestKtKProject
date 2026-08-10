@@ -1,6 +1,6 @@
-# По умолчанию сервис из корня репозитория = публичный UI (web).
-# Для auth-api / system-api в Railway → Settings → Config-as-code
-# укажите: deploy/railway/auth-api.railway.toml или system-api.railway.toml
+# Публичный UI: auth (/) + КТК (/app/) + admin (/admin/)
+# Этот файл подхватывается сервисом, у которого Config-as-code = /railway.toml
+# (сейчас так у myBestKtKProject). Остальные сервисы задаются отдельно в UI.
 
 [build]
 builder = "DOCKERFILE"
