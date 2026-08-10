@@ -2,7 +2,8 @@
 
 Python 3.12 · FastAPI · psycopg · Redis · websockets.
 
-Запуск всего проекта — только через Docker из корня репозитория (см. корневой `README.md`):
+Запуск всего проекта — только через Docker из корня репозитория (см. корневой `README.md`).
+Образ `web` собирает фронты внутри Docker (multi-stage Node → nginx):
 
 ```bash
 npm run docker:up

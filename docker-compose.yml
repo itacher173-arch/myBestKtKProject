@@ -3,6 +3,9 @@ services:
     build:
       context: .
       dockerfile: deploy/docker/Dockerfile.web
+      args:
+        VITE_APP_URL: ${VITE_APP_URL:-/app/}
+        VITE_AUTH_URL: ${VITE_AUTH_URL:-/}
     ports:
       - "8080:8080"
     environment:

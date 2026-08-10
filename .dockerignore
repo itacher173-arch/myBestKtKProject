@@ -4,6 +4,7 @@
 .vite
 .DS_Store
 **/node_modules
+**/dist
 **/release
 frontend/scripts
 backend/runtime/*

@@ -1,5 +1,41 @@
 # Единый UI: auth (/) + КТК (/app/) + admin (/admin/)
-# Dist собирается на хосте (см. npm run docker:up / scripts/build-web.sh)
+# Сборка фронтов — внутри multi-stage (Node), runtime — nginx.
+ARG NODE_IMAGE=node:20-alpine
+
+# ——— auth ———
+FROM ${NODE_IMAGE} AS build-auth
+WORKDIR /src
+COPY frontend/auth/package.json frontend/auth/package-lock.json ./
+RUN npm ci
+COPY frontend/auth/ ./
+ARG VITE_APP_URL=/app/
+ARG VITE_AUTH_URL=/
+ENV VITE_APP_URL=${VITE_APP_URL} VITE_AUTH_URL=${VITE_AUTH_URL}
+RUN npm run build
+
+# ——— trainer (КТК) ———
+FROM ${NODE_IMAGE} AS build-trainer
+WORKDIR /src
+COPY frontend/trainer/package.json frontend/trainer/package-lock.json ./
+RUN npm ci
+COPY frontend/trainer/ ./
+ARG VITE_APP_URL=/app/
+ARG VITE_AUTH_URL=/
+ENV VITE_APP_URL=${VITE_APP_URL} VITE_AUTH_URL=${VITE_AUTH_URL}
+RUN npm run build
+
+# ——— admin ———
+FROM ${NODE_IMAGE} AS build-admin
+WORKDIR /src
+COPY frontend/admin/package.json frontend/admin/package-lock.json ./
+RUN npm ci
+COPY frontend/admin/ ./
+ARG VITE_APP_URL=/app/
+ARG VITE_AUTH_URL=/
+ENV VITE_APP_URL=${VITE_APP_URL} VITE_AUTH_URL=${VITE_AUTH_URL}
+RUN npm run build
+
+# ——— nginx runtime ———
 FROM nginx:1.27-alpine
 
 RUN apk add --no-cache gettext \
@@ -9,9 +45,9 @@ COPY deploy/docker/nginx.conf.template /etc/nginx/templates/default.conf.templat
 COPY deploy/docker/docker-entrypoint-web.sh /docker-entrypoint-web.sh
 RUN chmod +x /docker-entrypoint-web.sh
 
-COPY frontend/auth/dist /usr/share/nginx/html
-COPY frontend/trainer/dist /usr/share/nginx/html/app
-COPY frontend/admin/dist /usr/share/nginx/html/admin
+COPY --from=build-auth /src/dist /usr/share/nginx/html
+COPY --from=build-trainer /src/dist /usr/share/nginx/html/app
+COPY --from=build-admin /src/dist /usr/share/nginx/html/admin
 
 ENV PORT=8080 \
     API_HOST=system-api \

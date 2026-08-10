@@ -4,33 +4,29 @@
 
 ## Что поднимается
 
-`npm run docker:up` собирает UI на хосте и поднимает весь стек:
+`npm run docker:up` (или `docker compose up --build -d`) собирает UI **внутри** образа `web` и поднимает стек:
 
-- **web** — nginx: вход `/`, КТК `/app/`, админка `/admin/`
+- **web** — nginx: вход `/`, КТК `/app/`, админка `/admin/` (фронты собираются в Docker)
 - **auth-api**, **system-api**, **ai-api**
 - **postgres**, **redis**
 
 ## Требования
 
-- Docker и Docker Compose
-- Node.js + npm (сборка фронтендов перед образом `web`)
+- Docker и Docker Compose  
+  Node.js на хосте для запуска через Docker **не нужен**.
 
 ## Запуск всего проекта
 
 Из корня репозитория:
 
 ```bash
-# 1. Зависимости UI (нужны один раз, и после обновления package.json)
-npm install --prefix frontend/auth
-npm install --prefix frontend/trainer
-npm install --prefix frontend/admin
-
-# 2. Bootstrap-админ (обязательно; не коммитить в git)
+# Bootstrap-админ (обязательно; не коммитить в git)
 export KTK_ADMIN_LOGIN=admin
 export KTK_ADMIN_PASSWORD='ваш-секретный-пароль'
 
-# 3. Сборка UI + docker compose up
+# Сборка образов (включая фронты) + старт
 npm run docker:up
+# эквивалент: docker compose up --build -d
 ```
 
 Готово, когда контейнеры healthy. Открыть:
@@ -42,7 +38,7 @@ npm run docker:up
 | Админка    | http://localhost:8080/admin/     |
 | API health | http://localhost:8000/api/health |
 
-Вход в админку — логин/пароль из шага 2 (создаётся при первом старте, если админов ещё нет).
+Вход в админку — логин/пароль из `export` выше (создаётся при первом старте, если админов ещё нет).
 
 ### Остановка и логи
 
@@ -50,3 +46,5 @@ npm run docker:up
 npm run docker:logs   # следить за логами
 npm run docker:down   # остановить стек
 ```
+
+Только пересобрать UI-образ: `npm run build:web`.
