@@ -9,6 +9,7 @@ from http.server import ThreadingHTTPServer
 
 from backend.auth.app import Handler as AuthHandler
 from backend.auth.app import bootstrap as bootstrap_auth
+from backend.ai.app import Handler as AiHandler
 from backend.gateway.app import Handler as GatewayHandler
 from backend.knowledge.app import Handler as KnowledgeHandler
 from backend.presence import start_presence_server
@@ -50,6 +51,7 @@ def main() -> None:
     parser.add_argument("--knowledge-port", type=int, default=8104)
     parser.add_argument("--storage-port", type=int, default=8105)
     parser.add_argument("--presence-port", type=int, default=8106)
+    parser.add_argument("--ai-port", type=int, default=8107)
     parser.add_argument(
         "--fastapi-port",
         type=int,
@@ -68,6 +70,7 @@ def main() -> None:
         ("training", args.training_port, TrainingHandler),
         ("knowledge", args.knowledge_port, KnowledgeHandler),
         ("storage", args.storage_port, StorageHandler),
+        ("ai", args.ai_port, AiHandler),
         ("gateway", args.gateway_port, GatewayHandler),
     ]
     threads = []
@@ -95,7 +98,7 @@ def main() -> None:
     print(
         f"[ktk] API http://{args.host}:{args.gateway_port}/api/health · "
         f"FastAPI :{args.fastapi_port} · WS :{args.presence_port}/ · "
-        f"данные → PostgreSQL + Redis · серверный такт симуляции",
+        f"AI :{args.ai_port} · данные → PostgreSQL + Redis · серверный такт симуляции",
         flush=True,
     )
     for thread in threads:

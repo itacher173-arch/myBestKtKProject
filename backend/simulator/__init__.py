@@ -1,4 +1,4 @@
-"""Backend process simulator — Python port of frontend/src/sim tick & PAZ."""
+"""Backend process simulator — Python port of frontend/trainer/src/simulator tick & PAZ."""
 
 from .paz import interlock_reason, process_interlock_reason
 from .process_model import (

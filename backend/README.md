@@ -6,12 +6,15 @@ Python 3.12 + psycopg + websockets + redis.
 
 | Сервис | Порт | Назначение |
 |---|---|---|
-| gateway | 8000 | `/api/*` + раздача `frontend/dist/` |
+| gateway | 8000 | `/api/*` + раздача `frontend/trainer/dist/` |
 | auth | 8102 | вход, Redis-сессии, bootstrap и CRUD пользователей |
 | training | 8103 | каталог мини-тренингов, evaluate |
-| knowledge | 8104 | статьи из `frontend/src/knowledge/seed.json` |
+| knowledge | 8104 | статьи из `frontend/trainer/src/knowledge/seed.json` |
 | storage | 8105 | отчёты, аудит, users/groups → PostgreSQL |
 | presence | 8106 | WebSocket presence → Redis |
+| ai | 8107 | `/analyze`, `/chat` — локальный ИИ-разбор и чат |
+
+В Docker Compose `ai-api` — отдельный контейнер; gateway обращается к нему по `KTK_AI_URL`.
 
 ## Запуск
 
@@ -37,7 +40,7 @@ KTK_AUTH_URL=http://127.0.0.1:8102 python3 -m backend.run_system
 
 Проверка: http://127.0.0.1:8000/api/health
 
-UI в dev: `npm run dev` (Vite в `frontend/`, проксирует `/api` на gateway).
+UI в dev: `npm run dev` (Vite в `frontend/trainer/`, проксирует `/api` на gateway).
 
 ## API хранения
 
@@ -61,8 +64,8 @@ DELETE /api/audit
 docker compose up --build -d
 ```
 
-Сервисы: `trainee-ui` (:8080), `admin-ui` (:8081), `auth-ui` (:8082),
-`system-api` (:8000), внутренний `auth-api` (:8102), `postgres` и `redis`.
+Сервисы: `web` (:8080), `system-api` (:8000), `auth-api`, `ai-api` (:8107),
+`postgres` и `redis`.
 
 Хранение: PostgreSQL (`trainee_reports`, `audit_log`). Старые `runtime/*.json`
 при старте один раз мигрируют в БД, если таблицы пустые.

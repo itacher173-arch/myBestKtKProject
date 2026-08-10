@@ -9,9 +9,9 @@ COPY deploy/docker/nginx.conf.template /etc/nginx/templates/default.conf.templat
 COPY deploy/docker/docker-entrypoint-web.sh /docker-entrypoint-web.sh
 RUN chmod +x /docker-entrypoint-web.sh
 
-COPY auth-frontend/dist /usr/share/nginx/html
-COPY frontend/dist /usr/share/nginx/html/app
-COPY admin-frontend/dist /usr/share/nginx/html/admin
+COPY frontend/auth/dist /usr/share/nginx/html
+COPY frontend/trainer/dist /usr/share/nginx/html/app
+COPY frontend/admin/dist /usr/share/nginx/html/admin
 
 ENV PORT=8080 \
     API_HOST=system-api \

@@ -2,20 +2,20 @@
   "name": "myktkprodject",
   "private": true,
   "version": "0.1.0",
-  "description": "myKTKProdject — КТК ЭЛОУ-АВТ (auth + frontend + admin + backend)",
+  "description": "myKTKProdject — КТК ЭЛОУ-АВТ (auth + trainer + admin + backend)",
   "scripts": {
-    "dev": "npm --prefix frontend run dev",
-    "build": "npm --prefix frontend run build",
-    "preview": "npm --prefix frontend run preview",
+    "dev": "npm --prefix frontend/trainer run dev",
+    "build": "npm --prefix frontend/trainer run build",
+    "preview": "npm --prefix frontend/trainer run preview",
     "backend": "python3 -m backend.run_all",
     "dev:api": "python3 -m backend.run_all",
     "docker:up": "sh deploy/docker/build-web.sh && docker compose up --build -d",
     "docker:down": "docker compose down --remove-orphans",
     "docker:logs": "docker compose logs -f",
     "build:web": "sh deploy/docker/build-web.sh",
-    "build:admin": "npm --prefix admin-frontend run build",
-    "dev:admin": "npm --prefix admin-frontend run dev",
-    "build:auth": "npm --prefix auth-frontend run build",
-    "dev:auth": "npm --prefix auth-frontend run dev"
+    "build:admin": "npm --prefix frontend/admin run build",
+    "dev:admin": "npm --prefix frontend/admin run dev",
+    "build:auth": "npm --prefix frontend/auth run build",
+    "dev:auth": "npm --prefix frontend/auth run dev"
   }
 }

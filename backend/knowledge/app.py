@@ -11,7 +11,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 from backend.common.http import JsonHandler
 
 ROOT = Path(__file__).resolve().parents[2]
-SEED_PATH = ROOT / "frontend" / "src" / "knowledge" / "seed.json"
+SEED_PATH = ROOT / "frontend" / "trainer" / "src" / "knowledge" / "seed.json"
 
 ARTICLES: list[dict] = json.loads(SEED_PATH.read_text(encoding="utf-8"))
 

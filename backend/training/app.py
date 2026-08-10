@@ -12,7 +12,7 @@ from urllib.parse import urlparse
 from backend.common.http import JsonHandler
 
 ROOT = Path(__file__).resolve().parents[2]
-CATALOG_PATH = ROOT / "frontend" / "src" / "miniTraining" / "catalog.json"
+CATALOG_PATH = ROOT / "frontend" / "trainer" / "src" / "training" / "catalog.json"
 CATALOG = json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
 
 

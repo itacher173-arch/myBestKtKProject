@@ -1,4 +1,4 @@
-"""Process simulation tick — faithful port of frontend/src/sim/processModel.ts."""
+"""Process simulation tick — faithful port of frontend/trainer/src/simulator/processModel.ts."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ def approach(current: float, target: float, rate_per_sec: float, dt: float) -> f
 
 
 def create_initial_process() -> ProcessState:
-    """Match createInitialProcess() from frontend/src/sim/types.ts."""
+    """Match createInitialProcess() from frontend/trainer/src/simulator/types.ts."""
     return {
         "valveL1": 0,
         "valveL2": 0,

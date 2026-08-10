@@ -15,11 +15,12 @@ from urllib.request import Request, urlopen
 from backend.common.http import JsonHandler
 
 ROOT = Path(__file__).resolve().parents[2]
-FRONTEND_DIST = ROOT / "frontend" / "dist"
+FRONTEND_DIST = ROOT / "frontend" / "trainer" / "dist"
 TRAINING_URL = os.getenv("KTK_TRAINING_URL", "http://127.0.0.1:8103")
 KNOWLEDGE_URL = os.getenv("KTK_KNOWLEDGE_URL", "http://127.0.0.1:8104")
 AUTH_URL = os.getenv("KTK_AUTH_URL", "http://127.0.0.1:8102")
 STORAGE_URL = os.getenv("KTK_STORAGE_URL", "http://127.0.0.1:8105")
+AI_URL = os.getenv("KTK_AI_URL", "http://127.0.0.1:8107")
 FASTAPI_URL = os.getenv("KTK_FASTAPI_URL", "http://127.0.0.1:8010")
 
 
@@ -91,6 +92,7 @@ class Handler(JsonHandler):
                 ("training", TRAINING_URL),
                 ("knowledge", KNOWLEDGE_URL),
                 ("storage", STORAGE_URL),
+                ("ai", AI_URL),
                 ("fastapi", FASTAPI_URL),
             ):
                 try:
@@ -127,6 +129,8 @@ class Handler(JsonHandler):
             return self.proxy(AUTH_URL, self.path[len("/api") :])
         if path == "/api/groups" or path.startswith("/api/groups/"):
             return self.proxy(STORAGE_URL, self.path[len("/api") :])
+        if path.startswith("/api/ai/"):
+            return self.proxy(AI_URL, path[len("/api/ai") :])
         if path.startswith("/api/"):
             return self.send_error_json("not found", 404)
         self.serve_static(path)
@@ -147,6 +151,8 @@ class Handler(JsonHandler):
             return self.proxy(AUTH_URL, path[len("/api") :])
         if path == "/api/groups" or path.startswith("/api/groups/"):
             return self.proxy(STORAGE_URL, path[len("/api") :])
+        if path.startswith("/api/ai/"):
+            return self.proxy(AI_URL, path[len("/api/ai") :])
         self.send_error_json("not found", 404)
 
     def do_PATCH(self) -> None:

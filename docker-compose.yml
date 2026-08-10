@@ -42,6 +42,24 @@ services:
       start_period: 10s
     restart: unless-stopped
 
+  ai-api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: ["python", "-m", "backend.ai.app", "--host", "0.0.0.0", "--port", "8107"]
+    environment:
+      KTK_AI_ENABLED: "${KTK_AI_ENABLED:-true}"
+      KTK_AI_PROVIDER: "${KTK_AI_PROVIDER:-rules}"
+      KTK_OLLAMA_URL: "${KTK_OLLAMA_URL:-http://host.docker.internal:11434}"
+      KTK_OLLAMA_MODEL: "${KTK_OLLAMA_MODEL:-qwen3:4b-instruct}"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8107/health', timeout=3)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
   system-api:
     build:
       context: .
@@ -58,12 +76,15 @@ services:
       KTK_AUDIT_HMAC_SECRET: "ktk-dev-audit-secret-change-me"
       KTK_FASTAPI_PORT: "8010"
       KTK_FASTAPI_URL: "http://127.0.0.1:8010"
+      KTK_AI_URL: "http://ai-api:8107"
       KTK_CORS_ORIGINS: "http://localhost:8080"
     command: ["python", "-m", "backend.run_system", "--host", "0.0.0.0"]
     volumes:
       - backend_runtime:/app/backend/runtime
     depends_on:
       auth-api:
+        condition: service_healthy
+      ai-api:
         condition: service_healthy
       postgres:
         condition: service_healthy

@@ -1,0 +1,160 @@
+import { useEffect, useMemo, useState } from 'react'
+import { AiReviewPanel } from '../ai/AiReviewPanel'
+import type { AiAnalysis } from '../ai/types'
+import { apiPost } from '../lib/api'
+import { usePreferences } from '../settings/PreferencesContext'
+import { useTrainer } from '../sim/TrainerContext'
+import {
+  clearReports,
+  deleteReport,
+  loadReports,
+  updateReportAnalysis,
+  type TraineeReport,
+} from '../sim/reportsStorage'
+import { Icon } from '../ui/Icon'
+import './ReportsPage.css'
+
+type ReportTab = 'overview' | 'ai' | 'actions' | 'events'
+
+function formatDate(ts: number) {
+  return new Date(ts).toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: 'short' })
+}
+
+function scoreTone(score: number) {
+  if (score >= 85) return 'success'
+  if (score >= 65) return 'warning'
+  return 'danger'
+}
+
+export function ReportsPage() {
+  const { openKnowledge, assignMiniTraining } = useTrainer()
+  const { aiEnabled } = usePreferences()
+  const [reports, setReports] = useState<TraineeReport[]>(() => loadReports())
+  const [selectedId, setSelectedId] = useState<string | null>(reports[0]?.id ?? null)
+  const [tab, setTab] = useState<ReportTab>('overview')
+  const [query, setQuery] = useState('')
+  const [analysisStatus, setAnalysisStatus] = useState<'idle' | 'loading' | 'ready' | 'error' | 'disabled'>('idle')
+  const [analysisError, setAnalysisError] = useState('')
+
+  const selected = useMemo(() => reports.find((report) => report.id === selectedId) ?? null, [reports, selectedId])
+  const visibleReports = useMemo(() => {
+    const needle = query.trim().toLocaleLowerCase('ru-RU')
+    return !needle ? reports : reports.filter((report) => `${report.userName} ${report.exerciseName}`.toLocaleLowerCase('ru-RU').includes(needle))
+  }, [query, reports])
+  const averageScore = reports.length ? Math.round(reports.reduce((sum, report) => sum + report.scorePercent, 0) / reports.length) : 0
+  const readyCount = reports.filter((report) => report.scorePercent >= 85).length
+
+  useEffect(() => {
+    setAnalysisStatus(!aiEnabled ? 'disabled' : selected?.aiAnalysis ? 'ready' : 'idle')
+    setAnalysisError('')
+  }, [aiEnabled, selected?.aiAnalysis, selectedId])
+
+  const refresh = () => {
+    const next = loadReports()
+    setReports(next)
+    if (selectedId && !next.some((report) => report.id === selectedId)) setSelectedId(next[0]?.id ?? null)
+  }
+
+  const onDelete = (id: string) => {
+    deleteReport(id)
+    refresh()
+  }
+
+  const onClear = () => {
+    if (!reports.length || !confirm('Удалить все локальные учебные отчёты?')) return
+    clearReports()
+    setReports([])
+    setSelectedId(null)
+  }
+
+  const analyzeSelected = async () => {
+    if (!selected || !aiEnabled) return
+    setAnalysisStatus('loading')
+    setAnalysisError('')
+    try {
+      const analysis = await apiPost<AiAnalysis>('/ai/analyze', {
+        sessionId: selected.id,
+        userName: selected.userName,
+        exerciseId: selected.exerciseId,
+        exerciseName: selected.exerciseName,
+        scorePercent: selected.scorePercent,
+        penalty: selected.penalty,
+        responseSeconds: selected.responseSeconds,
+        respondedInTime: selected.respondedInTime,
+        process: selected.processSnapshot ?? {},
+        actionsLog: selected.actionsLog,
+        systemEvents: selected.systemEvents,
+      })
+      updateReportAnalysis(selected.id, analysis)
+      refresh()
+      setAnalysisStatus('ready')
+    } catch (reason) {
+      setAnalysisError(reason instanceof Error ? reason.message : String(reason))
+      setAnalysisStatus('error')
+    }
+  }
+
+  return (
+    <div className="reports-workspace">
+      <section className="report-summary-cards">
+        <article><span><Icon name="chart" /></span><div><small>Всего сессий</small><strong>{reports.length}</strong></div></article>
+        <article><span className="green"><Icon name="check" /></span><div><small>Готовность ≥ 85%</small><strong>{readyCount}</strong></div></article>
+        <article><span className="violet"><Icon name="target" /></span><div><small>Средний результат</small><strong>{averageScore || '—'}{averageScore ? '%' : ''}</strong></div></article>
+        <article><span className="amber"><Icon name="sparkles" /></span><div><small>Разобрано ИИ</small><strong>{reports.filter((report) => report.aiAnalysis).length}</strong></div></article>
+      </section>
+
+      <div className="reports-layout">
+        <aside className="reports-list">
+          <header><div><span>Архив</span><h2>Учебные сессии</h2></div><button type="button" onClick={onClear} title="Очистить архив"><Icon name="close" /></button></header>
+          <label className="reports-search"><Icon name="search" /><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Сотрудник или упражнение" /></label>
+          <div className="reports-list-scroll">
+            {!visibleReports.length && <div className="reports-empty"><Icon name="chart" /><p>{reports.length ? 'Ничего не найдено.' : 'Отчёты появятся после завершения первой тренировки.'}</p></div>}
+            {visibleReports.map((report) => (
+              <button type="button" key={report.id} className={report.id === selectedId ? 'active' : ''} onClick={() => { setSelectedId(report.id); setTab('overview') }}>
+                <span className={`report-score ${scoreTone(report.scorePercent)}`}>{report.scorePercent}%</span>
+                <span><strong>{report.userName}</strong><small>{report.exerciseName}</small><em>{formatDate(report.completedAt)}</em></span>
+                {report.aiAnalysis && <Icon name="sparkles" />}
+              </button>
+            ))}
+          </div>
+        </aside>
+
+        <section className="reports-detail">
+          {!selected ? <div className="reports-detail-empty"><Icon name="chart" /><h2>Выберите учебную сессию</h2><p>Здесь появятся результат, подробная история и интерпретация ИИ.</p></div> : (
+            <>
+              <header className="report-detail-head">
+                <div><span>Отчёт · {selected.exerciseId}</span><h2>{selected.exerciseName}</h2><p>{selected.userName} · {formatDate(selected.completedAt)}</p></div>
+                <div><button type="button" onClick={() => window.print()}><Icon name="chart" /> Экспорт / печать</button><button type="button" className="danger" onClick={() => onDelete(selected.id)}><Icon name="close" /> Удалить</button></div>
+              </header>
+
+              <nav className="report-tabs" aria-label="Разделы отчёта">
+                {([['overview', 'Сводка', 'activity'], ['ai', 'ИИ-разбор', 'sparkles'], ['actions', 'Действия', 'target'], ['events', 'События', 'alert']] as [ReportTab, string, 'activity' | 'sparkles' | 'target' | 'alert'][]).map(([id, label, icon]) => <button type="button" key={id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}><Icon name={icon} />{label}{id === 'ai' && selected.aiAnalysis && <i />}</button>)}
+              </nav>
+
+              <div className="report-tab-content">
+                {tab === 'overview' && <>
+                  <div className="report-score-hero">
+                    <div className={`report-big-score ${scoreTone(selected.scorePercent)}`} style={{ '--score': selected.scorePercent } as React.CSSProperties}><span>{selected.scorePercent}<small>%</small></span></div>
+                    <div><span>Итоговая оценка</span><h3>{selected.scorePercent >= 85 ? 'Уверенное выполнение' : selected.scorePercent >= 65 ? 'Требуется закрепление' : 'Необходима повторная отработка'}</h3><p>Оценка сформирована из выполнения целевой последовательности, числа лишних действий и реакции на отклонение.</p></div>
+                  </div>
+                  <dl className="report-metrics"><div><dt>Штрафные действия</dt><dd>{selected.penalty}</dd></div><div><dt>Время симуляции</dt><dd>{selected.simTimeSec} с</dd></div><div><dt>Реакция на отказ</dt><dd>{selected.responseSeconds == null ? '—' : `${selected.responseSeconds.toFixed(1)} с`}</dd></div><div><dt>Норматив реакции</dt><dd>{selected.respondedInTime == null ? 'Не применимо' : selected.respondedInTime ? 'Соблюдён' : 'Превышен'}</dd></div></dl>
+                  <section className="report-preview"><header><h3><Icon name="sparkles" /> Интерпретация результата</h3><button type="button" onClick={() => setTab('ai')}>{selected.aiAnalysis ? 'Открыть полный разбор' : 'Запустить анализ'} <Icon name="chevron" /></button></header>{selected.aiAnalysis ? <><strong>{selected.aiAnalysis.overallLevel}</strong><p>{selected.aiAnalysis.summary}</p></> : <p>Локальный ИИ сопоставит историю действий и состояние процесса, затем предложит точечные тренировки и материалы.</p>}</section>
+                </>}
+
+                {tab === 'ai' && <>{analysisStatus === 'idle' ? <div className="report-ai-start"><Icon name="sparkles" /><h3>Готово к детальному разбору</h3><p>ИИ проанализирует полный журнал, технологические параметры и результат. Данные не покинут локальный контур.</p><button type="button" onClick={() => void analyzeSelected()}>Проанализировать сессию</button></div> : <AiReviewPanel analysis={selected.aiAnalysis ?? null} status={analysisStatus} error={analysisError} onRetry={() => void analyzeSelected()} onOpenKnowledge={openKnowledge} onOpenTraining={assignMiniTraining} />}</>}
+
+                {tab === 'actions' && <LogTimeline entries={selected.actionsLog} empty="Действия не зафиксированы." />}
+                {tab === 'events' && <LogTimeline entries={selected.systemEvents} empty="Системные события отсутствуют." />}
+              </div>
+            </>
+          )}
+        </section>
+      </div>
+    </div>
+  )
+}
+
+function LogTimeline({ entries, empty }: { entries: TraineeReport['actionsLog']; empty: string }) {
+  if (!entries.length) return <div className="reports-empty"><Icon name="activity" /><p>{empty}</p></div>
+  return <ol className="report-timeline">{entries.map((entry, index) => <li key={`${entry.at}-${index}`}><time>{new Date(entry.at).toLocaleTimeString('ru-RU')}</time><i /><div><span>Шаг {String(index + 1).padStart(2, '0')}</span><p>{entry.description}</p></div></li>)}</ol>
+}

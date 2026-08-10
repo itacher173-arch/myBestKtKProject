@@ -1,4 +1,4 @@
-"""ПАЗ / cause-and-effect interlocks — port of frontend/src/sim/pazGuards.ts."""
+"""ПАЗ / cause-and-effect interlocks — port of frontend/trainer/src/simulator/pazGuards.ts."""
 
 from __future__ import annotations
 

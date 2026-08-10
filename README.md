@@ -5,13 +5,40 @@
 ## Структура
 
 ```text
-frontend/         # КТК (Vite + React), в Docker → /app/
-auth-frontend/    # Портал входа, в Docker → /
-admin-frontend/   # Админ-панель, в Docker → /admin/
-backend/auth/     # авторизация и пользователи
-backend/          # gateway, storage, knowledge, training, presence
+frontend/
+  trainer/        # КТК (Vite + React), в Docker → /app/
+  auth/           # Портал входа, в Docker → /
+  admin/          # Админ-панель, в Docker → /admin/
+backend/
+  auth/           # авторизация и пользователи
+  gateway/        # API-шлюз
+  ai/             # ИИ-анализ и чат
+  training/       # каталог мини-уроков
+  knowledge/      # база знаний
+  simulator/      # модель процесса
+  storage/        # отчёты, группы, аудит
+  presence/       # онлайн-присутствие
 deploy/docker/    # единый UI-образ (web)
 docker-compose.yml
+```
+
+### Модули тренажёра (`frontend/trainer/src/`)
+
+```text
+app/           # App.tsx, страницы (StartScreen)
+simulator/     # ядро тренажёра + UI-панели (components/)
+scheme/        # топология и SVG-мнемосхема (components/)
+scenarios/     # каталог и упражнения
+training/      # мини-уроки и catalog.json
+storage/       # отчёты, аудит, группы (+ pages/ReportsPage)
+auth/          # клиент API авторизации
+presence/      # онлайн-присутствие
+ai/            # ИИ-ассистент и разбор сессии
+knowledge/     # база знаний
+settings/      # настройки и тема
+layout/        # AppShell
+common/ui/     # общие компоненты (Icon)
+api/           # HTTP-клиент
 ```
 
 ## Запуск
@@ -19,9 +46,9 @@ docker-compose.yml
 ### Локально (без Docker)
 
 ```bash
-npm install --prefix frontend
-npm install --prefix admin-frontend
-npm install --prefix auth-frontend
+npm install --prefix frontend/trainer
+npm install --prefix frontend/admin
+npm install --prefix frontend/auth
 npm run backend   # API :8000
 npm run dev       # КТК :5173
 npm run dev:admin # админка :5174
@@ -35,10 +62,10 @@ read -r "KTK_ADMIN_LOGIN?Логин первого администратора:
 read -rs "KTK_ADMIN_PASSWORD?Пароль первого администратора: "; echo
 export KTK_ADMIN_LOGIN KTK_ADMIN_PASSWORD
 npm run docker:up
-# поднимает web + auth-api + system-api + postgres + redis
+# поднимает web + auth-api + ai-api + system-api + postgres + redis
 ```
 
-Единый UI собирается внутри образа `web` (multi-stage).  
+Единый UI собирается на хосте и упаковывается в образ `web`.  
 Учётные данные первого администратора — только через окружение.
 
 | Сервис       | URL                                    | Образ                        |
