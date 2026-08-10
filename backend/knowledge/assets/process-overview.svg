@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="300" viewBox="0 0 960 300" role="img" aria-labelledby="title desc">
+  <title id="title">Упрощённая схема ЭЛОУ-АВТ</title>
+  <desc id="desc">Последовательность блоков от сырья через подогрев, ЭЛОУ, печи и колонны к продуктам.</desc>
+  <rect width="960" height="300" rx="22" fill="#f2f8fc"/>
+  <g font-family="Arial, sans-serif" text-anchor="middle">
+    <text x="480" y="35" font-size="18" font-weight="700" fill="#082b4c">Учебная блок-схема процесса</text>
+    <text x="480" y="57" font-size="11" fill="#58748a">без реальных тегов, трубной обвязки и режимных значений</text>
+    <g stroke="#087eb9" stroke-width="3" fill="none"><path d="M145 145h45"/><path d="M315 145h45"/><path d="M485 145h45"/><path d="M655 145h45"/><path d="M825 145h35"/></g>
+    <g fill="#087eb9"><path d="m190 145-10-6v12z"/><path d="m360 145-10-6v12z"/><path d="m530 145-10-6v12z"/><path d="m700 145-10-6v12z"/><path d="m860 145-10-6v12z"/></g>
+    <g stroke="#a9c7d9" stroke-width="2" fill="#fff">
+      <rect x="25" y="105" width="120" height="80" rx="12"/><rect x="190" y="105" width="125" height="80" rx="12"/><rect x="360" y="105" width="125" height="80" rx="12"/><rect x="530" y="105" width="125" height="80" rx="12"/><rect x="700" y="105" width="125" height="80" rx="12"/><rect x="860" y="105" width="75" height="80" rx="12"/>
+    </g>
+    <g fill="#082b4c" font-size="13" font-weight="700"><text x="85" y="137">Сырьё</text><text x="252" y="137">Подогрев</text><text x="422" y="137">ЭЛОУ</text><text x="592" y="137">Печи</text><text x="762" y="132">Атмосферная</text><text x="762" y="150">перегонка</text><text x="897" y="137">Продукты</text></g>
+    <g fill="#58748a" font-size="10"><text x="85" y="157">насосы</text><text x="252" y="157">теплообмен</text><text x="422" y="157">вода + поле</text><text x="592" y="157">теплоподвод</text><text x="762" y="170">колонны</text><text x="897" y="157">отборы</text></g>
+    <path d="M422 185v48h340v-48" fill="none" stroke="#58a93b" stroke-width="2" stroke-dasharray="6 5"/>
+    <text x="592" y="252" font-size="11" fill="#3c7d2b">тепловая интеграция продуктовых потоков</text>
+  </g>
+</svg>

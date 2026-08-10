@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 from http.server import ThreadingHTTPServer
 from threading import Thread
 from urllib.error import HTTPError
