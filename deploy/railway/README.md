@@ -30,8 +30,10 @@
 1. **+ New → GitHub Repo** (тот же репозиторий).
 2. Settings:
    - **Service name:** `auth-api`
+   - **Builder:** Dockerfile
    - **Dockerfile path:** `backend/Dockerfile`
-   - **Custom Start Command:**  
+   - **Config-as-code (optional):** `deploy/railway/auth-api.railway.toml`
+   - **Custom Start Command** (если не из toml):  
      `python -m backend.auth.app --host :: --port 8102`
 3. Variables:
 
@@ -52,8 +54,10 @@ KTK_COOKIE_SECURE=1
 1. Ещё один сервис из того же GitHub Repo.
 2. Settings:
    - **Service name:** `system-api`
+   - **Builder:** Dockerfile
    - **Dockerfile path:** `backend/Dockerfile`
-   - **Custom Start Command:**  
+   - **Config-as-code (optional):** `deploy/railway/system-api.railway.toml`
+   - **Custom Start Command** (если не из toml):  
      `python -m backend.run_system --host ::`
 3. Variables:
 
@@ -73,11 +77,13 @@ KTK_CORS_ORIGINS=https://${{web.RAILWAY_PUBLIC_DOMAIN}}
 
 ## 5. web
 
-1. Ещё один сервис из того же GitHub Repo.
+1. Ещё один сервис из того же GitHub Repo **или** первый сервис после Connect
+   (в корне уже есть `railway.toml` → `Dockerfile.web`).
 2. Settings:
    - **Service name:** `web`
+   - **Builder:** Dockerfile  
    - **Dockerfile path:** `deploy/railway/Dockerfile.web`  
-     (либо Config as Code: `deploy/railway/web.railway.json` → укажите путь в Service Settings → Config File)
+     (если подхватился Nixpacks — переключите вручную; Config-as-code: `/railway.toml`)
 3. Variables:
 
 ```text
@@ -111,4 +117,34 @@ Push в `main` пересоберёт `web` / `auth-api` / `system-api`.
 
 - Trial: ~$5 / 30 дней, лимит 5 сервисов — эта схема как раз 5.
 - После trial Free ($1/мес) стек не потянет; нужен Hobby.
-- Локальный `docker-compose.yml` (три UI на 8080/8081/8082) **не меняется**.
+- Локальный `docker-compose.yml` поднимает тот же `web` + API + Postgres + Redis.
+
+## «Failed to build an image» — что проверить
+
+Образ **собирается**, если задан правильный Dockerfile. Без этого Railway
+часто запускает **Nixpacks** по корневому `package.json` (`npm run build` без
+зависимостей frontend) или берёт `frontend/Dockerfile` (ожидает готовый `dist`
+и падает).
+
+1. Откройте упавший деплой → **View Logs** / Build Logs — пришлите хвост ошибки.
+2. Для сервиса **web**:
+   - **Settings → Build → Builder** = `Dockerfile`
+   - **Dockerfile path** = `deploy/railway/Dockerfile.web`  
+   - либо **Config-as-code** = `/railway.toml` (в корне репо уже настроен web)
+3. Для **auth-api**:
+   - Dockerfile = `backend/Dockerfile`
+   - Config-as-code = `deploy/railway/auth-api.railway.toml`
+4. Для **system-api**:
+   - Dockerfile = `backend/Dockerfile`
+   - Config-as-code = `deploy/railway/system-api.railway.toml`
+5. Не указывайте `frontend/Dockerfile`, `admin-frontend/Dockerfile`,
+   `auth-frontend/Dockerfile` — они только для старого локального сценария и
+   **ломают** сборку из корня репозитория (нет `dist` в контексте).
+6. После смены пути Dockerfile нажмите **Redeploy**.
+
+Локальная проверка того же образа, что на Railway:
+
+```bash
+docker build -f deploy/railway/Dockerfile.web -t ktk-web .
+docker build -f backend/Dockerfile -t ktk-api .
+```
