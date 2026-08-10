@@ -1,0 +1,35 @@
+{
+  "version": "1.0",
+  "inputs": [
+    "sessionId",
+    "userId",
+    "roleId",
+    "scenarioId",
+    "startedAt",
+    "finishedAt",
+    "processSnapshots",
+    "actions",
+    "systemEvents",
+    "score",
+    "penalty",
+    "responseSeconds"
+  ],
+  "outputs": [
+    "trajectory",
+    "findings",
+    "strengths",
+    "errors",
+    "recommendations",
+    "knowledgeLinks",
+    "confidence",
+    "modelVersion"
+  ],
+  "mandatoryControls": [
+    "ИИ не управляет симуляцией",
+    "рекомендации объяснимы и содержат evidence",
+    "выход ИИ можно отключить",
+    "результат без ИИ сохраняется",
+    "персональные данные минимизируются",
+    "все вызовы аудируются"
+  ]
+}

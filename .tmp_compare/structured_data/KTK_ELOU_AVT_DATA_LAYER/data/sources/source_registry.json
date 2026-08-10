@@ -1,0 +1,114 @@
+[
+  {
+    "id": "SRC-CASE-001",
+    "category": "Кейс",
+    "title": "Кейс КТК ЭЛОУ-АВТ",
+    "originalFile": "Кейс(1).pdf",
+    "access": "internal-review-required",
+    "publication": "metadata-only"
+  },
+  {
+    "id": "SRC-KTS-001",
+    "category": "Технологическая схема",
+    "title": "Схема КТС ЭЛОУ-АВТ",
+    "originalFile": "01_Схема КТС.pdf",
+    "access": "internal-review-required",
+    "publication": "metadata-only"
+  },
+  {
+    "id": "SRC-PROC-001",
+    "category": "Технологический процесс",
+    "title": "Описание технологического процесса",
+    "originalFile": "3. Описание технологического процесса.pdf",
+    "access": "internal-review-required",
+    "publication": "metadata-only"
+  },
+  {
+    "id": "SRC-ANALYTICS-001",
+    "category": "Аналитический контроль",
+    "title": "Аналитический контроль технологического процесса",
+    "originalFile": "5.1 Аналитический контроль технологического процесса.pdf",
+    "access": "internal-review-required",
+    "publication": "metadata-only"
+  },
+  {
+    "id": "SRC-HAZ-001",
+    "category": "Промышленная безопасность",
+    "title": "Основные опасности производства",
+    "originalFile": "7.4 Сведения об основных опасностях производства.pdf",
+    "access": "internal-review-required",
+    "publication": "metadata-only"
+  },
+  {
+    "id": "SRC-SAFETY-001",
+    "category": "Промышленная безопасность",
+    "title": "Меры безопасности при эксплуатации",
+    "originalFile": "7.7 Меры безопасности при эксплуатации производственных объектов.pdf",
+    "access": "internal-review-required",
+    "publication": "metadata-only"
+  },
+  {
+    "id": "SRC-PPE-001",
+    "category": "Охрана труда",
+    "title": "Средства индивидуальной защиты",
+    "originalFile": "7.21 Средства индивидуальной защиты работающих.pdf",
+    "access": "internal-review-required",
+    "publication": "metadata-only"
+  },
+  {
+    "id": "SRC-EQUIP-001",
+    "category": "Оборудование",
+    "title": "Краткая характеристика технологического оборудования",
+    "originalFile": "9.1 Краткая зарактеристика технологического оборудования.pdf",
+    "access": "internal-review-required",
+    "publication": "metadata-only"
+  },
+  {
+    "id": "SRC-PUMP-001",
+    "category": "Оборудование",
+    "title": "Насосное оборудование",
+    "originalFile": "9.1.3 Насосное оборудование.pdf",
+    "access": "internal-review-required",
+    "publication": "metadata-only"
+  },
+  {
+    "id": "SRC-HEAT-001",
+    "category": "Оборудование",
+    "title": "Теплообменное и холодильное оборудование",
+    "originalFile": "9.1.4 Теплообменное и холодильное оборудование.pdf",
+    "access": "internal-review-required",
+    "publication": "metadata-only"
+  },
+  {
+    "id": "SRC-VENT-001",
+    "category": "Оборудование",
+    "title": "Вентиляционное оборудование",
+    "originalFile": "9.1.6 Вентиляционное оборудование.pdf",
+    "access": "internal-review-required",
+    "publication": "metadata-only"
+  },
+  {
+    "id": "SRC-REQ-001",
+    "category": "Требования",
+    "title": "Отчёт по требованиям и спецификации v.2",
+    "originalFile": "Отчет по требованиям и спецификации v.2.docx",
+    "access": "project",
+    "publication": "derived-markdown"
+  },
+  {
+    "id": "SRC-BA-001",
+    "category": "Бизнес-анализ",
+    "title": "Презентация по бизнес-анализу",
+    "originalFile": "Презентация БА, в.2.pdf",
+    "access": "project",
+    "publication": "metadata-only"
+  },
+  {
+    "id": "SRC-ARCH-001",
+    "category": "Архитектура",
+    "title": "От требований к архитектуре решения",
+    "originalFile": "КЭМП_Специалисты_Слот1_От_требований_к_архитектуре_решения.pdf",
+    "access": "project",
+    "publication": "metadata-only"
+  }
+]

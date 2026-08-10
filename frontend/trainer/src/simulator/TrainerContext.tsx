@@ -1589,6 +1589,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
         seed: serverSimMetaRef.current.seed,
         serverSessionId: serverSimIdRef.current,
         sessionMode: cur.session.mode,
+        processSnapshot: cur.process as unknown as Record<string, unknown>,
         analogSample,
         actionsLog: cur.actionsLog.map(({ at, description }) => ({
           at,

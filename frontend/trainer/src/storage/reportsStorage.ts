@@ -58,6 +58,8 @@ export interface TraineeReport {
   } | null
   recommendExerciseId?: string | null
   recommendReason?: string | null
+  /** Снимок процесса для повторного ИИ-разбора */
+  processSnapshot?: Record<string, unknown>
   analogSample?: AnalogSample[]
   actionsLog: StoredLogEntry[]
   systemEvents: StoredLogEntry[]

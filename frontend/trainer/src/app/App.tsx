@@ -23,6 +23,7 @@ import { ScenarioChecklist } from '../simulator/components/ScenarioChecklist'
 import { SchemeQuickBar } from '../simulator/components/SchemeQuickBar'
 import { TrendStrip } from '../simulator/components/TrendStrip'
 import { ReportsPage } from '../storage/pages/ReportsPage'
+import { MyResultsPage } from '../storage/pages/MyResultsPage'
 import { StartScreen } from './pages/StartScreen'
 import { WorkRoleBar } from './components/WorkRoleBar'
 import { EquipmentPanel } from '../scheme/components/EquipmentPanel'
@@ -64,8 +65,11 @@ function TrainerApp() {
   } = useTrainer()
   const { session } = state
   const user = getAuthedUser()
-  const canViewReports =
-    Boolean(user && hasRole(user, 'instructor') && isInstructorAuthed())
+  const canViewInstructorReports = Boolean(
+    user && hasRole(user, 'instructor') && isInstructorAuthed(),
+  )
+  const canViewOwnResults = Boolean(user && hasRole(user, 'trainee'))
+  const canViewReports = canViewInstructorReports || canViewOwnResults
 
   const navItems = useMemo(
     () => [
@@ -86,7 +90,10 @@ function TrainerApp() {
       },
       {
         id: 'reports',
-        label: t('reports'),
+        label:
+          canViewInstructorReports && session.role === 'instructor'
+            ? t('reports')
+            : 'Результаты',
         icon: 'chart' as const,
         active: session.view === 'reports',
         disabled: !canViewReports,
@@ -102,6 +109,7 @@ function TrainerApp() {
       },
     ],
     [
+      canViewInstructorReports,
       canViewReports,
       openKnowledge,
       openReports,
@@ -125,14 +133,25 @@ function TrainerApp() {
       </>
     )
   } else if (session.view === 'reports') {
-    title = 'Кабинет инструктора'
-    subtitle = 'Группы, отчёты квалификации и управление обучением'
-    content = (
-      <>
-        <WorkRoleBar />
-        <ReportsPage />
-      </>
-    )
+    if (canViewInstructorReports && session.role === 'instructor') {
+      title = 'Кабинет инструктора'
+      subtitle = 'Группы, отчёты квалификации и управление обучением'
+      content = (
+        <>
+          <WorkRoleBar />
+          <ReportsPage />
+        </>
+      )
+    } else {
+      title = 'Мои результаты'
+      subtitle = 'Архив сессий, оценка и локальный ИИ-разбор'
+      content = (
+        <>
+          <WorkRoleBar />
+          <MyResultsPage />
+        </>
+      )
+    }
   } else {
     fullBleed = true
     const exercise = getExercise(session.exerciseId)

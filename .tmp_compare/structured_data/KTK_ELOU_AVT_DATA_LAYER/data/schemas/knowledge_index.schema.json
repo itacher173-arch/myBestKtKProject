@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "KTK knowledge index",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": [
+      "id",
+      "title",
+      "category",
+      "contentFile",
+      "sourceRefs"
+    ],
+    "additionalProperties": true
+  }
+}

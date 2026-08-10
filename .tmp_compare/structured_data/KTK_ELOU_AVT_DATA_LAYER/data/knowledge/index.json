@@ -1,0 +1,511 @@
+[
+  {
+    "id": "trainer-use",
+    "title": "Как работать с тренажером",
+    "category": "Работа с КТК",
+    "summary": "Запуск занятия, управление мнемосхемой, завершение и фиксация результата.",
+    "source": "Руководство пользователя КТК",
+    "keywords": [
+      "тренажер",
+      "запуск",
+      "управление",
+      "отчет"
+    ],
+    "sourceRefs": [],
+    "status": "reviewed-for-prototype",
+    "audience": [
+      "trainee",
+      "instructor"
+    ],
+    "version": "1.0",
+    "contentFile": "articles/trainer-use.md"
+  },
+  {
+    "id": "mini-training",
+    "title": "Формат мини-обучения",
+    "category": "Работа с КТК",
+    "summary": "Изолированная тренировка одного технологического сегмента с контролем целей.",
+    "source": "Спецификация КТК, разделы 7–8",
+    "keywords": [
+      "мини-обучение",
+      "сегмент",
+      "цель",
+      "критерий"
+    ],
+    "sourceRefs": [],
+    "status": "reviewed-for-prototype",
+    "audience": [
+      "trainee",
+      "instructor"
+    ],
+    "version": "1.0",
+    "contentFile": "articles/mini-training.md"
+  },
+  {
+    "id": "process-overview",
+    "title": "Общая последовательность ЭЛОУ-АВТ",
+    "category": "Технологический процесс",
+    "summary": "Путь нефти от сырьевых насосов через ЭЛОУ, печи и атмосферные колонны.",
+    "source": "3. Описание технологического процесса.pdf",
+    "keywords": [
+      "ЭЛОУ-АВТ",
+      "нефть",
+      "К-1",
+      "К-2",
+      "процесс"
+    ],
+    "sourceRefs": [
+      "SRC-PROC-001"
+    ],
+    "status": "reviewed-for-prototype",
+    "audience": [
+      "trainee",
+      "instructor"
+    ],
+    "version": "1.0",
+    "contentFile": "articles/process-overview.md"
+  },
+  {
+    "id": "feed-system",
+    "title": "Система подачи сырой нефти",
+    "category": "Технологический процесс",
+    "summary": "Входной тракт, задвижка Л-1, параллельные потоки и контроль подачи.",
+    "source": "3. Описание технологического процесса.pdf; 01_Схема КТС.pdf",
+    "keywords": [
+      "сырая нефть",
+      "Л-1",
+      "подача",
+      "коллектор"
+    ],
+    "sourceRefs": [
+      "SRC-PROC-001",
+      "SRC-KTS-001"
+    ],
+    "status": "reviewed-for-prototype",
+    "audience": [
+      "trainee",
+      "instructor"
+    ],
+    "version": "1.0",
+    "contentFile": "articles/feed-system.md"
+  },
+  {
+    "id": "feed-pumps",
+    "title": "Сырьевые насосы Н-1",
+    "category": "Оборудование",
+    "summary": "Назначение, резервирование и учебные параметры сырьевой насосной группы.",
+    "source": "9.1.3 Насосное оборудование.pdf",
+    "keywords": [
+      "Н-1",
+      "насос",
+      "450",
+      "резерв"
+    ],
+    "sourceRefs": [
+      "SRC-PUMP-001"
+    ],
+    "status": "reviewed-for-prototype",
+    "audience": [
+      "trainee",
+      "instructor"
+    ],
+    "version": "1.0",
+    "contentFile": "articles/feed-pumps.md"
+  },
+  {
+    "id": "preheat-system",
+    "title": "Предварительный нагрев нефти",
+    "category": "Технологический процесс",
+    "summary": "Теплообменные потоки перед ЭЛОУ и влияние байпаса на температуру.",
+    "source": "3. Описание технологического процесса.pdf; 9.1.4 Теплообменное и холодильное оборудование.pdf",
+    "keywords": [
+      "нагрев",
+      "теплообменник",
+      "байпас",
+      "температура"
+    ],
+    "sourceRefs": [
+      "SRC-PROC-001",
+      "SRC-HEAT-001"
+    ],
+    "status": "reviewed-for-prototype",
+    "audience": [
+      "trainee",
+      "instructor"
+    ],
+    "version": "1.0",
+    "contentFile": "articles/preheat-system.md"
+  },
+  {
+    "id": "elou-principle",
+    "title": "Принцип работы ЭЛОУ",
+    "category": "Технологический процесс",
+    "summary": "Промывная вода, деэмульгатор, смешение и электрическое разделение фаз.",
+    "source": "3. Описание технологического процесса.pdf",
+    "keywords": [
+      "ЭЛОУ",
+      "деэмульгатор",
+      "промывная вода",
+      "электрическое поле"
+    ],
+    "sourceRefs": [
+      "SRC-PROC-001"
+    ],
+    "status": "reviewed-for-prototype",
+    "audience": [
+      "trainee",
+      "instructor"
+    ],
+    "version": "1.0",
+    "contentFile": "articles/elou-principle.md"
+  },
+  {
+    "id": "electro-dehydrators",
+    "title": "Электродегидраторы Э-1…Э-6",
+    "category": "Оборудование",
+    "summary": "Назначение аппаратов, питание электрического поля и контролируемые параметры.",
+    "source": "3. Описание технологического процесса.pdf; 9.1 Краткая характеристика технологического оборудования.pdf",
+    "keywords": [
+      "Э-1",
+      "Э-6",
+      "электродегидратор",
+      "напряжение"
+    ],
+    "sourceRefs": [
+      "SRC-PROC-001"
+    ],
+    "status": "reviewed-for-prototype",
+    "audience": [
+      "trainee",
+      "instructor"
+    ],
+    "version": "1.0",
+    "contentFile": "articles/electro-dehydrators.md"
+  },
+  {
+    "id": "elou-quality",
+    "title": "Контроль качества после ЭЛОУ",
+    "category": "Аналитический контроль",
+    "summary": "Остаточная вода и хлориды как главные показатели эффективности обессоливания.",
+    "source": "5.1 Аналитический контроль технологического процесса.pdf",
+    "keywords": [
+      "соли",
+      "вода",
+      "анализ",
+      "качество"
+    ],
+    "sourceRefs": [
+      "SRC-ANALYTICS-001"
+    ],
+    "status": "reviewed-for-prototype",
+    "audience": [
+      "trainee",
+      "instructor"
+    ],
+    "version": "1.0",
+    "contentFile": "articles/elou-quality.md"
+  },
+  {
+    "id": "k1-control",
+    "title": "Регулирование колонны К-1",
+    "category": "Технологический процесс",
+    "summary": "Давление, уровень, нагрев и верхнее охлаждение К-1.",
+    "source": "3. Описание технологического процесса.pdf; 7.7 Меры безопасности при эксплуатации производственных объектов.pdf",
+    "keywords": [
+      "К-1",
+      "давление",
+      "орошение",
+      "охлаждение"
+    ],
+    "sourceRefs": [
+      "SRC-PROC-001",
+      "SRC-SAFETY-001"
+    ],
+    "status": "reviewed-for-prototype",
+    "audience": [
+      "trainee",
+      "instructor"
+    ],
+    "version": "1.0",
+    "contentFile": "articles/k1-control.md"
+  },
+  {
+    "id": "k1-low-level",
+    "title": "Опасность низкого уровня К-1",
+    "category": "Промышленная безопасность",
+    "summary": "Потеря циркуляции через печь и требуемая разгрузка теплового тракта.",
+    "source": "7.7 Меры безопасности при эксплуатации производственных объектов.pdf",
+    "keywords": [
+      "К-1",
+      "низкий уровень",
+      "циркуляция",
+      "защита"
+    ],
+    "sourceRefs": [
+      "SRC-SAFETY-001"
+    ],
+    "status": "reviewed-for-prototype",
+    "audience": [
+      "trainee",
+      "instructor"
+    ],
+    "version": "1.0",
+    "contentFile": "articles/k1-low-level.md"
+  },
+  {
+    "id": "e1-water",
+    "title": "Высокий уровень воды в Е-1/Е-2",
+    "category": "Промышленная безопасность",
+    "summary": "Риск уноса воды, скачка давления и порядок учебного дренирования.",
+    "source": "7.7 Меры безопасности при эксплуатации производственных объектов.pdf",
+    "keywords": [
+      "Е-1",
+      "Е-2",
+      "вода",
+      "дренаж",
+      "давление"
+    ],
+    "sourceRefs": [
+      "SRC-SAFETY-001"
+    ],
+    "status": "reviewed-for-prototype",
+    "audience": [
+      "trainee",
+      "instructor"
+    ],
+    "version": "1.0",
+    "contentFile": "articles/e1-water.md"
+  },
+  {
+    "id": "furnace-operation",
+    "title": "Управление печным трактом",
+    "category": "Технологический процесс",
+    "summary": "Связь расхода продукта, топлива, температуры выхода и нагрузки колонн.",
+    "source": "3. Описание технологического процесса.pdf",
+    "keywords": [
+      "печь",
+      "топливо",
+      "температура",
+      "нагрев"
+    ],
+    "sourceRefs": [
+      "SRC-PROC-001"
+    ],
+    "status": "reviewed-for-prototype",
+    "audience": [
+      "trainee",
+      "instructor"
+    ],
+    "version": "1.0",
+    "contentFile": "articles/furnace-operation.md"
+  },
+  {
+    "id": "furnace-safety",
+    "title": "Безопасность печей и змеевиков",
+    "category": "Промышленная безопасность",
+    "summary": "Опасность перегрева, прогара и разгерметизации змеевика.",
+    "source": "7.4 Сведения об основных опасностях производства.pdf; 7.7 Меры безопасности при эксплуатации производственных объектов.pdf",
+    "keywords": [
+      "печь",
+      "змеевик",
+      "перегрев",
+      "пожар"
+    ],
+    "sourceRefs": [
+      "SRC-HAZ-001",
+      "SRC-SAFETY-001"
+    ],
+    "status": "reviewed-for-prototype",
+    "audience": [
+      "trainee",
+      "instructor"
+    ],
+    "version": "1.0",
+    "contentFile": "articles/furnace-safety.md"
+  },
+  {
+    "id": "k2-control",
+    "title": "Регулирование колонны К-2",
+    "category": "Технологический процесс",
+    "summary": "Тепловой баланс, верхнее давление, орошение и охлаждение атмосферной колонны.",
+    "source": "3. Описание технологического процесса.pdf",
+    "keywords": [
+      "К-2",
+      "давление",
+      "фракционирование",
+      "орошение"
+    ],
+    "sourceRefs": [
+      "SRC-PROC-001"
+    ],
+    "status": "reviewed-for-prototype",
+    "audience": [
+      "trainee",
+      "instructor"
+    ],
+    "version": "1.0",
+    "contentFile": "articles/k2-control.md"
+  },
+  {
+    "id": "k2-low-level",
+    "title": "Низкий уровень куба К-2",
+    "category": "Промышленная безопасность",
+    "summary": "Разгрузка печей и восстановление материального баланса при низком уровне.",
+    "source": "7.7 Меры безопасности при эксплуатации производственных объектов.pdf",
+    "keywords": [
+      "К-2",
+      "низкий уровень",
+      "баланс",
+      "разгрузка"
+    ],
+    "sourceRefs": [
+      "SRC-SAFETY-001"
+    ],
+    "status": "reviewed-for-prototype",
+    "audience": [
+      "trainee",
+      "instructor"
+    ],
+    "version": "1.0",
+    "contentFile": "articles/k2-low-level.md"
+  },
+  {
+    "id": "cooling-system",
+    "title": "Оборотная вода и воздушное охлаждение",
+    "category": "Инженерные системы",
+    "summary": "Два канала отвода тепла от верхних продуктов колонн.",
+    "source": "9.1.4 Теплообменное и холодильное оборудование.pdf",
+    "keywords": [
+      "оборотная вода",
+      "АВО",
+      "АВЗ-3",
+      "охлаждение"
+    ],
+    "sourceRefs": [
+      "SRC-HEAT-001"
+    ],
+    "status": "reviewed-for-prototype",
+    "audience": [
+      "trainee",
+      "instructor"
+    ],
+    "version": "1.0",
+    "contentFile": "articles/cooling-system.md"
+  },
+  {
+    "id": "cooling-loss",
+    "title": "Действия при потере охлаждения",
+    "category": "Промышленная безопасность",
+    "summary": "Почему растет давление и какие воздействия доступны в учебной модели.",
+    "source": "7.7 Меры безопасности при эксплуатации производственных объектов.pdf",
+    "keywords": [
+      "потеря воды",
+      "давление",
+      "разгрузка",
+      "останов"
+    ],
+    "sourceRefs": [
+      "SRC-SAFETY-001"
+    ],
+    "status": "reviewed-for-prototype",
+    "audience": [
+      "trainee",
+      "instructor"
+    ],
+    "version": "1.0",
+    "contentFile": "articles/cooling-loss.md"
+  },
+  {
+    "id": "instrument-air",
+    "title": "Приборный воздух",
+    "category": "Инженерные системы",
+    "summary": "Назначение воздуха КИП и влияние его потери на регулирующие органы.",
+    "source": "7.7 Меры безопасности при эксплуатации производственных объектов.pdf",
+    "keywords": [
+      "приборный воздух",
+      "КИП",
+      "клапан",
+      "ресивер"
+    ],
+    "sourceRefs": [
+      "SRC-SAFETY-001"
+    ],
+    "status": "reviewed-for-prototype",
+    "audience": [
+      "trainee",
+      "instructor"
+    ],
+    "version": "1.0",
+    "contentFile": "articles/instrument-air.md"
+  },
+  {
+    "id": "ventilation",
+    "title": "Вентиляция помещений ЭЛОУ",
+    "category": "Инженерные системы",
+    "summary": "Назначение приточно-вытяжных систем и риск накопления горючих паров.",
+    "source": "9.1.6 Вентиляционное оборудование.pdf; 7.7 Меры безопасности при эксплуатации производственных объектов.pdf",
+    "keywords": [
+      "вентиляция",
+      "ЭЛОУ",
+      "загазованность",
+      "НКПР"
+    ],
+    "sourceRefs": [
+      "SRC-VENT-001",
+      "SRC-SAFETY-001"
+    ],
+    "status": "reviewed-for-prototype",
+    "audience": [
+      "trainee",
+      "instructor"
+    ],
+    "version": "1.0",
+    "contentFile": "articles/ventilation.md"
+  },
+  {
+    "id": "analytical-control",
+    "title": "Аналитический контроль процесса",
+    "category": "Аналитический контроль",
+    "summary": "Как использовать лабораторные и поточные показатели в управлении режимом.",
+    "source": "5.1 Аналитический контроль технологического процесса.pdf",
+    "keywords": [
+      "анализ",
+      "проба",
+      "лаборатория",
+      "Q-ELOU"
+    ],
+    "sourceRefs": [
+      "SRC-ANALYTICS-001"
+    ],
+    "status": "reviewed-for-prototype",
+    "audience": [
+      "trainee",
+      "instructor"
+    ],
+    "version": "1.0",
+    "contentFile": "articles/analytical-control.md"
+  },
+  {
+    "id": "ppe",
+    "title": "Средства индивидуальной защиты",
+    "category": "Промышленная безопасность",
+    "summary": "Общий принцип выбора СИЗ для работ на установке.",
+    "source": "7.21 Средства индивидуальной защиты работающих.pdf",
+    "keywords": [
+      "СИЗ",
+      "каска",
+      "респиратор",
+      "спецодежда"
+    ],
+    "sourceRefs": [
+      "SRC-PPE-001"
+    ],
+    "status": "reviewed-for-prototype",
+    "audience": [
+      "trainee",
+      "instructor"
+    ],
+    "version": "1.0",
+    "contentFile": "articles/ppe.md"
+  }
+]

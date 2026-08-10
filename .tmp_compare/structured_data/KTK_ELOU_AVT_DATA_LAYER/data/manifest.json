@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "1.0.0",
+  "product": "КТК ЭЛОУ-АВТ",
+  "description": "Версионируемый слой предметных, учебных и справочных данных, отделённый от программного кода.",
+  "generatedFrom": "KTK_ELOU_AVT_PROTOTYPE_5_0",
+  "counts": {
+    "sources": 14,
+    "segments": 8,
+    "equipment": 138,
+    "processParameters": 31,
+    "roles": 8,
+    "actions": 15,
+    "scenarios": 17,
+    "miniTrainings": 13,
+    "knowledgeArticles": 22,
+    "aiErrorClasses": 12
+  },
+  "publicationProfile": "public-safe-derived-data",
+  "excluded": [
+    "исходные PDF/DOCX без проверки владельцем данных",
+    "демонстрационные учётные данные",
+    "SQLite/логи/результаты пользователей",
+    "секреты и параметры окружения"
+  ]
+}

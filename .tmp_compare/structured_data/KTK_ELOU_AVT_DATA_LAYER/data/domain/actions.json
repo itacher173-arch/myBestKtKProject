@@ -1,0 +1,137 @@
+[
+  {
+    "id": "ACT-VALVE-L1",
+    "command": "valve:L-1",
+    "title": "Управление Л-1",
+    "category": "valve",
+    "equipmentId": "L-1",
+    "confirmationRequired": false,
+    "audited": true
+  },
+  {
+    "id": "ACT-VALVE-L2",
+    "command": "valve:L-2",
+    "title": "Управление Л-2",
+    "category": "valve",
+    "equipmentId": "L-2",
+    "confirmationRequired": false,
+    "audited": true
+  },
+  {
+    "id": "ACT-VALVE-L3",
+    "command": "valve:L-3",
+    "title": "Управление Л-3",
+    "category": "valve",
+    "equipmentId": "L-3",
+    "confirmationRequired": false,
+    "audited": true
+  },
+  {
+    "id": "ACT-PUMP-N1",
+    "command": "pump:N-1",
+    "title": "Пуск/останов Н-1",
+    "category": "pump",
+    "equipmentId": "N-1",
+    "confirmationRequired": true,
+    "audited": true
+  },
+  {
+    "id": "ACT-PUMP-N2",
+    "command": "pump:N-2",
+    "title": "Пуск/останов Н-2",
+    "category": "pump",
+    "equipmentId": "N-2",
+    "confirmationRequired": true,
+    "audited": true
+  },
+  {
+    "id": "ACT-PUMP-N3",
+    "command": "pump:N-3",
+    "title": "Пуск/останов Н-3",
+    "category": "pump",
+    "equipmentId": "N-3",
+    "confirmationRequired": true,
+    "audited": true
+  },
+  {
+    "id": "ACT-ELOU-DEM",
+    "command": "elou:demulsifier",
+    "title": "Подача деэмульгатора",
+    "category": "process",
+    "equipmentId": "ELOU-block",
+    "confirmationRequired": false,
+    "audited": true
+  },
+  {
+    "id": "ACT-ELOU-FIELD",
+    "command": "elou:electric-field",
+    "title": "Электрическое поле",
+    "category": "process",
+    "equipmentId": "ELOU-block",
+    "confirmationRequired": true,
+    "audited": true
+  },
+  {
+    "id": "ACT-ELOU-WATER",
+    "command": "elou:wash-water",
+    "title": "Промывная вода",
+    "category": "process",
+    "equipmentId": "ELOU-block",
+    "confirmationRequired": false,
+    "audited": true
+  },
+  {
+    "id": "ACT-FUEL",
+    "command": "furnace:fuel-gas",
+    "title": "Подача топливного газа",
+    "category": "setpoint",
+    "equipmentId": "P-1",
+    "confirmationRequired": true,
+    "audited": true
+  },
+  {
+    "id": "ACT-K1-LVL",
+    "command": "column:K-1-level",
+    "title": "Уставка уровня К-1",
+    "category": "setpoint",
+    "equipmentId": "K-1",
+    "confirmationRequired": false,
+    "audited": true
+  },
+  {
+    "id": "ACT-K2-LVL",
+    "command": "column:K-2-level",
+    "title": "Уставка уровня К-2",
+    "category": "setpoint",
+    "equipmentId": "K-2",
+    "confirmationRequired": false,
+    "audited": true
+  },
+  {
+    "id": "ACT-AVO",
+    "command": "cooling:AVZ-3",
+    "title": "Воздушное охлаждение",
+    "category": "utility",
+    "equipmentId": "AVZ-3",
+    "confirmationRequired": false,
+    "audited": true
+  },
+  {
+    "id": "ACT-ESD",
+    "command": "emergency:esd",
+    "title": "Аварийная остановка печи",
+    "category": "emergency",
+    "equipmentId": "P-1",
+    "confirmationRequired": true,
+    "audited": true
+  },
+  {
+    "id": "ACT-SAFE-STOP",
+    "command": "emergency:safe-shutdown",
+    "title": "Безопасный останов установки",
+    "category": "emergency",
+    "equipmentId": "UTIL-block",
+    "confirmationRequired": true,
+    "audited": true
+  }
+]

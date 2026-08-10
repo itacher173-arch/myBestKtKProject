@@ -1,0 +1,252 @@
+[
+  {
+    "id": "zone-1",
+    "code": "SEG-01",
+    "title": "1. Сырьё",
+    "processKey": "1. Сырьё",
+    "order": 1,
+    "separatorX": 0,
+    "equipmentIds": [
+      "parks-55-5",
+      "feed-crude",
+      "N-1",
+      "L-1",
+      "PR_351",
+      "zone-1",
+      "UTIL-block"
+    ],
+    "sourceRefs": [
+      "SRC-KTS-001",
+      "SRC-PROC-001"
+    ]
+  },
+  {
+    "id": "zone-2",
+    "code": "SEG-02",
+    "title": "2. Подогрев",
+    "processKey": "2. Подогрев",
+    "order": 2,
+    "separatorX": 300,
+    "equipmentIds": [
+      "HX-stream-1",
+      "HX-stream-2",
+      "HX-stream-3",
+      "HX-block-label",
+      "X-18",
+      "X-38",
+      "T-27-2",
+      "T-27-3",
+      "T-27-4",
+      "T-27-7",
+      "zone-2"
+    ],
+    "sourceRefs": [
+      "SRC-KTS-001",
+      "SRC-PROC-001"
+    ]
+  },
+  {
+    "id": "zone-3",
+    "code": "SEG-03",
+    "title": "3. ЭЛОУ",
+    "processKey": "3. ЭЛОУ",
+    "order": 3,
+    "separatorX": 620,
+    "equipmentIds": [
+      "ELOU-block",
+      "E-1",
+      "E-3",
+      "E-5",
+      "E-2",
+      "E-4",
+      "E-6",
+      "E-15",
+      "E-16",
+      "TR_41_2",
+      "Q_ELOU",
+      "PRA_312",
+      "N-20",
+      "zone-3"
+    ],
+    "sourceRefs": [
+      "SRC-KTS-001",
+      "SRC-PROC-001"
+    ]
+  },
+  {
+    "id": "zone-4",
+    "code": "SEG-04",
+    "title": "4. Атмосферный",
+    "processKey": "4. Атмосферный",
+    "order": 4,
+    "separatorX": 1040,
+    "equipmentIds": [
+      "TR1K_21",
+      "PRSA_204",
+      "HX-desalted",
+      "K-1",
+      "L-2",
+      "LRCA_602",
+      "TR_55_1",
+      "E-1-vessel",
+      "E-44k",
+      "N-6",
+      "N-6K",
+      "N-41B",
+      "N-2",
+      "N-3",
+      "P-1",
+      "P-2",
+      "P-3",
+      "X-1",
+      "AVZ-3",
+      "zone-4"
+    ],
+    "sourceRefs": [
+      "SRC-KTS-001",
+      "SRC-PROC-001"
+    ]
+  },
+  {
+    "id": "zone-gdm",
+    "code": "SEG-05",
+    "title": "ГДМ / К-12",
+    "processKey": "4–5. ГДМ",
+    "order": 5,
+    "separatorX": 1500,
+    "equipmentIds": [
+      "K-12-2",
+      "K-12-3",
+      "K-12-4",
+      "N-68",
+      "N-23",
+      "N-49",
+      "N-110k",
+      "N-111k",
+      "X-15",
+      "X-19",
+      "X-24",
+      "X-8",
+      "S-1k",
+      "Sm-1k",
+      "HV-15k",
+      "HV-30k",
+      "HV-31k",
+      "AVG-1",
+      "zone-gdm"
+    ],
+    "sourceRefs": [
+      "SRC-KTS-001",
+      "SRC-PROC-001"
+    ]
+  },
+  {
+    "id": "zone-5",
+    "code": "SEG-06",
+    "title": "5. К-2 / стриппинги",
+    "processKey": "5. К-2 / стриппинги",
+    "order": 6,
+    "separatorX": 1940,
+    "equipmentIds": [
+      "K-2",
+      "L-3",
+      "LRCA_604",
+      "PRSA_213",
+      "E-2-vessel",
+      "X-2",
+      "AVZ-45",
+      "N-7",
+      "N-12",
+      "N-13",
+      "N-17",
+      "N-6x",
+      "K-3-1",
+      "K-3-2",
+      "K-3-3",
+      "N-14",
+      "N-15",
+      "N-16",
+      "N-4",
+      "N-32",
+      "A-1",
+      "A-2-1",
+      "T-20",
+      "zone-5"
+    ],
+    "sourceRefs": [
+      "SRC-KTS-001",
+      "SRC-PROC-001"
+    ]
+  },
+  {
+    "id": "zone-6",
+    "code": "SEG-07",
+    "title": "6. Стабилизация",
+    "processKey": "6. Стабилизация",
+    "order": 7,
+    "separatorX": 2460,
+    "equipmentIds": [
+      "K-4",
+      "E-3-vessel",
+      "E-1K",
+      "T-1K",
+      "N-10",
+      "K-7",
+      "N-47",
+      "N-78",
+      "X-4",
+      "T-14",
+      "T-15-1",
+      "T-15-2",
+      "T-16",
+      "X-5",
+      "X-7",
+      "X-9",
+      "X-12",
+      "T-30",
+      "X-11",
+      "A-2-2",
+      "A-3",
+      "A-4",
+      "A-5",
+      "zone-6"
+    ],
+    "sourceRefs": [
+      "SRC-KTS-001",
+      "SRC-PROC-001"
+    ]
+  },
+  {
+    "id": "zone-7",
+    "code": "SEG-08",
+    "title": "7. Вторичная",
+    "processKey": "7. Вторичная",
+    "order": 8,
+    "separatorX": 2980,
+    "equipmentIds": [
+      "N-57",
+      "K-9",
+      "K-10",
+      "E-18",
+      "E-17",
+      "N-54",
+      "N-55",
+      "P-4",
+      "N-76",
+      "N-77",
+      "N-58",
+      "AVZ-12",
+      "X-20",
+      "X-22",
+      "X-26",
+      "X-27",
+      "X-25K",
+      "T-25-1",
+      "zone-7"
+    ],
+    "sourceRefs": [
+      "SRC-KTS-001",
+      "SRC-PROC-001"
+    ]
+  }
+]

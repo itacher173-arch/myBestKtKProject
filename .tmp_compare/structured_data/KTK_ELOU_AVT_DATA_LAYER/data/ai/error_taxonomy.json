@@ -1,0 +1,110 @@
+[
+  {
+    "code": "QUALITY-ELOU",
+    "title": "Качество ЭЛОУ",
+    "defaultSeverity": "critical",
+    "rule": "saltMgL > 5 OR waterAfterElou > 0.15",
+    "trainingId": "MT-ELOU-02",
+    "articleId": "elou-quality",
+    "explanationRequired": true
+  },
+  {
+    "code": "FEED-LOW",
+    "title": "Недостаточная подача сырья",
+    "defaultSeverity": "warning",
+    "rule": "feedFlow < 300",
+    "trainingId": "MT-FEED-02",
+    "articleId": "feed-pumps",
+    "explanationRequired": true
+  },
+  {
+    "code": "K1-PRESSURE",
+    "title": "Высокое давление К-1",
+    "defaultSeverity": "critical",
+    "rule": "pressureK1 >= 4.0",
+    "trainingId": "MT-K1-01",
+    "articleId": "k1-control",
+    "explanationRequired": true
+  },
+  {
+    "code": "K1-LEVEL",
+    "title": "Низкий уровень К-1",
+    "defaultSeverity": "critical",
+    "rule": "levelK1 < 15",
+    "trainingId": "MT-K1-02",
+    "articleId": "k1-low-level",
+    "explanationRequired": true
+  },
+  {
+    "code": "FURNACE-TEMP",
+    "title": "Перегрев печного тракта",
+    "defaultSeverity": "critical",
+    "rule": "tempFurnaceOut > 380",
+    "trainingId": "MT-FURN-01",
+    "articleId": "furnace-safety",
+    "explanationRequired": true
+  },
+  {
+    "code": "K2-PRESSURE",
+    "title": "Высокое давление К-2",
+    "defaultSeverity": "critical",
+    "rule": "pressureK2 >= 1.0",
+    "trainingId": "MT-K2-01",
+    "articleId": "k2-control",
+    "explanationRequired": true
+  },
+  {
+    "code": "K2-LEVEL",
+    "title": "Низкий уровень К-2",
+    "defaultSeverity": "critical",
+    "rule": "levelK2 < 15",
+    "trainingId": "MT-K2-02",
+    "articleId": "k2-low-level",
+    "explanationRequired": true
+  },
+  {
+    "code": "UTILITY-AIR",
+    "title": "Не восстановлен приборный воздух",
+    "defaultSeverity": "critical",
+    "rule": "instrumentAirOk == false",
+    "trainingId": "MT-UTIL-01",
+    "articleId": "instrument-air",
+    "explanationRequired": true
+  },
+  {
+    "code": "UTILITY-COOLING",
+    "title": "Не восстановлено охлаждение",
+    "defaultSeverity": "critical",
+    "rule": "coolingWaterOk == false",
+    "trainingId": "MT-SAFE-01",
+    "articleId": "cooling-loss",
+    "explanationRequired": true
+  },
+  {
+    "code": "VENT-GAS",
+    "title": "Риск загазованности",
+    "defaultSeverity": "critical",
+    "rule": "ventElouOk == false OR gasPercent >= 20",
+    "trainingId": "MT-VENT-01",
+    "articleId": "ventilation",
+    "explanationRequired": true
+  },
+  {
+    "code": "ACTION-SEQUENCE",
+    "title": "Избыточные или повторные действия",
+    "defaultSeverity": "warning",
+    "rule": "penalty > 2 OR duplicateSequentialActions > 1",
+    "trainingId": "MT-FEED-01",
+    "articleId": "trainer-use",
+    "explanationRequired": true
+  },
+  {
+    "code": "LATE-RESPONSE",
+    "title": "Просроченная реакция",
+    "defaultSeverity": "warning",
+    "rule": "responseSeconds > normSeconds",
+    "trainingId": "MT-FEED-01",
+    "articleId": "trainer-use",
+    "explanationRequired": true
+  }
+]

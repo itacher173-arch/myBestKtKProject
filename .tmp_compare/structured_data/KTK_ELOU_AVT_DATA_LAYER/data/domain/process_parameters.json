@@ -1,0 +1,653 @@
+[
+  {
+    "id": "valveL1",
+    "tag": "L-1",
+    "title": "Положение входной задвижки сырья",
+    "unit": "%",
+    "dataType": "analog",
+    "range": {
+      "min": 0,
+      "max": 100
+    },
+    "nominal": 100,
+    "alarms": {
+      "low": null,
+      "high": null
+    },
+    "basis": "training-model",
+    "sourceRefs": [
+      "SRC-PROC-001",
+      "SRC-SAFETY-001"
+    ]
+  },
+  {
+    "id": "valveL2",
+    "tag": "L-2",
+    "title": "Положение задвижки вывода бензина",
+    "unit": "%",
+    "dataType": "analog",
+    "range": {
+      "min": 0,
+      "max": 100
+    },
+    "nominal": 70,
+    "alarms": {
+      "low": null,
+      "high": null
+    },
+    "basis": "training-model",
+    "sourceRefs": [
+      "SRC-PROC-001",
+      "SRC-SAFETY-001"
+    ]
+  },
+  {
+    "id": "valveL3",
+    "tag": "L-3",
+    "title": "Положение задвижки вывода мазута",
+    "unit": "%",
+    "dataType": "analog",
+    "range": {
+      "min": 0,
+      "max": 100
+    },
+    "nominal": 70,
+    "alarms": {
+      "low": null,
+      "high": null
+    },
+    "basis": "training-model",
+    "sourceRefs": [
+      "SRC-PROC-001",
+      "SRC-SAFETY-001"
+    ]
+  },
+  {
+    "id": "pumpN1",
+    "tag": "Н-1",
+    "title": "Состояние сырьевого насоса",
+    "unit": "",
+    "dataType": "enum",
+    "range": {
+      "min": null,
+      "max": null
+    },
+    "nominal": "running",
+    "alarms": {
+      "low": null,
+      "high": null
+    },
+    "basis": "training-model",
+    "sourceRefs": [
+      "SRC-PROC-001",
+      "SRC-SAFETY-001"
+    ]
+  },
+  {
+    "id": "pumpN2",
+    "tag": "Н-2",
+    "title": "Состояние подачи в печи П-1/П-2",
+    "unit": "",
+    "dataType": "enum",
+    "range": {
+      "min": null,
+      "max": null
+    },
+    "nominal": "running",
+    "alarms": {
+      "low": null,
+      "high": null
+    },
+    "basis": "training-model",
+    "sourceRefs": [
+      "SRC-PROC-001",
+      "SRC-SAFETY-001"
+    ]
+  },
+  {
+    "id": "pumpN3",
+    "tag": "Н-3",
+    "title": "Состояние подачи в печь П-3",
+    "unit": "",
+    "dataType": "enum",
+    "range": {
+      "min": null,
+      "max": null
+    },
+    "nominal": "running",
+    "alarms": {
+      "low": null,
+      "high": null
+    },
+    "basis": "training-model",
+    "sourceRefs": [
+      "SRC-PROC-001",
+      "SRC-SAFETY-001"
+    ]
+  },
+  {
+    "id": "demulsifierOn",
+    "tag": "ЭЛОУ",
+    "title": "Подача деэмульгатора",
+    "unit": "",
+    "dataType": "boolean",
+    "range": {
+      "min": null,
+      "max": null
+    },
+    "nominal": true,
+    "alarms": {
+      "low": null,
+      "high": null
+    },
+    "basis": "training-model",
+    "sourceRefs": [
+      "SRC-PROC-001",
+      "SRC-SAFETY-001"
+    ]
+  },
+  {
+    "id": "electricFieldOn",
+    "tag": "ЭЛОУ",
+    "title": "Электрическое поле электродегидраторов",
+    "unit": "",
+    "dataType": "boolean",
+    "range": {
+      "min": null,
+      "max": null
+    },
+    "nominal": true,
+    "alarms": {
+      "low": null,
+      "high": null
+    },
+    "basis": "training-model",
+    "sourceRefs": [
+      "SRC-PROC-001",
+      "SRC-SAFETY-001"
+    ]
+  },
+  {
+    "id": "washWaterOn",
+    "tag": "ЭЛОУ",
+    "title": "Подача промывной воды",
+    "unit": "",
+    "dataType": "boolean",
+    "range": {
+      "min": null,
+      "max": null
+    },
+    "nominal": true,
+    "alarms": {
+      "low": null,
+      "high": null
+    },
+    "basis": "training-model",
+    "sourceRefs": [
+      "SRC-PROC-001",
+      "SRC-SAFETY-001"
+    ]
+  },
+  {
+    "id": "fuelGasPercent",
+    "tag": "П-1…П-3",
+    "title": "Подача топливного газа",
+    "unit": "%",
+    "dataType": "analog",
+    "range": {
+      "min": 0,
+      "max": 100
+    },
+    "nominal": 60,
+    "alarms": {
+      "low": 0,
+      "high": 100
+    },
+    "basis": "training-model",
+    "sourceRefs": [
+      "SRC-PROC-001",
+      "SRC-SAFETY-001"
+    ]
+  },
+  {
+    "id": "levelK1",
+    "tag": "К-1",
+    "title": "Уровень куба К-1",
+    "unit": "%",
+    "dataType": "analog",
+    "range": {
+      "min": 0,
+      "max": 100
+    },
+    "nominal": 50,
+    "alarms": {
+      "low": 15,
+      "high": 90
+    },
+    "basis": "training-model",
+    "sourceRefs": [
+      "SRC-PROC-001",
+      "SRC-SAFETY-001"
+    ]
+  },
+  {
+    "id": "levelK2",
+    "tag": "К-2",
+    "title": "Уровень куба К-2",
+    "unit": "%",
+    "dataType": "analog",
+    "range": {
+      "min": 0,
+      "max": 100
+    },
+    "nominal": 50,
+    "alarms": {
+      "low": 15,
+      "high": 90
+    },
+    "basis": "training-model",
+    "sourceRefs": [
+      "SRC-PROC-001",
+      "SRC-SAFETY-001"
+    ]
+  },
+  {
+    "id": "levelSetpointK1",
+    "tag": "К-1",
+    "title": "Уставка уровня К-1",
+    "unit": "%",
+    "dataType": "setpoint",
+    "range": {
+      "min": 0,
+      "max": 100
+    },
+    "nominal": 50,
+    "alarms": {
+      "low": 15,
+      "high": 90
+    },
+    "basis": "training-model",
+    "sourceRefs": [
+      "SRC-PROC-001",
+      "SRC-SAFETY-001"
+    ]
+  },
+  {
+    "id": "levelSetpointK2",
+    "tag": "К-2",
+    "title": "Уставка уровня К-2",
+    "unit": "%",
+    "dataType": "setpoint",
+    "range": {
+      "min": 0,
+      "max": 100
+    },
+    "nominal": 50,
+    "alarms": {
+      "low": 15,
+      "high": 90
+    },
+    "basis": "training-model",
+    "sourceRefs": [
+      "SRC-PROC-001",
+      "SRC-SAFETY-001"
+    ]
+  },
+  {
+    "id": "avoFanOn",
+    "tag": "АВЗ-3",
+    "title": "Состояние воздушного охлаждения",
+    "unit": "",
+    "dataType": "boolean",
+    "range": {
+      "min": null,
+      "max": null
+    },
+    "nominal": true,
+    "alarms": {
+      "low": null,
+      "high": null
+    },
+    "basis": "training-model",
+    "sourceRefs": [
+      "SRC-PROC-001",
+      "SRC-SAFETY-001"
+    ]
+  },
+  {
+    "id": "pressureN1",
+    "tag": "PRA351",
+    "title": "Давление нагнетания Н-1",
+    "unit": "кгс/см²",
+    "dataType": "analog",
+    "range": {
+      "min": 0,
+      "max": 19.5
+    },
+    "nominal": 17.3,
+    "alarms": {
+      "low": 5,
+      "high": 19.5
+    },
+    "basis": "training-model",
+    "sourceRefs": [
+      "SRC-PROC-001",
+      "SRC-SAFETY-001"
+    ]
+  },
+  {
+    "id": "tempElouIn",
+    "tag": "TR41-2",
+    "title": "Температура на входе ЭЛОУ",
+    "unit": "°C",
+    "dataType": "analog",
+    "range": {
+      "min": 0,
+      "max": 180
+    },
+    "nominal": 113,
+    "alarms": {
+      "low": 80,
+      "high": 140
+    },
+    "basis": "training-model",
+    "sourceRefs": [
+      "SRC-PROC-001",
+      "SRC-SAFETY-001"
+    ]
+  },
+  {
+    "id": "saltMgL",
+    "tag": "Q-ELOU",
+    "title": "Содержание солей после ЭЛОУ",
+    "unit": "мг/л",
+    "dataType": "quality",
+    "range": {
+      "min": 0,
+      "max": 100
+    },
+    "nominal": 3,
+    "alarms": {
+      "low": null,
+      "high": 5
+    },
+    "basis": "training-model",
+    "sourceRefs": [
+      "SRC-PROC-001",
+      "SRC-SAFETY-001"
+    ]
+  },
+  {
+    "id": "waterAfterElou",
+    "tag": "Q-ELOU",
+    "title": "Остаточная вода после ЭЛОУ",
+    "unit": "% масс.",
+    "dataType": "quality",
+    "range": {
+      "min": 0,
+      "max": 5
+    },
+    "nominal": 0.12,
+    "alarms": {
+      "low": null,
+      "high": 0.15
+    },
+    "basis": "training-model",
+    "sourceRefs": [
+      "SRC-PROC-001",
+      "SRC-SAFETY-001"
+    ]
+  },
+  {
+    "id": "pressureAfterElou",
+    "tag": "ЭЛОУ",
+    "title": "Давление после ЭЛОУ",
+    "unit": "кгс/см²",
+    "dataType": "analog",
+    "range": {
+      "min": 0,
+      "max": 10
+    },
+    "nominal": 7,
+    "alarms": {
+      "low": 2,
+      "high": 9
+    },
+    "basis": "training-model",
+    "sourceRefs": [
+      "SRC-PROC-001",
+      "SRC-SAFETY-001"
+    ]
+  },
+  {
+    "id": "tempK1In",
+    "tag": "К-1",
+    "title": "Температура питания К-1",
+    "unit": "°C",
+    "dataType": "analog",
+    "range": {
+      "min": 0,
+      "max": 300
+    },
+    "nominal": 135,
+    "alarms": {
+      "low": 100,
+      "high": 220
+    },
+    "basis": "training-model",
+    "sourceRefs": [
+      "SRC-PROC-001",
+      "SRC-SAFETY-001"
+    ]
+  },
+  {
+    "id": "tempK1Bottom",
+    "tag": "К-1",
+    "title": "Температура куба К-1",
+    "unit": "°C",
+    "dataType": "analog",
+    "range": {
+      "min": 0,
+      "max": 400
+    },
+    "nominal": 175,
+    "alarms": {
+      "low": 100,
+      "high": 360
+    },
+    "basis": "training-model",
+    "sourceRefs": [
+      "SRC-PROC-001",
+      "SRC-SAFETY-001"
+    ]
+  },
+  {
+    "id": "pressureK1",
+    "tag": "К-1",
+    "title": "Давление К-1",
+    "unit": "кгс/см²",
+    "dataType": "analog",
+    "range": {
+      "min": 0,
+      "max": 6
+    },
+    "nominal": 1.45,
+    "alarms": {
+      "low": null,
+      "high": 4
+    },
+    "basis": "training-model",
+    "sourceRefs": [
+      "SRC-PROC-001",
+      "SRC-SAFETY-001"
+    ]
+  },
+  {
+    "id": "tempFurnaceOut",
+    "tag": "П-1…П-3",
+    "title": "Температура выхода печей",
+    "unit": "°C",
+    "dataType": "analog",
+    "range": {
+      "min": 0,
+      "max": 450
+    },
+    "nominal": 308,
+    "alarms": {
+      "low": 200,
+      "high": 380
+    },
+    "basis": "training-model",
+    "sourceRefs": [
+      "SRC-PROC-001",
+      "SRC-SAFETY-001"
+    ]
+  },
+  {
+    "id": "pressureK2",
+    "tag": "К-2",
+    "title": "Давление К-2",
+    "unit": "кгс/см²",
+    "dataType": "analog",
+    "range": {
+      "min": 0,
+      "max": 2
+    },
+    "nominal": 0.52,
+    "alarms": {
+      "low": null,
+      "high": 1
+    },
+    "basis": "training-model",
+    "sourceRefs": [
+      "SRC-PROC-001",
+      "SRC-SAFETY-001"
+    ]
+  },
+  {
+    "id": "feedFlow",
+    "tag": "Сырьевой тракт",
+    "title": "Расход сырья",
+    "unit": "м³/ч",
+    "dataType": "analog",
+    "range": {
+      "min": 0,
+      "max": 800
+    },
+    "nominal": 650,
+    "alarms": {
+      "low": 300,
+      "high": 780
+    },
+    "basis": "training-model",
+    "sourceRefs": [
+      "SRC-PROC-001",
+      "SRC-SAFETY-001"
+    ]
+  },
+  {
+    "id": "batteryMinutesLeft",
+    "tag": "Операторная",
+    "title": "Остаток автономной работы ИБП",
+    "unit": "мин",
+    "dataType": "analog",
+    "range": {
+      "min": 0,
+      "max": 30
+    },
+    "nominal": 30,
+    "alarms": {
+      "low": 5,
+      "high": null
+    },
+    "basis": "training-model",
+    "sourceRefs": [
+      "SRC-PROC-001",
+      "SRC-SAFETY-001"
+    ]
+  },
+  {
+    "id": "levelWaterE1",
+    "tag": "Е-1",
+    "title": "Уровень водной фазы Е-1",
+    "unit": "%",
+    "dataType": "analog",
+    "range": {
+      "min": 0,
+      "max": 100
+    },
+    "nominal": 55,
+    "alarms": {
+      "low": null,
+      "high": 90
+    },
+    "basis": "training-model",
+    "sourceRefs": [
+      "SRC-PROC-001",
+      "SRC-SAFETY-001"
+    ]
+  },
+  {
+    "id": "levelWaterE2",
+    "tag": "Е-2",
+    "title": "Уровень водной фазы Е-2",
+    "unit": "%",
+    "dataType": "analog",
+    "range": {
+      "min": 0,
+      "max": 100
+    },
+    "nominal": 52,
+    "alarms": {
+      "low": null,
+      "high": 90
+    },
+    "basis": "training-model",
+    "sourceRefs": [
+      "SRC-PROC-001",
+      "SRC-SAFETY-001"
+    ]
+  },
+  {
+    "id": "levelReflux",
+    "tag": "Рефлюксные ёмкости",
+    "title": "Уровень углеводородной фазы",
+    "unit": "%",
+    "dataType": "analog",
+    "range": {
+      "min": 0,
+      "max": 100
+    },
+    "nominal": 65,
+    "alarms": {
+      "low": 10,
+      "high": 90
+    },
+    "basis": "training-model",
+    "sourceRefs": [
+      "SRC-PROC-001",
+      "SRC-SAFETY-001"
+    ]
+  },
+  {
+    "id": "gasPercent",
+    "tag": "Газоанализ",
+    "title": "Загазованность",
+    "unit": "% НКПР",
+    "dataType": "analog",
+    "range": {
+      "min": 0,
+      "max": 100
+    },
+    "nominal": 0,
+    "alarms": {
+      "low": null,
+      "high": 20
+    },
+    "basis": "training-model",
+    "sourceRefs": [
+      "SRC-PROC-001",
+      "SRC-SAFETY-001"
+    ]
+  }
+]

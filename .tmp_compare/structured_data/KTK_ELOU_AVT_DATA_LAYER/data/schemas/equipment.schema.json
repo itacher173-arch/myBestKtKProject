@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "KTK equipment",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": [
+      "id",
+      "label",
+      "type",
+      "zone",
+      "controllable"
+    ],
+    "additionalProperties": true
+  }
+}

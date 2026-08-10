@@ -1,0 +1,86 @@
+[
+  {
+    "errorCode": "QUALITY-ELOU",
+    "trainingId": "MT-ELOU-02",
+    "knowledgeArticleId": "elou-quality",
+    "priority": 100,
+    "assignmentMode": "adaptive"
+  },
+  {
+    "errorCode": "FEED-LOW",
+    "trainingId": "MT-FEED-02",
+    "knowledgeArticleId": "feed-pumps",
+    "priority": 60,
+    "assignmentMode": "adaptive"
+  },
+  {
+    "errorCode": "K1-PRESSURE",
+    "trainingId": "MT-K1-01",
+    "knowledgeArticleId": "k1-control",
+    "priority": 100,
+    "assignmentMode": "adaptive"
+  },
+  {
+    "errorCode": "K1-LEVEL",
+    "trainingId": "MT-K1-02",
+    "knowledgeArticleId": "k1-low-level",
+    "priority": 100,
+    "assignmentMode": "adaptive"
+  },
+  {
+    "errorCode": "FURNACE-TEMP",
+    "trainingId": "MT-FURN-01",
+    "knowledgeArticleId": "furnace-safety",
+    "priority": 100,
+    "assignmentMode": "adaptive"
+  },
+  {
+    "errorCode": "K2-PRESSURE",
+    "trainingId": "MT-K2-01",
+    "knowledgeArticleId": "k2-control",
+    "priority": 100,
+    "assignmentMode": "adaptive"
+  },
+  {
+    "errorCode": "K2-LEVEL",
+    "trainingId": "MT-K2-02",
+    "knowledgeArticleId": "k2-low-level",
+    "priority": 100,
+    "assignmentMode": "adaptive"
+  },
+  {
+    "errorCode": "UTILITY-AIR",
+    "trainingId": "MT-UTIL-01",
+    "knowledgeArticleId": "instrument-air",
+    "priority": 100,
+    "assignmentMode": "adaptive"
+  },
+  {
+    "errorCode": "UTILITY-COOLING",
+    "trainingId": "MT-SAFE-01",
+    "knowledgeArticleId": "cooling-loss",
+    "priority": 100,
+    "assignmentMode": "adaptive"
+  },
+  {
+    "errorCode": "VENT-GAS",
+    "trainingId": "MT-VENT-01",
+    "knowledgeArticleId": "ventilation",
+    "priority": 100,
+    "assignmentMode": "adaptive"
+  },
+  {
+    "errorCode": "ACTION-SEQUENCE",
+    "trainingId": "MT-FEED-01",
+    "knowledgeArticleId": "trainer-use",
+    "priority": 60,
+    "assignmentMode": "adaptive"
+  },
+  {
+    "errorCode": "LATE-RESPONSE",
+    "trainingId": "MT-FEED-01",
+    "knowledgeArticleId": "trainer-use",
+    "priority": 60,
+    "assignmentMode": "adaptive"
+  }
+]

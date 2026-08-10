@@ -98,12 +98,33 @@ def _migrate_json_if_needed() -> None:
         conn.commit()
 
 
-def list_reports() -> list:
+def list_reports(*, for_user: dict | None = None) -> list:
+    """Если for_user — обучаемый (не admin/instructor), вернуть только его отчёты."""
     with connect() as conn:
         rows = conn.execute(
             "SELECT payload FROM trainee_reports ORDER BY completed_at DESC"
         ).fetchall()
-    return [row["payload"] for row in rows]
+    reports = [row["payload"] for row in rows]
+    if for_user is None:
+        return reports
+    from backend.storage.access import is_admin, is_instructor, user_roles
+
+    if is_admin(for_user) or is_instructor(for_user):
+        return reports
+    if "trainee" not in user_roles(for_user):
+        return []
+    names = {
+        str(for_user.get("fullName") or "").strip().casefold(),
+        str(for_user.get("login") or "").strip().casefold(),
+    }
+    names.discard("")
+    if not names:
+        return []
+    return [
+        report
+        for report in reports
+        if str(report.get("userName") or "").strip().casefold() in names
+    ]
 
 
 def save_report(report: dict) -> dict:
@@ -169,6 +190,24 @@ def delete_report(report_id: str) -> dict:
         conn.execute("DELETE FROM trainee_reports WHERE id = %s", (report_id,))
         conn.commit()
     return {"ok": True, "id": report_id}
+
+
+def get_report(report_id: str) -> dict | None:
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT payload FROM trainee_reports WHERE id = %s",
+            (report_id,),
+        ).fetchone()
+    return row["payload"] if row else None
+
+
+def report_belongs_to_user(report: dict, user: dict) -> bool:
+    names = {
+        str(user.get("fullName") or "").strip().casefold(),
+        str(user.get("login") or "").strip().casefold(),
+    }
+    names.discard("")
+    return str(report.get("userName") or "").strip().casefold() in names
 
 
 def clear_reports() -> dict:
@@ -319,7 +358,7 @@ class Handler(JsonHandler):
 
             if path == "/reports":
                 require_roles(user, "admin", "instructor", "trainee")
-                return self.send_json(list_reports())
+                return self.send_json(list_reports(for_user=user))
             if path == "/audit":
                 require_roles(user, "admin", "instructor")
                 return self.send_json(list_audit())
@@ -456,10 +495,18 @@ class Handler(JsonHandler):
                 require_roles(user, "admin", "instructor")
                 return self.send_json(clear_reports())
             if path.startswith("/reports/"):
-                require_roles(user, "admin", "instructor")
+                require_roles(user, "admin", "instructor", "trainee")
                 report_id = path[len("/reports/") :]
                 if not report_id:
                     return self.send_error_json("id required", 400)
+                from backend.storage.access import is_admin, is_instructor
+
+                existing = get_report(report_id)
+                if existing is None:
+                    return self.send_error_json("not found", 404)
+                if not (is_admin(user) or is_instructor(user)):
+                    if not report_belongs_to_user(existing, user):
+                        raise Forbidden("Можно удалять только свои отчёты")
                 return self.send_json(delete_report(report_id))
             if path == "/audit":
                 require_roles(user, "admin", "instructor")

@@ -295,7 +295,10 @@ export function StartScreen() {
               <h3>Продолжить точечную отработку</h3>
             </div>
             <button type="button" onClick={openReports}>
-              Посмотреть полный разбор <Icon name="chevron" />
+              {showInstructorCabinet
+                ? 'Посмотреть полный разбор'
+                : 'Мои результаты'}{' '}
+              <Icon name="chevron" />
             </button>
           </header>
           <div>
@@ -332,6 +335,27 @@ export function StartScreen() {
           <button type="button" className="launch-button" onClick={goInstructorCabinet}>
             <Icon name="chart" />
             Открыть отчёты
+          </button>
+        </section>
+      )}
+
+      {showTraining && (
+        <section className="instructor-launch-panel">
+          <div>
+            <span>Архив обучаемого</span>
+            <h3>Мои результаты и ИИ-разбор</h3>
+            <p>
+              Просмотр завершённых сессий, оценка, журнал действий и локальный
+              анализ траектории.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="launch-button"
+            onClick={openReports}
+          >
+            <Icon name="chart" />
+            Открыть результаты
           </button>
         </section>
       )}

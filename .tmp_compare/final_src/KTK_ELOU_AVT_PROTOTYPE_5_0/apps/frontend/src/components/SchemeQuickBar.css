@@ -1,0 +1,57 @@
+.scheme-quickbar {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  z-index: 6;
+  width: min(320px, calc(100% - 24px));
+  pointer-events: auto;
+}
+
+.scheme-quickbar-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+  padding: 8px 10px;
+  border-radius: 8px 8px 0 0;
+  background: rgba(20, 36, 30, 0.95);
+  border: 1px solid #4a7a5a;
+  border-bottom: none;
+  color: #e8eef4;
+}
+
+.scheme-quickbar-head strong {
+  display: block;
+  font-size: 13px;
+}
+
+.scheme-quickbar-head span {
+  font-size: 11px;
+  color: #9db4c7;
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.scheme-quickbar-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.scheme-quickbar-actions button {
+  border: 1px solid #3a556c;
+  background: #1e2a36;
+  color: #c5d4e0;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.scheme-quickbar-actions button.ghost {
+  background: transparent;
+  min-width: 28px;
+}
+
+.scheme-quickbar .inline-ctrl.compact {
+  border-radius: 0 0 8px 8px;
+}
