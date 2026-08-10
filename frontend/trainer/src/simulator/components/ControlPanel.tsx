@@ -1,10 +1,12 @@
 import { EQUIPMENT_TYPE_LABELS, equipmentById } from '../../scheme'
 import { EQUIPMENT_ARTICLES } from '../../knowledge/links'
+import { useConfirm } from '../../common/ui/ConfirmDialog'
 import { isAnalogAlarm } from '../processModel'
 import { useTrainer } from '../TrainerContext'
 import './ControlPanel.css'
 
 export function ControlPanel() {
+  const confirm = useConfirm()
   const {
     state,
     analogs,
@@ -307,15 +309,19 @@ export function ControlPanel() {
                   type="button"
                   disabled={!canControl}
                   onClick={() => {
-                    if (
-                      p.fuelGasPercent > 0 &&
-                      !window.confirm(
-                        'Подтвердите отсечение топливного газа (0%)?',
-                      )
-                    ) {
-                      return
-                    }
-                    setFuelGas(0)
+                    void (async () => {
+                      if (p.fuelGasPercent > 0) {
+                        const ok = await confirm({
+                          title: 'Отсечение топлива',
+                          message:
+                            'Подтвердите отсечение топливного газа (0%)?',
+                          danger: true,
+                          confirmLabel: 'Отсечь',
+                        })
+                        if (!ok) return
+                      }
+                      setFuelGas(0)
+                    })()
                   }}
                 >
                   0%
@@ -533,14 +539,17 @@ export function ControlPanel() {
                   type="button"
                   disabled={!canControl || !p.avoFanOn}
                   onClick={() => {
-                    if (
-                      !window.confirm(
-                        'Подтвердите отключение вентилятора АВО АВЗ-3?',
-                      )
-                    ) {
-                      return
-                    }
-                    setAvoFan(false)
+                    void (async () => {
+                      const ok = await confirm({
+                        title: 'АВО АВЗ-3',
+                        message:
+                          'Подтвердите отключение вентилятора АВО АВЗ-3?',
+                        danger: true,
+                        confirmLabel: 'Отключить',
+                      })
+                      if (!ok) return
+                      setAvoFan(false)
+                    })()
                   }}
                 >
                   Выкл

@@ -94,6 +94,12 @@ class SimCreate(BaseModel):
     exerciseId: str | None = None
     initial: dict[str, Any] | None = None
     warmStart: bool = False
+    seed: int | str | None = None
+    modelVersion: str | None = None
+    scenarioVersion: str | None = None
+    faultType: str | None = None
+    triggerDelaySeconds: float | None = None
+    timeScale: float = 1.0
 
 
 class SimCommand(BaseModel):
@@ -113,6 +119,12 @@ def create_sim_session(
         exercise_id=body.exerciseId,
         initial=body.initial,
         warm_start=body.warmStart,
+        seed=body.seed,
+        model_version=body.modelVersion,
+        scenario_version=body.scenarioVersion,
+        fault_type=body.faultType,
+        trigger_delay_sec=body.triggerDelaySeconds,
+        time_scale=body.timeScale,
     )
     inc("sim_sessions")
     set_gauge("sim_active_sessions", store.active_count())

@@ -36,6 +36,8 @@ export interface TraineeReport {
   protocolVersion?: string
   modelVersion?: string
   scenarioVersion?: string
+  seed?: number | string | null
+  serverSessionId?: string | null
   sessionMode?: SessionMode
   criticalFail?: boolean
   outcomeOk?: boolean
@@ -152,6 +154,8 @@ export function buildSessionProtocol(report: TraineeReport): object {
     protocolVersion: report.protocolVersion ?? PROTOCOL_VERSION,
     modelVersion: report.modelVersion ?? null,
     scenarioVersion: report.scenarioVersion ?? null,
+    seed: report.seed ?? null,
+    serverSessionId: report.serverSessionId ?? null,
     sessionMode: report.sessionMode ?? 'train',
     meta: {
       reportId: report.id,

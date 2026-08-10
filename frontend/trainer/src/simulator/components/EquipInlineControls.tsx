@@ -1,3 +1,4 @@
+import { useConfirm } from '../../common/ui/ConfirmDialog'
 import { isControllableEquip } from '../controllable'
 import { useTrainer } from '../TrainerContext'
 import './EquipInlineControls.css'
@@ -21,6 +22,7 @@ function valveMotionLabel(s: string) {
 }
 
 export function EquipInlineControls({ equipId, compact }: Props) {
+  const confirm = useConfirm()
   const {
     state,
     canControl,
@@ -293,13 +295,18 @@ export function EquipInlineControls({ equipId, compact }: Props) {
             type="button"
             disabled={disabled}
             onClick={() => {
-              if (
-                p.fuelGasPercent > 0 &&
-                !window.confirm('Подтвердите отсечение топливного газа (0%)?')
-              ) {
-                return
-              }
-              setFuelGas(0)
+              void (async () => {
+                if (p.fuelGasPercent > 0) {
+                  const ok = await confirm({
+                    title: 'Отсечение топлива',
+                    message: 'Подтвердите отсечение топливного газа (0%)?',
+                    danger: true,
+                    confirmLabel: 'Отсечь',
+                  })
+                  if (!ok) return
+                }
+                setFuelGas(0)
+              })()
             }}
           >
             0%
@@ -330,14 +337,16 @@ export function EquipInlineControls({ equipId, compact }: Props) {
             type="button"
             disabled={disabled || !p.avoFanOn}
             onClick={() => {
-              if (
-                !window.confirm(
-                  'Подтвердите отключение вентилятора АВО АВЗ-3?',
-                )
-              ) {
-                return
-              }
-              setAvoFan(false)
+              void (async () => {
+                const ok = await confirm({
+                  title: 'АВО АВЗ-3',
+                  message: 'Подтвердите отключение вентилятора АВО АВЗ-3?',
+                  danger: true,
+                  confirmLabel: 'Отключить',
+                })
+                if (!ok) return
+                setAvoFan(false)
+              })()
             }}
           >
             Выкл

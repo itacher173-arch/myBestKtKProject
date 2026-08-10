@@ -48,6 +48,61 @@ def test_session_command_and_tick():
     assert got.sim_time >= 0.5
 
 
+def test_session_seed_and_versions():
+    store = SessionStore()
+    sess = store.create(
+        user_id="u1",
+        exercise_id="sc-01",
+        seed=42,
+        model_version="processModel-1.2",
+        scenario_version="scenarios-1.1",
+        fault_type="fuelGas",
+        trigger_delay_sec=10,
+    )
+    pub = sess.public()
+    assert pub["seed"] == 42
+    assert pub["modelVersion"] == "processModel-1.2"
+    assert pub["scenarioVersion"] == "scenarios-1.1"
+    assert pub["faultTriggered"] is False
+    again = store.create(user_id="u2", seed=42)
+    assert again.seed == 42
+    assert again.public()["seed"] == 42
+
+
+def test_session_time_scale_and_auto_fault():
+    store = SessionStore()
+    sess = store.create(
+        user_id="u1",
+        seed=7,
+        fault_type="demulsifier",
+        trigger_delay_sec=1.0,
+        time_scale=2.0,
+    )
+    store.tick_all(0.3)  # 0.6 sim-sec
+    got = store.get(sess.id)
+    assert got is not None
+    assert got.sim_time >= 0.5
+    assert got.fault_triggered is False
+    store.tick_all(0.3)  # +0.6 → ~1.2
+    got = store.get(sess.id)
+    assert got is not None
+    assert got.fault_triggered is True
+    assert got.process.get("demulsifierOn") is False
+    msgs = got.public()["systemMessages"]
+    assert any("ОТКАЗ" in m for m in msgs)
+
+
+def test_inject_fault_command():
+    store = SessionStore()
+    sess = store.create(user_id="u1", fault_type="pumpTrip")
+    result = store.apply_command(sess.id, "inject-fault", {"faultType": "pumpTrip"})
+    assert result["ok"] is True
+    got = store.get(sess.id)
+    assert got is not None
+    assert got.fault_triggered is True
+    assert got.process.get("pumpN1") == "tripped"
+
+
 def test_audit_hmac_chain():
     e1 = {
         "id": "a1",

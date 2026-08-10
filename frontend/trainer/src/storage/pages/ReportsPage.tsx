@@ -32,6 +32,7 @@ import {
   type GroupUser,
   type TrainingGroup,
 } from '../groupsApi'
+import { useConfirm } from '../../common/ui/ConfirmDialog'
 import { useTrainer } from '../../simulator/TrainerContext'
 import {
   clearReports,
@@ -49,6 +50,7 @@ function formatDate(ts: number) {
 }
 
 export function ReportsPage() {
+  const confirm = useConfirm()
   const { resetToStart, openKnowledge, assignMiniTraining } = useTrainer()
   const { aiEnabled } = usePreferences()
   const instructor = getAuthedUser()
@@ -204,7 +206,13 @@ export function ReportsPage() {
 
   const onClear = async () => {
     if (!groupReports.length) return
-    if (!confirm('Удалить все отчёты обучаемых на сервере?')) return
+    const ok = await confirm({
+      title: 'Очистка отчётов',
+      message: 'Удалить все отчёты обучаемых на сервере?',
+      danger: true,
+      confirmLabel: 'Удалить',
+    })
+    if (!ok) return
     await clearReports()
     await appendAudit({
       actor: instructor?.fullName || 'instructor',

@@ -1,5 +1,6 @@
 """Backend process simulator — Python port of frontend/trainer/src/simulator tick & PAZ."""
 
+from .faults import apply_fault
 from .paz import interlock_reason, process_interlock_reason
 from .process_model import (
     MODEL_VERSION,
@@ -7,12 +8,14 @@ from .process_model import (
     create_warm_process,
     tick_process,
 )
-from .session import Session, SessionStore, store
+from .session import DEFAULT_SCENARIO_VERSION, Session, SessionStore, store
 
 __all__ = [
+    "DEFAULT_SCENARIO_VERSION",
     "MODEL_VERSION",
     "Session",
     "SessionStore",
+    "apply_fault",
     "create_initial_process",
     "create_warm_process",
     "interlock_reason",
