@@ -111,6 +111,7 @@ export interface AiChatResponse {
   messageId: string
   answer: string
   mode: string
+  intent?: 'conversation' | 'ktk-knowledge'
   sources: AiChatSource[]
   relatedTrainings: AiChatTraining[]
   promptVersion?: string

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from backend.ai import orchestrator
 from backend.ml.service import rank_modules
 from backend.rag.embeddings import hash_embedding
 from backend.rag.service import knowledge_chunks, lexical_search, search
@@ -67,3 +68,124 @@ def test_recommender_ranks_eligible_module():
     assert ranking
     assert ranking[0]["eligible"] is True
     assert ranking[0]["moduleId"] in {"MT-SAFE-01", "MT-UTIL-01", "MT-VENT-01"}
+
+
+def test_chat_handles_greeting_without_rag(monkeypatch):
+    monkeypatch.setenv("KTK_AI_PROVIDER", "rules")
+    monkeypatch.setattr(
+        orchestrator,
+        "_rag",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("RAG не должен вызываться для приветствия")
+        ),
+    )
+    result = orchestrator.answer_question(
+        {"message": "Привет! Как дела?", "context": {}}
+    )
+    assert result["intent"] == "conversation"
+    assert result["mode"] == "local-conversation-fallback"
+    assert "Привет" in result["answer"]
+    assert result["sources"] == []
+    assert result["relatedTrainings"] == []
+
+
+def test_general_chat_uses_base_llm_with_history(monkeypatch):
+    captured = {}
+
+    def fake_chat(**kwargs):
+        captured.update(kwargs)
+        return "Конечно, давайте разберёмся."
+
+    monkeypatch.setattr(orchestrator, "_ollama_chat", fake_chat)
+    result = orchestrator.answer_question(
+        {
+            "message": "Можешь объяснить проще?",
+            "context": {
+                "conversationHistory": [
+                    {"role": "user", "content": "Расскажи коротко"},
+                    {"role": "assistant", "content": "Хорошо."},
+                ]
+            },
+        }
+    )
+    assert result["intent"] == "conversation"
+    assert result["mode"] == "local-ollama-conversation"
+    assert captured["history"][-1]["role"] == "assistant"
+
+
+def test_ktk_chat_returns_short_answer_links_and_training(monkeypatch):
+    monkeypatch.setenv("KTK_AI_PROVIDER", "rules")
+    monkeypatch.setattr(
+        orchestrator,
+        "_rag",
+        lambda *args, **kwargs: {
+            "mode": "vector",
+            "indexVersion": "test-index",
+            "results": [
+                {
+                    "articleId": "k1-control",
+                    "chunkId": "k1-control:1",
+                    "title": "Управление колонной К-1",
+                    "category": "Колонны",
+                    "revision": "1.0",
+                    "score": 0.9,
+                    "text": "Давление К-1 зависит от тепловой нагрузки. "
+                    "Изменения оценивают по тренду параметров.",
+                },
+                {
+                    "articleId": "k1-control",
+                    "chunkId": "k1-control:2",
+                    "title": "Управление колонной К-1",
+                    "category": "Колонны",
+                    "revision": "1.0",
+                    "score": 0.8,
+                    "text": "Повторный фрагмент той же статьи.",
+                },
+            ],
+        },
+    )
+    result = orchestrator.answer_question(
+        {"message": "Почему меняется давление К-1?", "context": {}}
+    )
+    assert result["intent"] == "ktk-knowledge"
+    assert result["mode"] == "local-rag-summary"
+    assert len(result["answer"]) < 500
+    assert "Подробности" in result["answer"]
+    assert len(result["sources"]) == 1
+    assert result["sources"][0]["articleId"] == "k1-control"
+    assert any(
+        item["trainingId"] == "MT-K1-01"
+        for item in result["relatedTrainings"]
+    )
+
+
+def test_ktk_follow_up_reuses_previous_question(monkeypatch):
+    captured = {}
+
+    def fake_rag(query, **kwargs):
+        captured["query"] = query
+        return {"mode": "lexical-fallback", "results": []}
+
+    monkeypatch.setenv("KTK_AI_PROVIDER", "rules")
+    monkeypatch.setattr(orchestrator, "_rag", fake_rag)
+    result = orchestrator.answer_question(
+        {
+            "message": "Объясни проще",
+            "context": {
+                "conversationHistory": [
+                    {
+                        "role": "user",
+                        "content": "Почему меняется давление К-1?",
+                    },
+                    {
+                        "role": "assistant",
+                        "content": "Давление зависит от режима процесса.",
+                        "intent": "ktk-knowledge",
+                    },
+                ]
+            },
+        }
+    )
+    assert result["intent"] == "ktk-knowledge"
+    assert "давление К-1" in captured["query"]
+    assert "Объясни проще" in captured["query"]

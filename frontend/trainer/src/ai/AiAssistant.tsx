@@ -19,7 +19,7 @@ export function AiAssistant({ open, onClose }: { open: boolean; onClose: () => v
   const [input, setInput] = useState('')
   const [pending, setPending] = useState(false)
   const [messages, setMessages] = useState<Message[]>([
-    { id: 'welcome', role: 'assistant', text: 'Я локальный учебный помощник. Могу объяснить параметр, подсказать причинно-следственную связь или найти материал в базе знаний.' },
+    { id: 'welcome', role: 'assistant', text: 'Привет! Я локальный ИИ-ассистент. Со мной можно общаться обычным языком, а по вопросам КТК я дам краткое объяснение и предложу материалы или тренировку.' },
   ])
   const endRef = useRef<HTMLDivElement>(null)
 
@@ -30,6 +30,11 @@ export function AiAssistant({ open, onClose }: { open: boolean; onClose: () => v
   const send = async (text: string) => {
     const question = text.trim()
     if (!question || pending || !aiEnabled) return
+    const conversationHistory = messages.slice(-8).map((message) => ({
+      role: message.role,
+      content: message.text,
+      intent: message.response?.intent,
+    }))
     setMessages((current) => [...current, { id: `user-${Date.now()}`, role: 'user', text: question }])
     setInput('')
     setPending(true)
@@ -42,6 +47,7 @@ export function AiAssistant({ open, onClose }: { open: boolean; onClose: () => v
           process: state.process,
           recentActions: state.actionsLog.slice(-20),
           recentEvents: state.systemEvents.slice(-20),
+          conversationHistory,
         },
       })
       setMessages((current) => [...current, { id: response.messageId, role: 'assistant', text: response.answer, response }])
@@ -53,8 +59,8 @@ export function AiAssistant({ open, onClose }: { open: boolean; onClose: () => v
   }
 
   const prompts = state.session.view === 'exercise'
-    ? ['Что сейчас требует внимания?', 'Объясни давление К-1', 'Почему растёт соль после ЭЛОУ?']
-    : ['Как устроен процесс ЭЛОУ-АВТ?', 'Какие мини-тренировки доступны?', 'Как оценивается результат?']
+    ? ['Привет! Как дела?', 'Что сейчас требует внимания?', 'Объясни давление К-1']
+    : ['Привет! Как дела?', 'Как устроен процесс ЭЛОУ-АВТ?', 'Какие мини-тренировки доступны?']
 
   return (
     <div className="ai-assistant-overlay" onMouseDown={onClose}>
@@ -76,7 +82,7 @@ export function AiAssistant({ open, onClose }: { open: boolean; onClose: () => v
                 <div key={message.id} className={`ai-message ${message.role}`}>
                   {message.role === 'assistant' && <span className="ai-message-avatar"><Icon name="sparkles" /></span>}
                   <div>
-                    <p>{message.text}</p>
+                    <p style={{ whiteSpace: 'pre-wrap' }}>{message.text}</p>
                     {!!message.response?.sources.length && <div className="ai-chat-sources">{message.response.sources.map((source) => <button type="button" key={source.articleId} onClick={() => openKnowledge(source.articleId)}><Icon name="book" /><span>{source.title}<small>{source.category}</small></span></button>)}</div>}
                     {!!message.response?.relatedTrainings.length && <div className="ai-chat-trainings">{message.response.relatedTrainings.map((training) => <button type="button" key={training.trainingId} onClick={() => { assignMiniTraining(training.trainingId); onClose() }}><Icon name="trainer" />{training.trainingTitle}</button>)}</div>}
                   </div>
@@ -87,10 +93,10 @@ export function AiAssistant({ open, onClose }: { open: boolean; onClose: () => v
             </div>
             <div className="ai-prompts">{prompts.map((prompt) => <button type="button" key={prompt} onClick={() => void send(prompt)}>{prompt}</button>)}</div>
             <form className="ai-composer" onSubmit={(event) => { event.preventDefault(); void send(input) }}>
-              <textarea value={input} onChange={(event) => setInput(event.target.value)} placeholder="Задайте вопрос по процессу или текущей тренировке…" rows={2} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void send(input) } }} />
+              <textarea value={input} onChange={(event) => setInput(event.target.value)} placeholder="Напишите сообщение или задайте вопрос по КТК…" rows={2} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void send(input) } }} />
               <button type="submit" disabled={!input.trim() || pending} aria-label="Отправить"><Icon name="send" /></button>
             </form>
-            <footer><Icon name="shield" />Ответы предназначены только для учебной модели и подтверждаются материалами базы знаний.</footer>
+            <footer><Icon name="shield" />Ответы о процессах КТК предназначены для обучения; подробности подтверждаются материалами базы знаний.</footer>
           </>
         )}
       </aside>
