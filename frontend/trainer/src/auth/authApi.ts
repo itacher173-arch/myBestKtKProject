@@ -124,8 +124,9 @@ export async function logoutUser(): Promise<void> {
 }
 
 export function redirectToAuthPortal(): void {
-  const next = encodeURIComponent(window.location.href)
-  window.location.replace(`${authPortalUrl()}/?next=${next}`)
+  const loginUrl = new URL(authPortalUrl(), window.location.origin)
+  loginUrl.searchParams.set('next', window.location.href)
+  window.location.replace(loginUrl.href)
 }
 
 export type { AuditEntry }
