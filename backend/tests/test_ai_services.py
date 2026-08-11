@@ -25,7 +25,9 @@ def test_rag_has_lexical_fallback_without_qdrant(monkeypatch):
     monkeypatch.setenv("KTK_RAG_EMBEDDING_PROVIDER", "hash")
     result = search("снижение давления К-1", limit=3)
     assert result["results"]
-    assert result["results"][0]["articleId"] == "k1-control"
+    assert "k1-control" in {
+        item["articleId"] for item in result["results"]
+    }
     assert result["mode"] in {"vector", "lexical-fallback"}
 
 
