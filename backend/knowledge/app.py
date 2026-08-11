@@ -10,12 +10,14 @@ from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
 from backend.common.http import JsonHandler
-from backend.knowledge.catalog import load_articles, searchable_text
+from backend.knowledge.catalog import load_articles, load_references, searchable_text
 
 ROOT = Path(__file__).parent
 ASSET_DIR = ROOT / "assets"
+REFERENCE_DIR = ROOT / "references"
 ARTICLES: list[dict] = load_articles()
 ARTICLE_BY_ID = {article["id"]: article for article in ARTICLES}
+REFERENCE_BY_ID = {item["id"]: item for item in load_references()}
 
 
 def _tokens(value: str) -> list[str]:
@@ -117,6 +119,8 @@ class Handler(JsonHandler):
             return self.send_json(article)
         if path.startswith("/assets/"):
             return self._send_asset(unquote(path[len("/assets/") :]))
+        if path.startswith("/references/"):
+            return self._send_reference(unquote(path[len("/references/") :]))
         self.send_error_json("not found", 404)
 
     def _send_asset(self, relative: str) -> None:
@@ -133,6 +137,28 @@ class Handler(JsonHandler):
         )
         self.send_header("Content-Length", str(len(raw)))
         self.send_header("Cache-Control", "public, max-age=3600")
+        self.end_headers()
+        self.wfile.write(raw)
+
+    def _send_reference(self, reference_id: str) -> None:
+        reference = REFERENCE_BY_ID.get(reference_id)
+        if not reference:
+            self.send_error_json("reference not found", 404)
+            return
+        root = REFERENCE_DIR.resolve()
+        target = (root / reference["localPath"]).resolve()
+        if root not in target.parents or not target.is_file():
+            self.send_error_json("reference file not found", 404)
+            return
+        raw = target.read_bytes()
+        self.send_response(200)
+        self.send_header(
+            "Content-Type",
+            mimetypes.guess_type(target.name)[0] or "application/octet-stream",
+        )
+        self.send_header("Content-Length", str(len(raw)))
+        self.send_header("Content-Disposition", f'inline; filename="{target.name}"')
+        self.send_header("Cache-Control", "private, max-age=3600")
         self.end_headers()
         self.wfile.write(raw)
 

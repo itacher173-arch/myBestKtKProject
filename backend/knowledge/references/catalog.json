@@ -1,0 +1,102 @@
+[
+  {
+    "id": "NPA-04",
+    "title": "Правила противопожарного режима в Российской Федерации",
+    "publisher": "Правительство Российской Федерации; копия размещена на официальном ресурсе МЧС России",
+    "kind": "нормативный правовой акт",
+    "localPath": "normative/NPA-04-Fire-safety-rules-1479.pdf",
+    "edition": "Постановление Правительства РФ от 16.09.2020 № 1479, редакция по состоянию копии от 30.03.2023",
+    "language": "ru",
+    "usageNote": "Используется для общих требований пожарного режима. Перед применением на производственном объекте редакцию необходимо сверить с корпоративной нормативной системой."
+  },
+  {
+    "id": "TECH-01",
+    "title": "AP-42, Section 5.1. Petroleum Refining",
+    "publisher": "U.S. Environmental Protection Agency",
+    "kind": "открытый государственный технический отчёт",
+    "localPath": "technical/TECH-01-EPA-AP42-petroleum-refining.pdf",
+    "edition": "April 2015",
+    "language": "en",
+    "usageNote": "Справочное описание основных процессов нефтепереработки и источников выбросов; не заменяет технологический регламент."
+  },
+  {
+    "id": "TECH-02",
+    "title": "Petroleum Refinery Source Characterization and Emission Model for Residual Risk Assessment",
+    "publisher": "U.S. Environmental Protection Agency",
+    "kind": "открытый государственный технический отчёт",
+    "localPath": "technical/TECH-02-EPA-refinery-source-characterization.pdf",
+    "edition": "July 2002",
+    "language": "en",
+    "usageNote": "Дополнительный материал по источникам выбросов, охлаждению, резервуарам, факельным и дренажным системам НПЗ."
+  },
+  {
+    "id": "METH-01",
+    "title": "Process Safety Management for Small Businesses",
+    "publisher": "U.S. Occupational Safety and Health Administration",
+    "kind": "открытое государственное методическое руководство",
+    "localPath": "methodology/METH-01-OSHA-process-safety-management.pdf",
+    "edition": "OSHA 3908-03 2017",
+    "language": "en",
+    "usageNote": "Используется для учебного объяснения управления изменениями, механической целостности, процедур, обучения и предпусковой проверки."
+  },
+  {
+    "id": "METH-02",
+    "title": "Artificial Intelligence Risk Management Framework (AI RMF 1.0)",
+    "publisher": "National Institute of Standards and Technology",
+    "kind": "открытая государственная методология",
+    "localPath": "methodology/METH-02-NIST-AI-RMF-1.0.pdf",
+    "edition": "NIST AI 100-1, January 2023",
+    "language": "en",
+    "usageNote": "Методологическая основа для ограничений, контроля качества и ответственного применения ИИ-помощника КТК."
+  },
+  {
+    "id": "CASE-01",
+    "title": "Chevron Richmond Refinery Pipe Rupture and Fire: Regulatory Report",
+    "publisher": "U.S. Chemical Safety and Hazard Investigation Board",
+    "kind": "открытый отчёт о расследовании аварии",
+    "localPath": "incidents/CASE-01-CSB-Chevron-Richmond-regulatory-report.pdf",
+    "edition": "May 2014",
+    "language": "en",
+    "usageNote": "Материал по механической целостности, коррозионным механизмам, управлению риском и контролю отложенных ремонтных мероприятий."
+  },
+  {
+    "id": "CASE-02",
+    "title": "Catastrophic Rupture of Heat Exchanger: Tesoro Anacortes Refinery",
+    "publisher": "U.S. Chemical Safety and Hazard Investigation Board",
+    "kind": "открытый отчёт о расследовании аварии",
+    "localPath": "incidents/CASE-02-CSB-Tesoro-Anacortes-report.pdf",
+    "edition": "May 2014",
+    "language": "en",
+    "usageNote": "Материал по теплообменному оборудованию, повреждающим механизмам, контролю состояния и организации безопасного ремонта."
+  },
+  {
+    "id": "CASE-03",
+    "title": "Positive Material Verification: Prevent Errors During Alloy Steel Systems Maintenance",
+    "publisher": "U.S. Chemical Safety and Hazard Investigation Board",
+    "kind": "открытый бюллетень по урокам аварий",
+    "localPath": "incidents/CASE-03-CSB-BP-material-identification-safety-bulletin.pdf",
+    "edition": "October 2006",
+    "language": "en",
+    "usageNote": "Материал по идентификации материалов, контролю ремонта и предотвращению установки неподходящих деталей."
+  },
+  {
+    "id": "CASE-04",
+    "title": "Fatal Hydrogen Sulfide Release at PEMEX Deer Park Refinery",
+    "publisher": "U.S. Chemical Safety and Hazard Investigation Board",
+    "kind": "открытый материал расследования аварии",
+    "localPath": "incidents/CASE-04-CSB-PEMEX-H2S-release.pdf",
+    "edition": "Investigation Update, November 2024",
+    "language": "en",
+    "usageNote": "Материал по рискам сероводорода, подготовке работ, изоляции оборудования, газоанализу и аварийному реагированию."
+  },
+  {
+    "id": "STD-01",
+    "title": "Реестр стандартов и нормативных документов для экспертной проверки контента",
+    "publisher": "КТК ЭЛОУ-АВТ",
+    "kind": "локальный библиографический реестр",
+    "localPath": "standards-register.md",
+    "edition": "Редакция 1.0",
+    "language": "ru",
+    "usageNote": "Содержит обозначения ГОСТ и иных документов без воспроизведения защищённых полных текстов. Действующие редакции проверяются через корпоративную нормативную систему."
+  }
+]

@@ -29,7 +29,7 @@ Health: `http://localhost:8000/api/health`.
 | gateway    | 8000 | `/api/*` → auth / ai / training / storage / …   |
 | auth       | 8102 | вход, Redis-сессии, CRUD пользователей          |
 | training   | 8103 | каталог мини-уроков, evaluate                   |
-| knowledge  | 8104 | версионируемые статьи из `backend/knowledge/content/ru` и базовый каталог `backend/knowledge/seed.json` |
+| knowledge  | 8104 | подробные статьи из `backend/knowledge/content/ru`, базовый каталог `seed.json` и локальные документы из `references` |
 | storage    | 8105 | отчёты, аудит, группы → PostgreSQL              |
 | presence   | 8106 | WebSocket presence → Redis                      |
 | ai         | 8107 | `/analyze`, `/chat` (отключаемый)               |
