@@ -93,6 +93,17 @@ def test_asset_path_traversal_is_not_possible():
     assert reference_root not in reference_escape.parents
 
 
+def test_diagram_assets_have_light_and_dark_variants():
+    for article in load_articles():
+        diagram = article.get("diagram")
+        if not diagram:
+            continue
+        light = app.ASSET_DIR / diagram["src"]
+        dark = light.with_name(f"{light.stem}.dark{light.suffix}")
+        assert light.is_file(), light
+        assert dark.is_file(), dark
+
+
 def test_slow_response_recommendation_links_to_existing_article():
     result = analyze_session(
         {

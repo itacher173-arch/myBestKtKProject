@@ -13,3 +13,11 @@
 @keyframes knowledge-in{from{opacity:0;transform:translateY(8px) scale(.99)}to{opacity:1;transform:none}}
 @media(max-width:1000px){.knowledge-layout{grid-template-columns:330px 1fr}.knowledge-article{padding-inline:24px}.knowledge-metadata{grid-template-columns:1fr}.knowledge-objectives ul{grid-template-columns:1fr}}
 @media(max-width:720px){.knowledge-overlay{padding:0}.knowledge-window{height:100vh;border-radius:0;grid-template-rows:65px auto 1fr}.knowledge-toolbar{grid-template-columns:1fr 130px}.knowledge-result-count{display:none}.knowledge-layout{display:block;overflow:auto}.knowledge-navigation{max-height:42vh;border-right:0;border-bottom:1px solid var(--border)}.knowledge-reader{min-height:58vh;overflow:visible}.knowledge-article{padding:20px 17px 45px}.knowledge-article h2{font-size:calc(21px * var(--font-scale))}.knowledge-doc-icon{display:none}}
+
+.knowledge-diagram {
+  background: var(--surface-muted);
+}
+
+.knowledge-diagram figcaption {
+  color: var(--text-muted);
+}

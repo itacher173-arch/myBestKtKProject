@@ -211,24 +211,6 @@ export function StartScreen() {
             </p>
           )}
         </div>
-        <div className="hero-process-art" aria-hidden="true">
-          <span className="art-column c1">
-            <i />
-            <i />
-            <i />
-          </span>
-          <span className="art-pipe p1" />
-          <span className="art-unit">
-            <i />
-          </span>
-          <span className="art-pipe p2" />
-          <span className="art-column c2">
-            <i />
-            <i />
-            <i />
-            <i />
-          </span>
-        </div>
       </section>
 
       <section className="dashboard-stats" aria-label="Сводка обучения">

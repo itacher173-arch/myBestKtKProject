@@ -2,3 +2,14 @@
 @media(max-width:920px){.shell{grid-template-columns:62px 1fr}.shell-rail{padding-inline:6px}.shell-logo{width:44px;height:44px}.shell-rail button span{display:none}.shell-topbar{padding-inline:14px}.user-chip{grid-template-columns:32px 12px}.user-chip>span:nth-child(2){display:none}.ai-top-button span{display:none}.service-strip{padding-inline:14px}.shell-content{padding:15px}}
 @media(max-width:620px){.shell{grid-template-columns:1fr;grid-template-rows:1fr 58px}.shell-rail{grid-row:2;flex-direction:row;padding:5px 9px;border-right:0;border-top:1px solid var(--border)}.shell-logo,.shell-rail-bottom{display:none}.shell-rail nav{display:flex;justify-content:space-around}.shell-rail nav button{width:58px;min-height:46px}.shell-rail button span{display:block}.shell-stage{grid-row:1;grid-template-rows:62px 24px 1fr}.shell-heading p,.user-chip{display:none}.shell-top-actions{margin-left:auto}.shell-content{padding:12px}}
 .service-strip.checking span:first-child i{background:var(--warning);animation:service-pulse 1s infinite}.service-strip.degraded span:first-child{color:var(--danger)}.service-strip.degraded span:first-child i{background:var(--danger)}@keyframes service-pulse{50%{opacity:.35}}
+
+.shell-logo {
+  background: transparent;
+  box-shadow: 0 10px 24px rgba(0, 121, 194, 0.2);
+}
+
+.shell-logo img {
+  width: 100%;
+  height: 100%;
+  display: block;
+}

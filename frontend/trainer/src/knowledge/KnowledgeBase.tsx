@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { apiGet } from '../api/client'
 import { Icon } from '../common/ui/Icon'
+import { usePreferences } from '../settings/PreferencesContext'
 import { useTrainer } from '../simulator/TrainerContext'
 import './KnowledgeBase.css'
 
@@ -59,8 +60,17 @@ function statusLabel(status: string): string {
   return 'Требует экспертной проверки'
 }
 
+function diagramAsset(src: string, darkTheme: boolean): string {
+  const themedSrc =
+    darkTheme && src.toLocaleLowerCase().endsWith('.svg')
+      ? src.replace(/\.svg$/i, '.dark.svg')
+      : src
+  return `/api/knowledge/assets/${encodeURIComponent(themedSrc)}`
+}
+
 export function KnowledgeBase() {
   const { knowledgeOpen, knowledgeArticleId, closeKnowledge, openKnowledge } = useTrainer()
+  const { theme } = usePreferences()
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('')
   const [role, setRole] = useState('')
@@ -69,6 +79,10 @@ export function KnowledgeBase() {
   const [article, setArticle] = useState<Article | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const darkTheme =
+    theme === 'dark' ||
+    (theme === 'system' &&
+      window.matchMedia('(prefers-color-scheme: dark)').matches)
 
   useEffect(() => {
     if (!knowledgeOpen) return
@@ -173,7 +187,7 @@ export function KnowledgeBase() {
 
                 {!!article.learningObjectives.length && <section className="knowledge-objectives"><h3>После изучения вы сможете</h3><ul>{article.learningObjectives.map((item) => <li key={item}><Icon name="check" />{item}</li>)}</ul></section>}
 
-                {article.diagram && <figure className="knowledge-diagram"><img src={`/api/knowledge/assets/${encodeURIComponent(article.diagram.src)}`} alt={article.diagram.alt} /><figcaption>{article.diagram.caption}</figcaption></figure>}
+                {article.diagram && <figure className="knowledge-diagram"><img src={diagramAsset(article.diagram.src, darkTheme)} alt={article.diagram.alt} /><figcaption>{article.diagram.caption}</figcaption></figure>}
 
                 {article.sections.map((section, index) => (
                   <section className="knowledge-section" key={`${section.title}-${index}`}>

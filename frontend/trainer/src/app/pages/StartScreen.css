@@ -16,3 +16,33 @@
 .instructor-launch-panel h3{margin:4px 0 6px;font-size:calc(16px * var(--font-scale))}
 .instructor-launch-panel p{margin:0;color:var(--text-muted);font-size:calc(12px * var(--font-scale));line-height:1.45;max-width:520px}
 .instructor-launch-panel .launch-button{width:auto;min-width:180px;padding:0 18px}
+
+.dashboard-hero {
+  min-height: 180px;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(0, 46, 84, 0.97) 0%,
+      rgba(0, 81, 132, 0.91) 42%,
+      rgba(0, 104, 167, 0.36) 67%,
+      rgba(255, 255, 255, 0) 100%
+    ),
+    url('../../assets/brand/dashboard-hero-light.jpg') center / cover no-repeat;
+}
+
+.dashboard-hero::before,
+.hero-process-art {
+  display: none;
+}
+
+[data-theme='dark'] .dashboard-hero {
+  background:
+    linear-gradient(
+      90deg,
+      rgba(3, 23, 41, 0.88) 0%,
+      rgba(4, 36, 62, 0.78) 45%,
+      rgba(4, 36, 62, 0.14) 74%,
+      transparent 100%
+    ),
+    url('../../assets/brand/dashboard-hero-dark.jpg') center / cover no-repeat;
+}

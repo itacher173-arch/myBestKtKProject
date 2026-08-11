@@ -10,6 +10,7 @@ import {
 import { presenceBus } from '../presence/presence'
 import { usePreferences } from '../settings/PreferencesContext'
 import { Icon, type IconName } from '../common/ui/Icon'
+import ktkMarkUrl from '../assets/brand/ktk-mark.svg'
 import './AppShell.css'
 
 export interface ShellNavItem {
@@ -113,11 +114,7 @@ export function AppShell({
     <div className="shell">
       <aside className="shell-rail">
         <div className="shell-logo" title="КТК ЭЛОУ-АВТ">
-          <span>
-            <i />
-            <i />
-            <i />
-          </span>
+          <img src={ktkMarkUrl} alt="" aria-hidden="true" />
         </div>
         <nav aria-label="Основная навигация">
           {navItems.map((item) => (

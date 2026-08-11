@@ -4,8 +4,9 @@
   place-items: center;
   padding: 30px;
   background:
-    linear-gradient(135deg, rgba(0, 59, 111, 0.96), rgba(0, 121, 194, 0.9) 52%, rgba(0, 174, 239, 0.72)),
-    #003b6f;
+    linear-gradient(rgba(232, 245, 251, 0.12), rgba(0, 121, 194, 0.08)),
+    url('./assets/brand/login-light.jpg') center / cover no-repeat,
+    #e8f5fb;
 }
 
 .auth-login-card {
@@ -94,4 +95,50 @@
 
 .auth-login-card > button:hover:not(:disabled) {
   background: var(--gpn-deep);
+}
+
+@media (prefers-color-scheme: dark) {
+  .auth-login {
+    background:
+      linear-gradient(rgba(0, 21, 40, 0.2), rgba(0, 21, 40, 0.35)),
+      url('./assets/brand/login-dark.jpg') center / cover no-repeat,
+      #03182b;
+  }
+
+  .auth-login-card {
+    border-color: rgba(72, 151, 197, 0.35);
+    background: rgba(8, 35, 53, 0.96);
+    color: #edf7fc;
+    box-shadow: 0 24px 72px rgba(0, 0, 0, 0.48);
+  }
+
+  .corporate-mark {
+    color: #55c4ed;
+  }
+
+  .auth-login-card h1 {
+    color: #edf7fc;
+  }
+
+  .auth-login-card .lead,
+  .auth-login-card .hint,
+  .auth-login-card .hint a {
+    color: #a9c8d8;
+  }
+
+  .auth-login-card label {
+    color: #8eb5c9;
+  }
+
+  .auth-login-card input {
+    border-color: #31586f;
+    background: #0b2a3e;
+    color: #edf7fc;
+  }
+}
+
+@media (max-aspect-ratio: 4 / 3) {
+  .auth-login {
+    background-size: cover, 100% auto;
+  }
 }

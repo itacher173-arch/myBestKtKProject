@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+@import './local-fonts.css';
 
 :root {
   --gpn-deep: #003b6f;

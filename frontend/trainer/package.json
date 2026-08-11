@@ -14,6 +14,8 @@
     "verify:pipe-arrows": "tsx scripts/verify-pipe-arrows.mts"
   },
   "dependencies": {
+    "@fontsource/ibm-plex-mono": "^5.3.0",
+    "@fontsource/ibm-plex-sans": "^5.3.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
