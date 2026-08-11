@@ -23,13 +23,18 @@ interface ArticleSection {
   paragraphs?: string[]
   bullets?: string[]
   warning?: string
+  sourceIds?: string[]
 }
 
 interface ArticleSource {
+  id: string
   title: string
   publisher: string
   kind: string
-  url?: string
+  localPath: string
+  edition?: string
+  language?: string
+  usageNote?: string
 }
 
 interface Article extends ArticleSummary {
@@ -38,6 +43,7 @@ interface Article extends ArticleSummary {
   relatedArticleIds: string[]
   safetyNotice: string
   sections: ArticleSection[]
+  sourceIds: string[]
   sources: ArticleSource[]
   diagram?: { src: string; alt: string; caption?: string }
 }
@@ -175,6 +181,7 @@ export function KnowledgeBase() {
                     {section.paragraphs?.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
                     {!!section.bullets?.length && <ul>{section.bullets.map((item) => <li key={item}>{item}</li>)}</ul>}
                     {section.warning && <div className="knowledge-warning"><Icon name="alert" /><p>{section.warning}</p></div>}
+                    {!!section.sourceIds?.length && <div className="knowledge-section-sources"><strong>Материалы раздела</strong>{section.sourceIds.map((sourceId) => <a key={sourceId} href={`/api/knowledge/references/${encodeURIComponent(sourceId)}`} target="_blank" rel="noreferrer">{sourceId}</a>)}</div>}
                   </section>
                 ))}
 
@@ -186,7 +193,7 @@ export function KnowledgeBase() {
 
                 {!!article.relatedArticleIds.length && <section className="knowledge-related"><h3>Продолжить изучение</h3><div>{article.relatedArticleIds.map((id) => <button type="button" key={id} onClick={() => openKnowledge(id)}>{id}<Icon name="chevron" /></button>)}</div></section>}
 
-                <section className="knowledge-sources"><h3>Источники и материалы</h3>{article.sources.map((source) => source.url ? <a key={`${source.title}-${source.url}`} href={source.url} target="_blank" rel="noreferrer"><span><strong>{source.title}</strong><small>{source.publisher} · {source.kind}</small></span><Icon name="chevron" /></a> : <div key={source.title}><span><strong>{source.title}</strong><small>{source.publisher} · {source.kind}</small></span></div>)}</section>
+                <section className="knowledge-sources"><h3>Локальные документы</h3>{article.sources.map((source) => <a key={source.id} href={`/api/knowledge/references/${encodeURIComponent(source.id)}`} target="_blank" rel="noreferrer"><span><strong>{source.id} · {source.title}</strong><small>{source.publisher} · {source.kind}{source.edition ? ` · ${source.edition}` : ''}</small>{source.usageNote && <small className="usage">{source.usageNote}</small>}</span><Icon name="chevron" /></a>)}</section>
 
                 <div className="knowledge-keywords">{article.keywords.map((keyword) => <span key={keyword}>{keyword}</span>)}</div>
               </article>

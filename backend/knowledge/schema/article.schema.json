@@ -22,16 +22,31 @@
           "title": {"type": "string"},
           "paragraphs": {"type": "array", "items": {"type": "string"}},
           "bullets": {"type": "array", "items": {"type": "string"}},
-          "warning": {"type": "string"}
+          "warning": {"type": "string"},
+          "sourceIds": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
         }
       }
+    },
+    "sourceIds": {
+      "type": "array",
+      "items": {"type": "string"},
+      "uniqueItems": true
     },
     "sources": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["title", "publisher", "kind"],
-        "properties": {"url": {"type": "string", "format": "uri"}}
+        "required": ["id", "title", "publisher", "kind", "localPath"],
+        "properties": {
+          "id": {"type": "string"},
+          "title": {"type": "string"},
+          "publisher": {"type": "string"},
+          "kind": {"type": "string"},
+          "localPath": {"type": "string"},
+          "edition": {"type": "string"},
+          "language": {"type": "string"},
+          "usageNote": {"type": "string"}
+        }
       }
     }
   }
