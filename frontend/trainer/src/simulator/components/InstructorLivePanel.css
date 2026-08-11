@@ -12,7 +12,7 @@
   background: var(--panel-glass-warning);
   box-shadow: var(--shadow-sm);
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: 13px;
   backdrop-filter: blur(8px);
 }
 
@@ -58,7 +58,7 @@
   border-radius: 5px;
   padding: 5px 8px;
   font: inherit;
-  font-size: 11px;
+  font-size: 13px;
   cursor: pointer;
 }
 
@@ -92,7 +92,7 @@
 
 .instr-live h4 {
   margin: 8px 0 4px;
-  font-size: 10px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-muted);

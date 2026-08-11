@@ -26,7 +26,7 @@
 
 .ctrl-header h3 {
   margin: 0;
-  font-size: 14px;
+  font-size: 16px;
   color: var(--text-primary);
 }
 
@@ -42,13 +42,13 @@
 .ctrl-body {
   padding: 14px 16px 16px;
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .ctrl-desc {
   margin: 0 0 12px;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.4;
 }
 
@@ -118,6 +118,6 @@
 }
 
 .hint {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text-muted);
 }

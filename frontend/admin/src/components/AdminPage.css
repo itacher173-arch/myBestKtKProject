@@ -23,7 +23,7 @@
 
 .admin-header p {
   margin: 4px 0 0;
-  font-size: 12px;
+  font-size: 16px;
   color: #9db4c7;
 }
 
@@ -39,7 +39,7 @@
   background: #3a1c1c;
   color: #ffb4b4;
   border-bottom: 1px solid #5a2a2a;
-  font-size: 13px;
+  font-size: 16px;
 }
 
 .admin-layout {
@@ -66,7 +66,7 @@
 
 .admin-list h2 {
   margin: 0 0 10px;
-  font-size: 12px;
+  font-size: 16px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: #7f97ab;
@@ -101,11 +101,11 @@
 }
 
 .admin-list li button strong {
-  font-size: 13px;
+  font-size: 16px;
 }
 
 .admin-list li button span {
-  font-size: 11px;
+  font-size: 15px;
   color: #8aa0b3;
 }
 
@@ -129,12 +129,12 @@
 
 .admin-detail h2 {
   margin: 0 0 14px;
-  font-size: 16px;
+  font-size: 17px;
 }
 
 .admin-detail h3 {
   margin: 18px 0 10px;
-  font-size: 13px;
+  font-size: 16px;
   color: #9db4c7;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -151,7 +151,7 @@
 .admin-detail-head p {
   margin: 4px 0 0;
   color: #9db4c7;
-  font-size: 13px;
+  font-size: 16px;
 }
 
 .admin-detail label,
@@ -160,7 +160,7 @@
   flex-direction: column;
   gap: 6px;
   margin-bottom: 14px;
-  font-size: 12px;
+  font-size: 16px;
   color: #9db4c7;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -286,11 +286,11 @@
 }
 
 .member-info strong {
-  font-size: 13px;
+  font-size: 16px;
 }
 
 .member-meta {
-  font-size: 11px;
+  font-size: 15px;
   color: #8aa0b3;
 }
 
@@ -301,12 +301,12 @@
   gap: 12px;
   margin-top: 12px;
   color: #9db4c7;
-  font-size: 13px;
+  font-size: 16px;
 }
 
 .admin-empty {
   color: #8aa0b3;
-  font-size: 13px;
+  font-size: 16px;
 }
 
 .admin-page .hdr-btn {
@@ -317,7 +317,7 @@
   padding: 8px 12px;
   cursor: pointer;
   font: inherit;
-  font-size: 13px;
+  font-size: 16px;
 }
 
 .admin-page .hdr-btn.ghost {
@@ -355,13 +355,13 @@
 
 .admin-modal h3 {
   margin: 0 0 10px;
-  font-size: 16px;
+  font-size: 17px;
 }
 
 .admin-modal p {
   margin: 0 0 18px;
   color: #c5d5e2;
-  font-size: 14px;
+  font-size: 17px;
   line-height: 1.45;
 }
 

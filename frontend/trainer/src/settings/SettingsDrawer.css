@@ -43,7 +43,7 @@
   display: block;
   margin-bottom: 3px;
   color: var(--accent);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -87,7 +87,7 @@
   align-items: center;
   gap: 8px;
   margin: 0 0 15px;
-  font-size: 12px;
+  font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 0.07em;
 }
@@ -123,7 +123,7 @@
 
 .theme-grid > button > span:nth-child(2) {
   padding: 0 3px 3px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -198,7 +198,7 @@
   background: transparent;
   color: var(--text-secondary);
   font: inherit;
-  font-size: 11px;
+  font-size: 13px;
   cursor: pointer;
 }
 
@@ -217,7 +217,7 @@
 
 .settings-field > span,
 .settings-range > span {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
 }
 
@@ -251,6 +251,30 @@
   accent-color: var(--accent);
 }
 
+.font-scale-presets {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.font-scale-presets button {
+  min-height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.font-scale-presets button.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
 .settings-toggle {
   position: relative;
   display: grid;
@@ -267,12 +291,12 @@
 }
 
 .settings-toggle strong {
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .settings-toggle small {
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.4;
 }
 
@@ -333,12 +357,12 @@
 }
 
 .settings-security-note strong {
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .settings-security-note small {
   color: var(--text-secondary);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.45;
 }
 
@@ -355,7 +379,7 @@
 
 .settings-drawer > footer span {
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .settings-drawer > footer button {
@@ -363,7 +387,7 @@
   background: transparent;
   color: var(--accent);
   font: inherit;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
 }

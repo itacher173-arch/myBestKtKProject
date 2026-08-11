@@ -41,7 +41,7 @@ const defaults: Preferences = {
   theme: 'dark',
   locale: 'ru',
   fontFamily: 'interface',
-  fontScale: 1,
+  fontScale: 1.1,
   density: 'comfortable',
   highContrast: false,
   reducedMotion: false,
@@ -50,7 +50,10 @@ const defaults: Preferences = {
   showTrendStrip: true,
 }
 
-const STORAGE_KEY = 'ktk-elou-avt-preferences-v5'
+const STORAGE_KEY = 'ktk-elou-avt-preferences-v6'
+const LEGACY_STORAGE_KEY = 'ktk-elou-avt-preferences-v5'
+const FONT_SCALE_MIN = 0.9
+const FONT_SCALE_MAX = 1.5
 
 const translations: Record<Locale, Record<string, string>> = {
   ru: {
@@ -103,10 +106,23 @@ const PreferencesContext = createContext<PreferencesApi | null>(null)
 
 function loadPreferences(): Preferences {
   try {
-    const stored = JSON.parse(
-      localStorage.getItem(STORAGE_KEY) || '{}',
-    ) as Partial<Preferences>
-    return { ...defaults, ...stored }
+    const currentRaw = localStorage.getItem(STORAGE_KEY)
+    const legacyRaw = localStorage.getItem(LEGACY_STORAGE_KEY)
+    const stored = JSON.parse(currentRaw || legacyRaw || '{}') as Partial<Preferences>
+    const storedScale =
+      typeof stored.fontScale === 'number' && Number.isFinite(stored.fontScale)
+        ? stored.fontScale
+        : defaults.fontScale
+    const migratedScale =
+      !currentRaw && storedScale === 1 ? defaults.fontScale : storedScale
+    return {
+      ...defaults,
+      ...stored,
+      fontScale: Math.min(
+        FONT_SCALE_MAX,
+        Math.max(FONT_SCALE_MIN, migratedScale),
+      ),
+    }
   } catch {
     return defaults
   }

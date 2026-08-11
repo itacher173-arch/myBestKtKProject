@@ -31,6 +31,7 @@ body {
 
 button,
 input,
-select {
-  font-family: inherit;
+select,
+textarea {
+  font: inherit;
 }

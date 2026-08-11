@@ -14,7 +14,7 @@
 }
 
 .inline-ctrl-status {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-secondary);
   margin-bottom: 8px;
   line-height: 1.35;
@@ -62,7 +62,7 @@
   border-radius: 6px;
   padding: 7px 10px;
   font: inherit;
-  font-size: 12px;
+  font-size: 14px;
   cursor: pointer;
 }
 

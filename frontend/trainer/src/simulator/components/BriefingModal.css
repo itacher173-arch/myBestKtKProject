@@ -20,7 +20,7 @@
 
 .briefing-mode {
   margin: 0 0 6px;
-  font-size: 11px;
+  font-size: 13px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--warning);
@@ -34,14 +34,14 @@
 
 .briefing-desc {
   margin: 0 0 14px;
-  font-size: 13px;
+  font-size: 15px;
   color: var(--text-muted);
   line-height: 1.4;
 }
 
 .briefing-card h3 {
   margin: 12px 0 6px;
-  font-size: 12px;
+  font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-muted);
@@ -50,13 +50,13 @@
 .briefing-card ul {
   margin: 0;
   padding-left: 18px;
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.45;
 }
 
 .briefing-tip {
   margin: 12px 0 0;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--accent);
 }
 

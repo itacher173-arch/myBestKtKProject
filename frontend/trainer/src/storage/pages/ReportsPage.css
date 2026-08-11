@@ -27,7 +27,7 @@
 
 .reports-header p {
   margin: 4px 0 0;
-  font-size: 12px;
+  font-size: 14px;
   color: rgba(255, 255, 255, 0.78);
 }
 
@@ -54,7 +54,7 @@
 
 .reports-list h2 {
   margin: 0 0 10px;
-  font-size: 12px;
+  font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--text-muted);
@@ -102,11 +102,11 @@
 }
 
 .reports-list button strong {
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .reports-list button span {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text-muted);
 }
 
@@ -147,7 +147,7 @@
 
 .reports-detail h3 {
   margin: 18px 0 8px;
-  font-size: 12px;
+  font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--text-muted);
@@ -168,13 +168,13 @@
 }
 
 .reports-meta dt {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text-muted);
 }
 
 .reports-meta dd {
   margin: 4px 0 0;
-  font-size: 14px;
+  font-size: 16px;
   color: var(--text-primary);
 }
 
@@ -192,7 +192,7 @@
 .reports-log li {
   padding: 8px 12px;
   border-bottom: 1px solid var(--border);
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-secondary);
   line-height: 1.35;
 }
@@ -209,7 +209,7 @@
 
 .reports-empty {
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.45;
 }
 
@@ -253,7 +253,7 @@
   gap: 8px;
   padding: 8px 10px;
   border-bottom: 1px solid var(--border);
-  font-size: 13px;
+  font-size: 15px;
   color: var(--text-primary);
 }
 
@@ -295,7 +295,7 @@
   padding: 1px 7px;
   border-radius: 999px;
   border: 1px solid var(--border);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.02em;
   text-transform: lowercase;
   color: var(--text-secondary);
@@ -327,7 +327,7 @@
 
 .group-error {
   color: var(--danger);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
 }
 
@@ -364,7 +364,7 @@
 .report-ai-start p {
   margin: 0 0 12px;
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.45;
 }
 

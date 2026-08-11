@@ -21,7 +21,7 @@
 .corporate-mark {
   margin-bottom: 4px;
   color: var(--gpn-blue);
-  font-size: 11px;
+  font-size: 15px;
   font-weight: 800;
   letter-spacing: 0.14em;
 }
@@ -35,7 +35,7 @@
 .admin-login-card .lead {
   margin: 6px 0 18px;
   color: var(--gpn-muted);
-  font-size: 13px;
+  font-size: 16px;
 }
 
 .admin-login-card label {
@@ -43,7 +43,7 @@
   flex-direction: column;
   gap: 6px;
   margin-bottom: 14px;
-  font-size: 11px;
+  font-size: 15px;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -55,7 +55,7 @@
   border: 1px solid #c6e0ee;
   border-radius: 8px;
   font: inherit;
-  font-size: 14px;
+  font-size: 17px;
   font-weight: 400;
   letter-spacing: normal;
   text-transform: none;
@@ -65,7 +65,7 @@
 .admin-login-card .error {
   margin: 0 0 12px;
   color: #d64545;
-  font-size: 13px;
+  font-size: 16px;
 }
 
 .admin-login-card > button {

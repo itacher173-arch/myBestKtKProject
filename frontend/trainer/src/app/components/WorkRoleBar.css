@@ -16,7 +16,7 @@
 
 .dashboard-role-bar > span {
   color: var(--text-muted);
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -31,7 +31,7 @@
   background: transparent;
   color: var(--accent);
   font: inherit;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   cursor: pointer;
   text-decoration: underline;
@@ -55,7 +55,7 @@
   background: transparent;
   color: var(--text-muted);
   font: inherit;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   cursor: pointer;
 }

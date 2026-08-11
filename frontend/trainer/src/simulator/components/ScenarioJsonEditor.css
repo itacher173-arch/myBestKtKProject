@@ -29,7 +29,7 @@
 .scenario-json-editor textarea {
   width: 100%;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.4;
   padding: 10px;
   border: 1px solid var(--border);

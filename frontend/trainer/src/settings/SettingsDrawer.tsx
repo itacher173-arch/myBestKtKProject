@@ -144,7 +144,7 @@ export function SettingsDrawer() {
               <input
                 type="range"
                 min="0.9"
-                max="1.15"
+                max="1.5"
                 step="0.05"
                 value={settings.fontScale}
                 onChange={(event) =>
@@ -154,6 +154,22 @@ export function SettingsDrawer() {
                   )
                 }
               />
+              <div className="font-scale-presets">
+                {[1, 1.15, 1.3, 1.5].map((scale) => (
+                  <button
+                    type="button"
+                    key={scale}
+                    className={
+                      settings.fontScale === scale ? 'active' : ''
+                    }
+                    onClick={() =>
+                      settings.setPreference('fontScale', scale)
+                    }
+                  >
+                    {Math.round(scale * 100)}%
+                  </button>
+                ))}
+              </div>
             </label>
             <div className="segmented">
               <button
