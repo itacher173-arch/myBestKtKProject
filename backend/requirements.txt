@@ -1,6 +1,6 @@
 psycopg[binary]==3.2.9
 websockets==14.2
 redis==5.2.1
-fastapi==0.115.12
+fastapi==0.141.1
 uvicorn[standard]==0.34.2
 pydantic==2.11.4
