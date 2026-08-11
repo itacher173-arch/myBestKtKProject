@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import time
+
 from backend.gateway import app as gateway_app
 from backend.scenarios.schema import validate_scenario_dict
+from backend.simulator import checkpoint_store
 from backend.simulator.paz import interlock_reason
 from backend.simulator.process_model import create_initial_process, tick_process
 from backend.simulator.session import SessionStore
@@ -18,6 +21,51 @@ from backend.storage.auth import (
     primary_role,
     verify_password,
 )
+
+
+class _FakeRedis:
+    def __init__(self):
+        self.data = {}
+
+    def get(self, key):
+        return self.data.get(key)
+
+    def set(self, key, value, **_kwargs):
+        self.data[key] = value
+        return True
+
+    def delete(self, key):
+        return int(self.data.pop(key, None) is not None)
+
+    def expire(self, _key, _ttl):
+        return True
+
+    def pipeline(self):
+        return _FakePipeline(self)
+
+
+class _FakePipeline:
+    def __init__(self, redis):
+        self.redis = redis
+        self.operations = []
+
+    def get(self, key):
+        self.operations.append(("get", (key,), {}))
+        return self
+
+    def set(self, key, value, **kwargs):
+        self.operations.append(("set", (key, value), kwargs))
+        return self
+
+    def delete(self, key):
+        self.operations.append(("delete", (key,), {}))
+        return self
+
+    def execute(self):
+        return [
+            getattr(self.redis, operation)(*args, **kwargs)
+            for operation, args, kwargs in self.operations
+        ]
 
 
 def test_process_tick_advances_time():
@@ -127,6 +175,60 @@ def test_restore_snapshot_replaces_server_state_and_pause():
     assert got.process["running"] is True
     assert got.paused is False
     assert got.fault_triggered is True
+
+
+def test_session_checkpoint_roundtrip_restores_progress():
+    first = SessionStore()
+    sess = first.create(user_id="u1", exercise_id="startup", seed=42)
+    first.tick_all(2.0)
+    first.apply_command(sess.id, "pause")
+    checkpoint = sess.checkpoint()
+
+    restored_store = SessionStore()
+    restored = restored_store.restore(checkpoint)
+
+    assert restored.id == sess.id
+    assert restored.user_id == "u1"
+    assert restored.exercise_id == "startup"
+    assert restored.seed == 42
+    assert restored.paused is True
+    assert restored.sim_time >= 2.0
+    assert restored.process["simTimeSec"] == restored.sim_time
+
+
+def test_session_is_auto_paused_after_heartbeat_timeout():
+    store = SessionStore()
+    sess = store.create(user_id="u1")
+    sess.last_seen_at = time.time() - 31
+
+    paused = store.pause_stale(30)
+
+    assert paused == [sess]
+    assert sess.paused is True
+    assert store.pause_stale(30) == []
+
+
+def test_durable_checkpoint_preserves_client_state(monkeypatch):
+    redis = _FakeRedis()
+    monkeypatch.setattr(checkpoint_store, "get_redis", lambda: redis)
+    store = SessionStore()
+    sess = store.create(user_id="u1", exercise_id="startup")
+
+    checkpoint_store.save_session(
+        sess.checkpoint(),
+        client_state={"trainingMode": "full", "hintsUsed": 2},
+    )
+    store.tick_all(1)
+    checkpoint_store.save_session(sess.checkpoint())
+
+    active = checkpoint_store.get_active("u1")
+    assert active is not None
+    assert active["sessionId"] == sess.id
+    assert active["session"]["simTimeSec"] >= 1
+    assert active["clientState"]["hintsUsed"] == 2
+
+    checkpoint_store.delete_session(sess.id, "u1")
+    assert checkpoint_store.get_active("u1") is None
 
 
 def test_audit_hmac_chain(monkeypatch):

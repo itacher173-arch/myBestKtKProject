@@ -52,6 +52,12 @@ const defaults: Preferences = {
 
 const STORAGE_KEY = 'ktk-elou-avt-preferences-v6'
 const LEGACY_STORAGE_KEY = 'ktk-elou-avt-preferences-v5'
+const OBSOLETE_LOCAL_KEYS = [
+  LEGACY_STORAGE_KEY,
+  'ktk-elou-avt-trainee-reports',
+  'ktk-elou-avt-audit-log',
+  'ktk-elou-avt-instructor-pin',
+]
 const FONT_SCALE_MIN = 0.9
 const FONT_SCALE_MAX = 1.5
 
@@ -109,6 +115,7 @@ function loadPreferences(): Preferences {
     const currentRaw = localStorage.getItem(STORAGE_KEY)
     const legacyRaw = localStorage.getItem(LEGACY_STORAGE_KEY)
     const stored = JSON.parse(currentRaw || legacyRaw || '{}') as Partial<Preferences>
+    for (const key of OBSOLETE_LOCAL_KEYS) localStorage.removeItem(key)
     const storedScale =
       typeof stored.fontScale === 'number' && Number.isFinite(stored.fontScale)
         ? stored.fontScale

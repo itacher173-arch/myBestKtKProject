@@ -69,78 +69,20 @@ export interface TraineeReport {
 
 export const PROTOCOL_VERSION = 'session-protocol-1.0'
 
-const STORAGE_KEY = 'ktk-elou-avt-trainee-reports'
-
-function loadLocalReports(): TraineeReport[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return []
-    const parsed = JSON.parse(raw) as TraineeReport[]
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
-  }
-}
-
-function saveLocalReports(list: TraineeReport[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(list))
-}
-
-function isDuplicate(list: TraineeReport[], report: TraineeReport): boolean {
-  return list.some(
-    (r) =>
-      r.userName === report.userName &&
-      r.exerciseId === report.exerciseId &&
-      r.scorePercent === report.scorePercent &&
-      r.penalty === report.penalty &&
-      Math.abs(r.completedAt - report.completedAt) < 3000,
-  )
-}
-
-/** Синхронный кэш/офлайн-фолбэк, если API недоступен. */
-export function loadReportsSync(): TraineeReport[] {
-  return loadLocalReports()
-}
-
 export async function loadReports(options?: { mine?: boolean }): Promise<TraineeReport[]> {
-  try {
-    const path = options?.mine ? '/reports?mine=1' : '/reports'
-    const remote = await apiGet<TraineeReport[]>(path)
-    if (Array.isArray(remote)) {
-      if (!options?.mine) {
-        saveLocalReports(remote)
-      }
-      return remote
-    }
-  } catch {
-    /* offline / no backend */
-  }
-  const local = loadLocalReports()
-  if (!options?.mine) return local
-  // Offline mine: filter local by current user if possible
-  return local
+  const path = options?.mine ? '/reports?mine=1' : '/reports'
+  const remote = await apiGet<TraineeReport[]>(path)
+  return Array.isArray(remote) ? remote : []
 }
 
 export async function saveReport(report: TraineeReport): Promise<void> {
   await apiPost<{ ok: boolean }>('/reports', report)
-  const local = loadLocalReports()
-  if (!isDuplicate(local, report)) {
-    local.unshift(report)
-    saveLocalReports(local)
-  }
 }
 
 export async function updateReportAnalysis(
   id: string,
   aiAnalysis: AiAnalysis,
 ): Promise<void> {
-  const local = loadLocalReports()
-  const index = local.findIndex((report) => report.id === id)
-  if (index >= 0) {
-    local[index] = { ...local[index], aiAnalysis }
-    saveLocalReports(local)
-  }
-
   // Ищем отчёт и в «моих», и в общем списке (dual-role / инструктор)
   const [mine, all] = await Promise.all([
     loadReports({ mine: true }).catch(() => [] as TraineeReport[]),
@@ -148,29 +90,19 @@ export async function updateReportAnalysis(
   ])
   const remoteReport =
     mine.find((report) => report.id === id) ??
-    all.find((report) => report.id === id) ??
-    (index >= 0 ? local[index] : undefined)
+    all.find((report) => report.id === id)
 
   if (remoteReport) {
     await saveReport({ ...remoteReport, aiAnalysis })
-    // Держим localStorage в синхроне с сохранённым разбором
-    const synced = loadLocalReports()
-    const syncedIndex = synced.findIndex((report) => report.id === id)
-    const next = { ...remoteReport, aiAnalysis }
-    if (syncedIndex >= 0) synced[syncedIndex] = next
-    else synced.unshift(next)
-    saveLocalReports(synced)
   }
 }
 
 export async function deleteReport(id: string): Promise<void> {
   await apiDelete<{ ok: boolean }>(`/reports/${encodeURIComponent(id)}`)
-  saveLocalReports(loadLocalReports().filter((r) => r.id !== id))
 }
 
 export async function clearReports(): Promise<void> {
   await apiDelete<{ ok: boolean }>('/reports')
-  localStorage.removeItem(STORAGE_KEY)
 }
 
 /** JSON-пакет протокола сессии для скачивания / доказуемости */

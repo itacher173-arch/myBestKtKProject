@@ -11,13 +11,18 @@ import {
   type AuthUser,
 } from '../../auth/authApi'
 import { appendAudit, isInstructorAuthed } from '../../storage/auditStorage'
-import { loadReports, loadReportsSync } from '../../storage/reportsStorage'
+import { loadReports } from '../../storage/reportsStorage'
 import { presenceBus } from '../../presence/presence'
 import { useTrainer } from '../../simulator/TrainerContext'
 import { usePreferences } from '../../settings/PreferencesContext'
 import { SPEC_SCENARIOS } from '../../scenarios/catalog'
 import { getExercise } from '../../scenarios/exercises'
 import { Icon } from '../../common/ui/Icon'
+import {
+  getActiveSimSession,
+  type ActiveSimCheckpoint,
+} from '../../simulator/serverSimApi'
+import { ResumeSessionModal } from '../../simulator/components/ResumeSessionModal'
 import './StartScreen.css'
 
 export function StartScreen() {
@@ -30,6 +35,8 @@ export function StartScreen() {
     setExercise,
     setSessionMode,
     startSession,
+    resumeSession,
+    abandonSession,
     openReports,
     trainingMode,
     setTrainingMode,
@@ -51,7 +58,11 @@ export function StartScreen() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [segment, setSegment] = useState('Все сегменты')
-  const [reports, setReports] = useState(() => loadReportsSync())
+  const [reports, setReports] = useState<Awaited<ReturnType<typeof loadReports>>>([])
+  const [resumeCheckpoint, setResumeCheckpoint] =
+    useState<ActiveSimCheckpoint | null>(null)
+  const [resumePending, setResumePending] = useState(false)
+  const [resumeError, setResumeError] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -82,8 +93,26 @@ export function StartScreen() {
   }, [setName, setRole])
 
   useEffect(() => {
-    void loadReports().then(setReports)
+    void loadReports().then(setReports).catch(() => setReports([]))
   }, [])
+
+  useEffect(() => {
+    if (!authed || workRole !== 'trainee') {
+      setResumeCheckpoint(null)
+      return
+    }
+    let cancelled = false
+    void getActiveSimSession()
+      .then((checkpoint) => {
+        if (!cancelled) setResumeCheckpoint(checkpoint)
+      })
+      .catch(() => {
+        // Starting remains available if the recovery lookup is temporarily unavailable.
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [authed, workRole])
 
   const effectiveRole = workRole ?? state.session.role
   const effectiveName =
@@ -155,6 +184,46 @@ export function StartScreen() {
 
   const welcomeName =
     authed?.fullName.split(/\s+/).filter(Boolean)[0] ?? 'оператор'
+  const resumeExerciseName = resumeCheckpoint
+    ? (getExercise(resumeCheckpoint.session.exerciseId ?? null)?.name ??
+      miniTrainings.find(
+        (item) => item.id === resumeCheckpoint.session.exerciseId,
+      )?.title ??
+      resumeCheckpoint.session.exerciseId ??
+      'Учебное упражнение')
+    : ''
+
+  const onResumeSession = () => {
+    if (!resumeCheckpoint || resumePending) return
+    setResumePending(true)
+    setResumeError('')
+    void resumeSession(resumeCheckpoint)
+      .then(() => setResumeCheckpoint(null))
+      .catch((reason) => {
+        setResumeError(
+          reason instanceof Error
+            ? reason.message
+            : 'Не удалось восстановить прохождение.',
+        )
+      })
+      .finally(() => setResumePending(false))
+  }
+
+  const onAbandonSession = () => {
+    if (!resumeCheckpoint || resumePending) return
+    setResumePending(true)
+    setResumeError('')
+    void abandonSession(resumeCheckpoint.sessionId)
+      .then(() => setResumeCheckpoint(null))
+      .catch((reason) => {
+        setResumeError(
+          reason instanceof Error
+            ? reason.message
+            : 'Не удалось отменить прохождение.',
+        )
+      })
+      .finally(() => setResumePending(false))
+  }
 
   const onLogout = () => {
     presenceBus.disconnect()
@@ -192,6 +261,16 @@ export function StartScreen() {
 
   return (
     <div className="dashboard">
+      {resumeCheckpoint && (
+        <ResumeSessionModal
+          checkpoint={resumeCheckpoint}
+          exerciseName={resumeExerciseName}
+          pending={resumePending}
+          error={resumeError}
+          onCancel={onAbandonSession}
+          onContinue={onResumeSession}
+        />
+      )}
       <section className="dashboard-hero">
         <div>
           <span className="eyebrow">

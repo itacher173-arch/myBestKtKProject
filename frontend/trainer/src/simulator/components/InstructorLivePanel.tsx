@@ -1,10 +1,4 @@
-import { useState } from 'react'
-import {
-  appendAudit,
-  isInstructorAuthed,
-  setInstructorAuthed,
-  verifyInstructorPin,
-} from '../../storage/auditStorage'
+import { appendAudit, isInstructorAuthed } from '../../storage/auditStorage'
 import { getAnalogs } from '../processModel'
 import { getExercise } from '../../scenarios/exercises'
 import { useTrainer } from '../TrainerContext'
@@ -21,8 +15,6 @@ export function InstructorLivePanel() {
     sessionTransition,
   } = useTrainer()
   const { session, process, actionsLog, systemEvents } = state
-  const [pin, setPin] = useState('')
-  const [err, setErr] = useState('')
 
   if (session.view !== 'exercise' || !session.started) return null
   if (!session.instructorLiveOpen) return null
@@ -30,27 +22,6 @@ export function InstructorLivePanel() {
   const authed = isInstructorAuthed()
   const ex = getExercise(session.exerciseId)
   const analogs = getAnalogs(process).slice(0, 6)
-
-  const unlock = () => {
-    if (!verifyInstructorPin(pin)) {
-      setErr('Неверный PIN')
-      void appendAudit({
-        actor: 'unknown',
-        role: 'instructor',
-        action: 'auth_failed',
-        detail: 'live panel',
-      })
-      return
-    }
-    setInstructorAuthed(true)
-    setErr('')
-    void appendAudit({
-      actor: 'instructor',
-      role: 'instructor',
-      action: 'auth_ok',
-      detail: 'live panel',
-    })
-  }
 
   return (
     <aside className="instr-live">
@@ -67,18 +38,7 @@ export function InstructorLivePanel() {
 
       {!authed ? (
         <div className="instr-auth">
-          <p>PIN для наблюдения и скрытого ввода события</p>
-          <input
-            type="password"
-            value={pin}
-            maxLength={12}
-            onChange={(e) => setPin(e.target.value)}
-            placeholder="PIN"
-          />
-          {err && <p className="instr-err">{err}</p>}
-          <button type="button" onClick={unlock}>
-            Войти
-          </button>
+          <p>Доступ разрешён только подтверждённой роли инструктора.</p>
         </div>
       ) : (
         <>

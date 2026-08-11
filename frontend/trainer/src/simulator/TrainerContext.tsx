@@ -39,10 +39,16 @@ import { appendAudit } from '../storage/auditStorage'
 import { getAuthedUser, resolveWorkRole } from '../auth/authApi'
 import { processInterlockReason, criticalFailReasonText } from './pazGuards'
 import {
+  abandonServerSimSession,
+  completeServerSimSession,
   createServerSimSession,
   getServerSimSession,
+  resumeServerSimSession,
+  saveServerSimCheckpoint,
   sendServerSimCommand,
+  type ActiveSimCheckpoint,
   type ServerSimSession,
+  type SimClientCheckpoint,
 } from './serverSimApi'
 import { sequenceBlockReason, type GuardedAction } from './scenarioGuards'
 import { getAnalogs, getUtilityAlarms, tickProcess } from './processModel'
@@ -86,6 +92,12 @@ type Action =
       process?: ProcessState
       label?: string
       skipBriefing?: boolean
+    }
+  | {
+      type: 'RESUME_SESSION'
+      restored: TrainerState
+      process: ProcessState
+      paused: boolean
     }
   | { type: 'SYNC_ALARM_TIMES'; raisedAt: Record<string, number> }
   | { type: 'SELECT_EQUIP'; id: string | null }
@@ -216,6 +228,22 @@ function reducer(state: TrainerState, action: Action): TrainerState {
         snapshot: null,
       }
     }
+    case 'RESUME_SESSION':
+      return {
+        ...action.restored,
+        process: action.process,
+        activePanel: null,
+        selectedEquipId: null,
+        session: {
+          ...action.restored.session,
+          role: 'trainee',
+          view: 'exercise',
+          started: true,
+          completed: false,
+          paused: action.paused,
+          instructorLiveOpen: false,
+        },
+      }
     case 'SELECT_EQUIP':
       return { ...state, selectedEquipId: action.id }
     case 'OPEN_PANEL':
@@ -437,6 +465,8 @@ interface TrainerApi {
   setSessionMode: (mode: SessionMode) => void
   openReports: () => void
   startSession: () => void
+  resumeSession: (checkpoint: ActiveSimCheckpoint) => Promise<void>
+  abandonSession: (sessionId: string) => Promise<void>
   selectEquip: (id: string | null) => void
   openPanelForEquip: (equipId: string) => void
   closePanel: () => void
@@ -861,6 +891,51 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     state.session.started,
     state.session.completed,
     applyServerSession,
+  ])
+
+  // Client-only scoring/HMI state is checkpointed separately from server process state.
+  useEffect(() => {
+    if (!serverSimId) return
+    if (stateRef.current.session.view !== 'exercise') return
+    let cancelled = false
+    const persist = async () => {
+      const cur = stateRef.current
+      if (cancelled || cur.session.completed) return
+      const clientState: SimClientCheckpoint = {
+        trainerState: {
+          ...cur,
+          actionsLog: cur.actionsLog.slice(-500),
+          systemEvents: cur.systemEvents.slice(-500),
+          analogHistory: cur.analogHistory.slice(-90),
+        },
+        trainingMode,
+        selectedMiniTrainingId,
+        hintsUsed,
+      }
+      try {
+        await saveServerSimCheckpoint(serverSimId, clientState)
+      } catch {
+        // The interval retries after connectivity is restored.
+      }
+    }
+    void persist()
+    const interval = window.setInterval(() => {
+      void persist()
+    }, 5000)
+    const onPageHide = () => {
+      void persist()
+    }
+    window.addEventListener('pagehide', onPageHide)
+    return () => {
+      cancelled = true
+      window.clearInterval(interval)
+      window.removeEventListener('pagehide', onPageHide)
+    }
+  }, [
+    hintsUsed,
+    selectedMiniTrainingId,
+    serverSimId,
+    trainingMode,
   ])
 
   // Фиксация времени появления тревог (для HMI: время / RTN при исчезновении)
@@ -1679,6 +1754,16 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     setAiAnalysis(null)
     setAiAnalysisStatus(aiEnabled ? 'loading' : 'disabled')
     void runAiAnalysis(analysisPayload, reportId)
+    const completedServerSessionId = serverSimIdRef.current
+    if (completedServerSessionId) {
+      void completeServerSimSession(completedServerSessionId).catch((reason) => {
+        pushSystem(
+          reason instanceof Error
+            ? `Не удалось закрыть checkpoint: ${reason.message}`
+            : 'Не удалось закрыть checkpoint завершённой сессии.',
+        )
+      })
+    }
 
     dispatch({
       type: 'COMPLETE',
@@ -1695,7 +1780,14 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
       finishEvent,
       criticalFailReason,
     })
-  }, [aiEnabled, hintsUsed, runAiAnalysis, selectedMiniTrainingId, trainingMode])
+  }, [
+    aiEnabled,
+    hintsUsed,
+    pushSystem,
+    runAiAnalysis,
+    selectedMiniTrainingId,
+    trainingMode,
+  ])
 
   // Экзамен: критический fail → автозавершение
   useEffect(() => {
@@ -1757,12 +1849,130 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     [pushSystem, serverCommand],
   )
 
+  const abandonSession = useCallback(async (sessionId: string) => {
+    await abandonServerSimSession(sessionId)
+    if (serverSimIdRef.current === sessionId) {
+      serverSimIdRef.current = null
+      setServerSimId(null)
+    }
+  }, [])
+
+  const resumeSession = useCallback(
+    async (candidate: ActiveSimCheckpoint) => {
+      const checkpoint = await resumeServerSimSession(candidate.sessionId)
+      const saved = checkpoint.clientState ?? candidate.clientState
+      let session = checkpoint.session
+      const exerciseId = session.exerciseId ?? null
+      const inferredMini = Boolean(
+        getMiniTraining(MINI_TRAININGS, exerciseId),
+      )
+      const restoredMode =
+        saved?.trainingMode ?? (inferredMini ? 'mini' : 'full')
+      const briefingAccepted =
+        saved?.trainerState.session.briefingAccepted ?? inferredMini
+      const shouldRun =
+        briefingAccepted &&
+        !(saved?.trainerState.session.paused ?? !inferredMini)
+
+      serverSimIdRef.current = session.id
+      serverSimMetaRef.current = {
+        seed: session.seed ?? null,
+        modelVersion: session.modelVersion || MODEL_VERSION,
+        scenarioVersion: session.scenarioVersion || SCENARIO_VERSION,
+      }
+      lastPolledSimTime.current = session.simTimeSec
+
+      if (shouldRun) {
+        const resumed = await sendServerSimCommand(session.id, 'resume')
+        if (!resumed.ok) {
+          throw new Error(resumed.reason || 'Не удалось продолжить симуляцию')
+        }
+        if (resumed.session) session = resumed.session
+      }
+
+      const user = getAuthedUser()
+      const baseSession = createInitialSession()
+      const fallback: TrainerState = {
+        ...initialState,
+        session: {
+          ...baseSession,
+          role: 'trainee',
+          userName: user?.fullName ?? '',
+          exerciseId,
+          mode: saved?.trainerState.session.mode ?? 'train',
+          view: 'exercise',
+          started: true,
+          completed: false,
+          paused: session.paused,
+          briefingAccepted,
+          timeScale: session.timeScale as TimeScale,
+        },
+        process: session.process as ProcessState,
+        systemEvents: [
+          {
+            id: uid(),
+            at: Date.now(),
+            description: 'Незавершённое прохождение восстановлено.',
+          },
+        ],
+      }
+      const restored = saved?.trainerState
+        ? {
+            ...saved.trainerState,
+            faultAt:
+              saved.trainerState.faultAt &&
+              !saved.trainerState.faultResponded
+                ? saved.trainerState.faultAt +
+                  Math.max(0, Date.now() - candidate.savedAt)
+                : saved.trainerState.faultAt,
+          }
+        : fallback
+
+      recoveryLogged.current = restored.faultResponded
+      saltAlarmLogged.current = false
+      criticalFailHandled.current = Boolean(
+        restored.session.criticalFailReason,
+      )
+      setTrainingModeState(restoredMode)
+      setSelectedMiniTrainingId(
+        restoredMode === 'mini'
+          ? (saved?.selectedMiniTrainingId ?? exerciseId)
+          : null,
+      )
+      setHintsUsed(saved?.hintsUsed ?? 0)
+      setVisibleHint(null)
+      dispatch({
+        type: 'RESUME_SESSION',
+        restored,
+        process: session.process as ProcessState,
+        paused: session.paused,
+      })
+      setServerSimId(session.id)
+      void appendAudit({
+        actor: user?.fullName ?? restored.session.userName ?? 'trainee',
+        role: 'trainee',
+        action: 'resume_session',
+        detail: `${exerciseId ?? '?'} · t=${session.simTimeSec.toFixed(1)}`,
+      })
+    },
+    [],
+  )
+
   const resetToStart = useCallback(() => {
     recoveryLogged.current = false
     saltAlarmLogged.current = false
     criticalFailHandled.current = false
+    const abandonedServerSessionId = serverSimIdRef.current
     serverSimIdRef.current = null
     setServerSimId(null)
+    if (
+      abandonedServerSessionId &&
+      !stateRef.current.session.completed
+    ) {
+      void abandonServerSimSession(abandonedServerSessionId).catch(() => {
+        // A later active-session check will offer recovery if deletion failed.
+      })
+    }
     lastPolledSimTime.current = -1
     serverSimMetaRef.current = {
       seed: null,
@@ -2015,6 +2225,8 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     setSessionMode: (mode) => dispatch({ type: 'SET_MODE', mode }),
     openReports: () => dispatch({ type: 'OPEN_REPORTS' }),
     startSession,
+    resumeSession,
+    abandonSession,
     selectEquip: (id) => dispatch({ type: 'SELECT_EQUIP', id }),
     openPanelForEquip,
     closePanel: () => dispatch({ type: 'CLOSE_PANEL' }),

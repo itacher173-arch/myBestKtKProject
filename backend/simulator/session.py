@@ -52,8 +52,34 @@ class Session:
     trigger_delay_sec: Optional[float] = None
     fault_triggered: bool = False
     pending_fault_messages: list[str] = field(default_factory=list)
+    created_at: float = field(default_factory=time.time)
+    last_seen_at: float = field(default_factory=time.time)
     # Internal: when pump N1 entered "starting" (sim_time), for ~1.5 s ramp
     _pump_n1_start_sim: Optional[float] = field(default=None, repr=False)
+
+    def checkpoint(self) -> dict[str, Any]:
+        """Serializable server-authoritative state without destructive reads."""
+        return {
+            "id": self.id,
+            "userId": self.user_id,
+            "exerciseId": self.exercise_id,
+            "running": self.running,
+            "paused": self.paused,
+            "simTimeSec": self.sim_time,
+            "seed": self.seed,
+            "modelVersion": self.model_version,
+            "scenarioVersion": self.scenario_version,
+            "timeScale": self.time_scale,
+            "faultTriggered": self.fault_triggered,
+            "faultType": self.fault_type,
+            "triggerDelaySec": self.trigger_delay_sec,
+            "process": copy.deepcopy(self.process),
+            "actionsLog": copy.deepcopy(self.actions_log),
+            "pendingFaultMessages": list(self.pending_fault_messages),
+            "createdAt": self.created_at,
+            "lastSeenAt": self.last_seen_at,
+            "pumpN1StartSim": self._pump_n1_start_sim,
+        }
 
     def public(self) -> dict[str, Any]:
         messages = list(self.pending_fault_messages)
@@ -132,6 +158,64 @@ class SessionStore:
 
     def get(self, session_id: str) -> Optional[Session]:
         return self._sessions.get(session_id)
+
+    def find_by_user(self, user_id: str) -> Optional[Session]:
+        return next(
+            (session for session in self._sessions.values() if session.user_id == user_id),
+            None,
+        )
+
+    def restore(self, data: dict[str, Any]) -> Session:
+        """Restore a server session from a durable checkpoint."""
+        session_id = str(data["id"])
+        existing = self._sessions.get(session_id)
+        if existing is not None:
+            return existing
+        process = copy.deepcopy(data["process"])
+        session = Session(
+            id=session_id,
+            user_id=str(data["userId"]),
+            process=process,
+            running=bool(data.get("running", True)),
+            paused=bool(data.get("paused", True)),
+            exercise_id=data.get("exerciseId"),
+            actions_log=copy.deepcopy(data.get("actionsLog") or []),
+            sim_time=float(data.get("simTimeSec", process.get("simTimeSec", 0))),
+            seed=int(data.get("seed", 0)),
+            model_version=str(data.get("modelVersion") or MODEL_VERSION),
+            scenario_version=str(
+                data.get("scenarioVersion") or DEFAULT_SCENARIO_VERSION
+            ),
+            time_scale=float(data.get("timeScale", 1.0)),
+            fault_type=data.get("faultType"),
+            trigger_delay_sec=data.get("triggerDelaySec"),
+            fault_triggered=bool(data.get("faultTriggered", False)),
+            pending_fault_messages=list(data.get("pendingFaultMessages") or []),
+            created_at=float(data.get("createdAt", time.time())),
+            last_seen_at=time.time(),
+            _pump_n1_start_sim=data.get("pumpN1StartSim"),
+        )
+        self._sessions[session_id] = session
+        return session
+
+    def touch(self, session_id: str) -> None:
+        session = self._sessions.get(session_id)
+        if session is not None:
+            session.last_seen_at = time.time()
+
+    def pause_stale(self, timeout_sec: float) -> list[Session]:
+        """Pause running sessions whose client heartbeat disappeared."""
+        now = time.time()
+        paused: list[Session] = []
+        for session in self._sessions.values():
+            if (
+                session.running
+                and not session.paused
+                and now - session.last_seen_at >= timeout_sec
+            ):
+                session.paused = True
+                paused.append(session)
+        return paused
 
     def delete(self, session_id: str) -> bool:
         return self._sessions.pop(session_id, None) is not None

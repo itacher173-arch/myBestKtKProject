@@ -5,6 +5,7 @@ FastAPI: health/metrics, валидация сценариев, серверны
 from __future__ import annotations
 
 import os
+import time
 from typing import Any
 
 from fastapi import Depends, FastAPI, Header, HTTPException, WebSocket, WebSocketDisconnect
@@ -107,13 +108,23 @@ class SimCommand(BaseModel):
     payload: dict[str, Any] = Field(default_factory=dict)
 
 
+class SimCheckpointIn(BaseModel):
+    clientState: dict[str, Any]
+
+
 @app.post("/api/sim/sessions")
 def create_sim_session(
     body: SimCreate,
     user: dict[str, Any] = Depends(current_user),
 ) -> dict[str, Any]:
     from backend.simulator.session import store
+    from backend.simulator.checkpoint_store import get_active, save_session
 
+    if get_active(user["id"]):
+        raise HTTPException(
+            409,
+            "У пользователя уже есть незавершённое прохождение",
+        )
     sess = store.create(
         user_id=user["id"],
         exercise_id=body.exerciseId,
@@ -128,7 +139,31 @@ def create_sim_session(
     )
     inc("sim_sessions")
     set_gauge("sim_active_sessions", store.active_count())
+    save_session(sess.checkpoint())
     return {"ok": True, "session": sess.public()}
+
+
+@app.get("/api/sim/sessions/active")
+def get_active_sim_session(
+    user: dict[str, Any] = Depends(current_user),
+) -> dict[str, Any]:
+    from backend.simulator.checkpoint_store import get_active, save_session
+    from backend.simulator.session import store
+
+    checkpoint = get_active(user["id"])
+    if not checkpoint:
+        return {"ok": True, "checkpoint": None}
+    session_data = checkpoint.get("session")
+    if not isinstance(session_data, dict):
+        return {"ok": True, "checkpoint": None}
+    sess = store.restore(session_data)
+    # Opening the recovery prompt must not let model time continue in background.
+    sess.paused = True
+    sess.last_seen_at = time.time()
+    saved_at = checkpoint.get("savedAt")
+    refreshed = save_session(sess.checkpoint())
+    refreshed["savedAt"] = saved_at
+    return {"ok": True, "checkpoint": refreshed}
 
 
 @app.get("/api/sim/sessions/{session_id}")
@@ -143,7 +178,79 @@ def get_sim_session(
         raise HTTPException(404, "Сессия не найдена")
     if sess.user_id != user["id"] and not has_any_role(user, "admin", "instructor"):
         raise HTTPException(404, "Сессия не найдена")
+    store.touch(session_id)
     return {"ok": True, "session": sess.public()}
+
+
+@app.put("/api/sim/sessions/{session_id}/checkpoint")
+def save_sim_checkpoint(
+    session_id: str,
+    body: SimCheckpointIn,
+    user: dict[str, Any] = Depends(current_user),
+) -> dict[str, Any]:
+    from backend.simulator.checkpoint_store import save_session
+    from backend.simulator.session import store
+
+    sess = store.get(session_id)
+    if not sess or sess.user_id != user["id"]:
+        raise HTTPException(404, "Сессия не найдена")
+    store.touch(session_id)
+    checkpoint = save_session(sess.checkpoint(), client_state=body.clientState)
+    return {"ok": True, "savedAt": checkpoint["savedAt"]}
+
+
+@app.post("/api/sim/sessions/{session_id}/resume")
+def resume_sim_session(
+    session_id: str,
+    user: dict[str, Any] = Depends(current_user),
+) -> dict[str, Any]:
+    from backend.simulator.checkpoint_store import get_by_id, save_session
+    from backend.simulator.session import store
+
+    checkpoint = get_by_id(session_id)
+    if not checkpoint or checkpoint.get("userId") != user["id"]:
+        raise HTTPException(404, "Сессия не найдена")
+    sess = store.restore(checkpoint["session"])
+    store.touch(session_id)
+    refreshed = save_session(sess.checkpoint())
+    refreshed["clientState"] = checkpoint.get("clientState")
+    return {"ok": True, "checkpoint": refreshed}
+
+
+@app.post("/api/sim/sessions/{session_id}/abandon")
+def abandon_sim_session(
+    session_id: str,
+    user: dict[str, Any] = Depends(current_user),
+) -> dict[str, Any]:
+    from backend.simulator.checkpoint_store import delete_session, get_by_id
+    from backend.simulator.session import store
+
+    checkpoint = get_by_id(session_id)
+    if not checkpoint or checkpoint.get("userId") != user["id"]:
+        raise HTTPException(404, "Сессия не найдена")
+    store.delete(session_id)
+    delete_session(session_id, user["id"])
+    set_gauge("sim_active_sessions", store.active_count())
+    return {"ok": True}
+
+
+@app.post("/api/sim/sessions/{session_id}/complete")
+def complete_sim_session(
+    session_id: str,
+    user: dict[str, Any] = Depends(current_user),
+) -> dict[str, Any]:
+    from backend.simulator.checkpoint_store import delete_session
+    from backend.simulator.session import store
+
+    sess = store.get(session_id)
+    if not sess or sess.user_id != user["id"]:
+        raise HTTPException(404, "Сессия не найдена")
+    sess.running = False
+    sess.process["running"] = False
+    store.delete(session_id)
+    delete_session(session_id, user["id"])
+    set_gauge("sim_active_sessions", store.active_count())
+    return {"ok": True}
 
 
 @app.post("/api/sim/sessions/{session_id}/command")
@@ -152,6 +259,7 @@ def sim_command(
     body: SimCommand,
     user: dict[str, Any] = Depends(current_user),
 ) -> dict[str, Any]:
+    from backend.simulator.checkpoint_store import save_session
     from backend.simulator.session import store
 
     sess = store.get(session_id)
@@ -164,6 +272,10 @@ def sim_command(
     ):
         raise HTTPException(403, "Восстановление снимка доступно только инструктору")
     result = store.apply_command(session_id, body.action, body.payload)
+    store.touch(session_id)
+    live = store.get(session_id)
+    if live is not None:
+        save_session(live.checkpoint())
     inc("sim_commands")
     if not result.get("ok"):
         inc("sim_rejected")
@@ -172,6 +284,7 @@ def sim_command(
 
 @app.websocket("/api/sim/ws/{session_id}")
 async def sim_ws(websocket: WebSocket, session_id: str) -> None:
+    from backend.simulator.checkpoint_store import save_session
     from backend.simulator.session import store
     from backend.storage.sessions import extract_token, get_session
 
@@ -217,8 +330,13 @@ async def sim_ws(websocket: WebSocket, session_id: str) -> None:
                     str(msg.get("action") or ""),
                     msg.get("payload") or {},
                 )
+                store.touch(session_id)
+                changed = store.get(session_id)
+                if changed is not None:
+                    save_session(changed.checkpoint())
                 await websocket.send_json({"type": "command_result", **result})
             elif kind == "ping":
+                store.touch(session_id)
                 sess_live = store.get(session_id)
                 await websocket.send_json(
                     {

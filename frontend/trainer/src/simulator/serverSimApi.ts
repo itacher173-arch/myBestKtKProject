@@ -1,7 +1,7 @@
 /** Клиент серверного симулятора (такт + ПАЗ на FastAPI). Источник правды — сервер. */
 
-import { apiGet, apiPost } from '../api/client'
-import type { ProcessState } from './types'
+import { apiGet, apiPost, apiPut } from '../api/client'
+import type { ProcessState, TrainerState } from './types'
 
 export interface ServerSimSession {
   id: string
@@ -33,6 +33,21 @@ export interface CreateServerSimInput {
   timeScale?: number
 }
 
+export interface SimClientCheckpoint {
+  trainerState: TrainerState
+  trainingMode: 'full' | 'mini'
+  selectedMiniTrainingId: string | null
+  hintsUsed: number
+}
+
+export interface ActiveSimCheckpoint {
+  sessionId: string
+  userId: string
+  savedAt: number
+  session: ServerSimSession
+  clientState?: SimClientCheckpoint | null
+}
+
 export async function createServerSimSession(
   input?: CreateServerSimInput,
 ): Promise<ServerSimSession> {
@@ -60,6 +75,45 @@ export async function getServerSimSession(
     `/sim/sessions/${encodeURIComponent(sessionId)}`,
   )
   return res.session
+}
+
+export async function getActiveSimSession(): Promise<ActiveSimCheckpoint | null> {
+  const res = await apiGet<{
+    ok: boolean
+    checkpoint: ActiveSimCheckpoint | null
+  }>('/sim/sessions/active')
+  return res.checkpoint
+}
+
+export async function saveServerSimCheckpoint(
+  sessionId: string,
+  clientState: SimClientCheckpoint,
+): Promise<void> {
+  await apiPut(`/sim/sessions/${encodeURIComponent(sessionId)}/checkpoint`, {
+    clientState,
+  })
+}
+
+export async function resumeServerSimSession(
+  sessionId: string,
+): Promise<ActiveSimCheckpoint> {
+  const res = await apiPost<{
+    ok: boolean
+    checkpoint: ActiveSimCheckpoint
+  }>(`/sim/sessions/${encodeURIComponent(sessionId)}/resume`)
+  return res.checkpoint
+}
+
+export async function abandonServerSimSession(
+  sessionId: string,
+): Promise<void> {
+  await apiPost(`/sim/sessions/${encodeURIComponent(sessionId)}/abandon`)
+}
+
+export async function completeServerSimSession(
+  sessionId: string,
+): Promise<void> {
+  await apiPost(`/sim/sessions/${encodeURIComponent(sessionId)}/complete`)
 }
 
 export async function sendServerSimCommand(

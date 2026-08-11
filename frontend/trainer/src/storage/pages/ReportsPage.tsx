@@ -18,7 +18,6 @@ import {
 import {
   appendAudit,
   isInstructorAuthed,
-  setInstructorAuthed,
 } from '../auditStorage'
 import {
   addGroupMember,
@@ -251,7 +250,6 @@ export function ReportsPage() {
     })
     void (async () => {
       await logoutUser()
-      setInstructorAuthed(false)
       redirectToAuthPortal()
     })()
   }
