@@ -1,16 +1,55 @@
-node_modules
-dist
-release
-.DS_Store
-*.local
+# Environment and secrets
 .env
 .env.*
 !.env.example
-!.env.test
-.tmp_plan
-.venv
+*.pem
+*.key
+*.p12
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Node / Vite
+node_modules/
+dist/
+.vite/
+*.tsbuildinfo
+npm-debug.log*
+
+# Runtime and local data
 backend/runtime/*
 !backend/runtime/.gitkeep
 !backend/runtime/.gitignore
+*.sqlite
+*.sqlite3
+*.db
+*.log
+*.pid
+
+# AI artifacts
 *.gguf
 *.gguf.part
+
+# Build and release output
+release/
+coverage/
+
+# Temporary work
+.tmp*/
+tmp/
+temp/
+
+# Editors and operating systems
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.local

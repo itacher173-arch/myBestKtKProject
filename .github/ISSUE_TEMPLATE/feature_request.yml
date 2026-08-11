@@ -1,0 +1,53 @@
+name: Предложение
+description: Предложить функцию или улучшение
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Проблема пользователя
+      description: Кто сталкивается с проблемой и какой результат требуется
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Образ результата
+      description: Наблюдаемый результат без привязки к заранее выбранной реализации
+    validations:
+      required: true
+  - type: dropdown
+    id: roles
+    attributes:
+      label: Основная роль
+      options:
+        - Обучаемый
+        - Инструктор
+        - Администратор
+        - Технолог/методолог
+        - Эксплуатация/ИБ
+        - Несколько ролей
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Критерии приёмки
+      placeholder: "- [ ] ..."
+    validations:
+      required: true
+  - type: textarea
+    id: risks
+    attributes:
+      label: Риски и ограничения
+      description: Безопасность процесса, ИБ, данные, AI, производительность, совместимость
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Границы
+      options:
+        - label: Предложение не предполагает управление реальной АСУ ТП
+          required: true
+        - label: В описании нет секретов и закрытых производственных данных
+          required: true
