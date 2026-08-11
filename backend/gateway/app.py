@@ -23,6 +23,7 @@ AUTH_URL = os.getenv("KTK_AUTH_URL", "http://127.0.0.1:8102")
 STORAGE_URL = os.getenv("KTK_STORAGE_URL", "http://127.0.0.1:8105")
 AI_URL = os.getenv("KTK_AI_URL", "http://127.0.0.1:8107")
 FASTAPI_URL = os.getenv("KTK_FASTAPI_URL", "http://127.0.0.1:8010")
+AI_PROXY_TIMEOUT = float(os.getenv("KTK_AI_PROXY_TIMEOUT", "120"))
 
 
 def fetch_json(url: str) -> object:
@@ -43,7 +44,9 @@ class Handler(JsonHandler):
             return None
         return user
 
-    def proxy(self, base: str, target_path: str) -> None:
+    def proxy(
+        self, base: str, target_path: str, *, timeout: float = 5
+    ) -> None:
         body = None
         if self.command in ("POST", "PUT", "PATCH", "DELETE"):
             length = int(self.headers.get("Content-Length", "0"))
@@ -72,7 +75,7 @@ class Handler(JsonHandler):
             headers=headers,
         )
         try:
-            with urlopen(request, timeout=5) as response:
+            with urlopen(request, timeout=timeout) as response:
                 raw = response.read()
                 self.send_response(response.status)
                 self.send_header(
@@ -93,8 +96,9 @@ class Handler(JsonHandler):
                 self.send_json(json.loads(payload), exc.code, extra_headers=extra)
             except Exception:
                 self.send_error_json(payload or str(exc), exc.code)
-        except URLError as exc:
-            self.send_error_json(f"Сервис недоступен: {exc.reason}", 503)
+        except (URLError, TimeoutError) as exc:
+            reason = getattr(exc, "reason", exc)
+            self.send_error_json(f"Сервис недоступен: {reason}", 503)
 
     def do_GET(self) -> None:
         path = urlparse(self.path).path
@@ -145,7 +149,11 @@ class Handler(JsonHandler):
         if path.startswith("/api/ai/"):
             if not self.require_user():
                 return
-            return self.proxy(AI_URL, path[len("/api/ai") :])
+            return self.proxy(
+                AI_URL,
+                path[len("/api/ai") :],
+                timeout=AI_PROXY_TIMEOUT,
+            )
         if path.startswith("/api/"):
             return self.send_error_json("not found", 404)
         self.serve_static(path)
@@ -169,7 +177,11 @@ class Handler(JsonHandler):
         if path.startswith("/api/ai/"):
             if not self.require_user():
                 return
-            return self.proxy(AI_URL, path[len("/api/ai") :])
+            return self.proxy(
+                AI_URL,
+                path[len("/api/ai") :],
+                timeout=AI_PROXY_TIMEOUT,
+            )
         self.send_error_json("not found", 404)
 
     def do_PATCH(self) -> None:

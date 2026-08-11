@@ -310,9 +310,9 @@ function TrainerApp() {
             {!isMini && (
               <div className="scheme-overlay-bottom-center">
                 <EmergencyPanel />
-                {!session.completed && <ScenarioChecklist />}
               </div>
             )}
+            {!isMini && !session.completed && <ScenarioChecklist />}
             {!(session.completed && aiEnabled) && <DebriefPanel />}
           </div>
           <EquipmentPanel />

@@ -603,8 +603,9 @@
 
 .scheme-overlay-bottom-center {
   position: absolute;
-  left: 50%;
-  bottom: 108px;
+  bottom: 12px;
+  left: min(542px, calc(100% - 372px));
+  right: auto;
   z-index: 8;
   width: min(360px, calc(100% - 24px));
   max-height: min(52%, 460px);
@@ -612,7 +613,7 @@
   flex-direction: column;
   gap: 10px;
   overflow-y: auto;
-  transform: translateX(-50%);
+  transform: none;
   pointer-events: none;
   scrollbar-gutter: stable;
 }

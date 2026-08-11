@@ -1,8 +1,9 @@
 .sc-check {
   position: absolute;
   left: 12px;
-  bottom: 110px;
-  width: min(320px, calc(100% - 24px));
+  top: 12px;
+  bottom: auto;
+  width: min(500px, calc(100% - 24px));
   max-height: min(48vh, 460px);
   overflow: hidden;
   z-index: 5;

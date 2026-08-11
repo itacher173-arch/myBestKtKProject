@@ -22,8 +22,13 @@ import {
   getActiveSimSession,
   type ActiveSimCheckpoint,
 } from '../../simulator/serverSimApi'
-import { ResumeSessionModal } from '../../simulator/components/ResumeSessionModal'
 import './StartScreen.css'
+
+function formatSimTime(seconds: number) {
+  const minutes = Math.floor(seconds / 60)
+  const rest = Math.floor(seconds % 60)
+  return `${minutes}:${rest.toString().padStart(2, '0')}`
+}
 
 export function StartScreen() {
   const { t } = usePreferences()
@@ -62,6 +67,7 @@ export function StartScreen() {
   const [resumeCheckpoint, setResumeCheckpoint] =
     useState<ActiveSimCheckpoint | null>(null)
   const [resumePending, setResumePending] = useState(false)
+  const [newSessionPending, setNewSessionPending] = useState(false)
   const [resumeError, setResumeError] = useState('')
 
   useEffect(() => {
@@ -170,6 +176,8 @@ export function StartScreen() {
 
   const canStart =
     showTraining &&
+    !resumePending &&
+    !newSessionPending &&
     effectiveName.length >= 1 &&
     (trainingMode === 'mini'
       ? Boolean(selectedTraining)
@@ -225,6 +233,30 @@ export function StartScreen() {
       .finally(() => setResumePending(false))
   }
 
+  const onStartSession = () => {
+    if (!canStart) return
+    if (!resumeCheckpoint) {
+      startSession()
+      return
+    }
+
+    setNewSessionPending(true)
+    setResumeError('')
+    void abandonSession(resumeCheckpoint.sessionId)
+      .then(() => {
+        setResumeCheckpoint(null)
+        startSession()
+      })
+      .catch((reason) => {
+        setResumeError(
+          reason instanceof Error
+            ? reason.message
+            : 'Не удалось завершить предыдущую сессию.',
+        )
+      })
+      .finally(() => setNewSessionPending(false))
+  }
+
   const onLogout = () => {
     presenceBus.disconnect()
     void (async () => {
@@ -261,16 +293,6 @@ export function StartScreen() {
 
   return (
     <div className="dashboard">
-      {resumeCheckpoint && (
-        <ResumeSessionModal
-          checkpoint={resumeCheckpoint}
-          exerciseName={resumeExerciseName}
-          pending={resumePending}
-          error={resumeError}
-          onCancel={onAbandonSession}
-          onContinue={onResumeSession}
-        />
-      )}
       <section className="dashboard-hero">
         <div>
           <span className="eyebrow">
@@ -418,6 +440,52 @@ export function StartScreen() {
             <Icon name="chart" />
             Открыть результаты
           </button>
+        </section>
+      )}
+
+      {showTraining && resumeCheckpoint && (
+        <section
+          className="resume-session-banner"
+          aria-labelledby="resume-session-title"
+        >
+          <div className="resume-session-banner-icon">
+            <Icon name="clock" />
+          </div>
+          <div className="resume-session-banner-copy">
+            <span>Незавершённая сессия</span>
+            <h3 id="resume-session-title">{resumeExerciseName}</h3>
+            <p>
+              Модельное время —{' '}
+              {formatSimTime(resumeCheckpoint.session.simTimeSec)}
+              <i />
+              Сохранено{' '}
+              {new Date(resumeCheckpoint.savedAt).toLocaleString('ru-RU')}
+            </p>
+            {resumeError && (
+              <p className="resume-session-banner-error">{resumeError}</p>
+            )}
+          </div>
+          <div className="resume-session-banner-actions">
+            <button
+              type="button"
+              className="resume-session-abandon"
+              disabled={resumePending || newSessionPending}
+              onClick={onAbandonSession}
+            >
+              Завершить сессию
+            </button>
+            <button
+              type="button"
+              className="launch-button"
+              disabled={resumePending || newSessionPending}
+              onClick={onResumeSession}
+            >
+              <Icon name="trainer" />
+              {resumePending
+                ? 'Восстановление…'
+                : 'Продолжить незаконченную сессию'}
+            </button>
+          </div>
         </section>
       )}
 
@@ -630,10 +698,10 @@ export function StartScreen() {
                   type="button"
                   className="launch-button"
                   disabled={!canStart}
-                  onClick={startSession}
+                  onClick={onStartSession}
                 >
                   <Icon name="trainer" />
-                  {t('startTraining')}
+                  {newSessionPending ? 'Запуск…' : t('startTraining')}
                 </button>
               </>
             ) : (

@@ -118,13 +118,17 @@ def create_sim_session(
     user: dict[str, Any] = Depends(current_user),
 ) -> dict[str, Any]:
     from backend.simulator.session import store
-    from backend.simulator.checkpoint_store import get_active, save_session
+    from backend.simulator.checkpoint_store import (
+        delete_session,
+        get_active,
+        save_session,
+    )
 
-    if get_active(user["id"]):
-        raise HTTPException(
-            409,
-            "У пользователя уже есть незавершённое прохождение",
-        )
+    active_checkpoint = get_active(user["id"])
+    if active_checkpoint:
+        active_session_id = str(active_checkpoint["sessionId"])
+        store.delete(active_session_id)
+        delete_session(active_session_id, user["id"])
     sess = store.create(
         user_id=user["id"],
         exercise_id=body.exerciseId,

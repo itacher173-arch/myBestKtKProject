@@ -1962,15 +1962,15 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     recoveryLogged.current = false
     saltAlarmLogged.current = false
     criticalFailHandled.current = false
-    const abandonedServerSessionId = serverSimIdRef.current
+    const unfinishedServerSessionId = serverSimIdRef.current
     serverSimIdRef.current = null
     setServerSimId(null)
     if (
-      abandonedServerSessionId &&
+      unfinishedServerSessionId &&
       !stateRef.current.session.completed
     ) {
-      void abandonServerSimSession(abandonedServerSessionId).catch(() => {
-        // A later active-session check will offer recovery if deletion failed.
+      void sendServerSimCommand(unfinishedServerSessionId, 'pause').catch(() => {
+        // The durable checkpoint remains available for recovery.
       })
     }
     lastPolledSimTime.current = -1

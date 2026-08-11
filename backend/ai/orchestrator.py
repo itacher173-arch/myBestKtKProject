@@ -23,6 +23,9 @@ RAG_URL = os.getenv("KTK_RAG_URL", "http://rag-api:8108").rstrip("/")
 LLM_URL = os.getenv("KTK_LLM_URL", "http://llm-server:8080").rstrip("/")
 LLM_MODEL = os.getenv("KTK_LLM_MODEL", "qwen2.5-1.5b-instruct")
 PROMPT_VERSION = os.getenv("KTK_AI_PROMPT_VERSION", "ai-prompts-v2")
+ML_ANALYSIS_TIMEOUT = float(os.getenv("KTK_AI_ML_TIMEOUT", "5"))
+RAG_SEARCH_TIMEOUT = float(os.getenv("KTK_AI_RAG_TIMEOUT", "3"))
+LLM_DEBRIEF_TIMEOUT = float(os.getenv("KTK_AI_LLM_TIMEOUT", "10"))
 CATALOG_PATH = (
     Path(__file__).resolve().parents[2]
     / "frontend"
@@ -77,7 +80,11 @@ def _rag(
 ) -> dict[str, Any]:
     payload = {"query": query, "filters": filters or {}, "limit": limit}
     try:
-        return post_json(f"{RAG_URL}/search", payload, timeout=20)
+        return post_json(
+            f"{RAG_URL}/search",
+            payload,
+            timeout=RAG_SEARCH_TIMEOUT,
+        )
     except ServiceUnavailable:
         return local_rag_search(query, filters=filters, limit=limit)
 
@@ -103,10 +110,14 @@ def _local_llm_chat(
         "stream": False,
         "messages": messages,
         "temperature": temperature,
-        "max_tokens": 700,
+        "max_tokens": 320,
     }
     try:
-        response = post_json(f"{LLM_URL}/v1/chat/completions", payload, timeout=90)
+        response = post_json(
+            f"{LLM_URL}/v1/chat/completions",
+            payload,
+            timeout=LLM_DEBRIEF_TIMEOUT,
+        )
     except ServiceUnavailable:
         return None
     choices = response.get("choices") or []
@@ -228,7 +239,11 @@ def _llm_debrief(
 
 def analyze_session(payload: dict[str, Any]) -> dict[str, Any]:
     try:
-        analysis = post_json(f"{ML_URL}/analyze", payload, timeout=60)
+        analysis = post_json(
+            f"{ML_URL}/analyze",
+            payload,
+            timeout=ML_ANALYSIS_TIMEOUT,
+        )
         ml_source = "ml-recommender"
     except ServiceUnavailable as exc:
         analysis = analyze_session_rules(payload)
