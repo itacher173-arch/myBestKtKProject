@@ -124,6 +124,7 @@ export function MyResultsPage() {
 
   const analyzeSelected = async () => {
     if (!selected || !aiEnabled) return
+    const reportId = selected.id
     setAnalysisStatus('loading')
     setAnalysisError('')
     try {
@@ -140,9 +141,19 @@ export function MyResultsPage() {
         actionsLog: selected.actionsLog,
         systemEvents: selected.systemEvents,
       })
-      await updateReportAnalysis(selected.id, analysis)
-      await refresh()
+      // Сразу показываем разбор в UI, не дожидаясь refresh
+      setReports((prev) =>
+        prev.map((report) =>
+          report.id === reportId ? { ...report, aiAnalysis: analysis } : report,
+        ),
+      )
       setAnalysisStatus('ready')
+      try {
+        await updateReportAnalysis(reportId, analysis)
+        await refresh()
+      } catch {
+        // Разбор уже на экране; ошибка сохранения не должна прятать результат
+      }
     } catch (reason) {
       setAnalysisError(
         reason instanceof Error ? reason.message : String(reason),

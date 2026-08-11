@@ -59,7 +59,23 @@ export function AiReviewPanel({
     )
   }
 
-  if (!analysis) return null
+  if (!analysis) {
+    if (status === 'ready') {
+      return (
+        <section className="ai-review ai-review-state">
+          <Icon name="sparkles" />
+          <h3>Разбор ещё не загружен</h3>
+          <p>Нажмите «Повторить», чтобы сформировать ИИ-разбор заново.</p>
+          {onRetry && (
+            <button type="button" onClick={onRetry}>
+              Повторить анализ
+            </button>
+          )}
+        </section>
+      )
+    }
+    return null
+  }
 
   const scoreTone = analysis.metrics.criticalCount ? 'danger' : analysis.metrics.warningCount ? 'warning' : 'success'
 

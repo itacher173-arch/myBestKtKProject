@@ -5,23 +5,28 @@ import os
 from http.server import ThreadingHTTPServer
 from urllib.parse import urlparse
 
-from backend.ai.engine import analyze_session, answer_question
+from backend.ai.engine import (
+    analyze_session,
+    answer_question,
+    ml_status,
+    predict_risk,
+)
 from backend.common.http import JsonHandler
 
 
 class Handler(JsonHandler):
     def do_GET(self) -> None:
         if urlparse(self.path).path == "/health":
+            provider = os.getenv("KTK_AI_PROVIDER", "rules").casefold()
             return self.send_json(
                 {
                     "status": "ok",
                     "service": "ai",
                     "enabled": os.getenv("KTK_AI_ENABLED", "true").casefold()
                     != "false",
-                    "provider": os.getenv("KTK_AI_PROVIDER", "rules"),
-                    "externalRequests": os.getenv("KTK_AI_PROVIDER", "rules")
-                    .casefold()
-                    in {"ollama", "auto"},
+                    "provider": provider,
+                    "externalRequests": provider in {"ollama", "auto"},
+                    "ml": ml_status(),
                 }
             )
         self.send_error_json("not found", 404)
@@ -34,6 +39,8 @@ class Handler(JsonHandler):
             body = self.read_json()
             if path == "/analyze":
                 return self.send_json(analyze_session(body))
+            if path == "/risk-preview":
+                return self.send_json(predict_risk(body))
             if path == "/chat":
                 return self.send_json(answer_question(body))
             self.send_error_json("not found", 404)

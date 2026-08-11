@@ -181,21 +181,27 @@ def save_report(report: dict) -> dict:
     completed_at = int(report.get("completedAt") or 0)
 
     with connect() as conn:
-        duplicate = conn.execute(
-            """
-            SELECT id FROM trainee_reports
-            WHERE COALESCE(user_id, '') = COALESCE(%s, '')
-              AND user_name = %s
-              AND exercise_id = %s
-              AND score_percent = %s
-              AND penalty = %s
-              AND ABS(completed_at - %s) < 3000
-            LIMIT 1
-            """,
-            (user_id, user_name, exercise_id, score, penalty, completed_at),
+        existing_by_id = conn.execute(
+            "SELECT id FROM trainee_reports WHERE id = %s LIMIT 1",
+            (report["id"],),
         ).fetchone()
-        if duplicate:
-            return {"ok": True, "id": report["id"], "duplicate": True}
+        # Дубликат по содержимому — только для НОВЫХ id (иначе update aiAnalysis/payload блокируется)
+        if not existing_by_id:
+            duplicate = conn.execute(
+                """
+                SELECT id FROM trainee_reports
+                WHERE COALESCE(user_id, '') = COALESCE(%s, '')
+                  AND user_name = %s
+                  AND exercise_id = %s
+                  AND score_percent = %s
+                  AND penalty = %s
+                  AND ABS(completed_at - %s) < 3000
+                LIMIT 1
+                """,
+                (user_id, user_name, exercise_id, score, penalty, completed_at),
+            ).fetchone()
+            if duplicate:
+                return {"ok": True, "id": report["id"], "duplicate": True}
 
         conn.execute(
             """

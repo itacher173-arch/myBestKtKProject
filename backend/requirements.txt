@@ -4,3 +4,8 @@ redis==5.2.1
 fastapi==0.115.12
 uvicorn[standard]==0.34.2
 pydantic==2.11.4
+# ML из ветки nb (модели сериализованы sklearn 1.7.2)
+scikit-learn==1.7.2
+pandas==2.2.3
+joblib==1.4.2
+numpy==2.0.2

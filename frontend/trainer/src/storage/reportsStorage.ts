@@ -140,10 +140,26 @@ export async function updateReportAnalysis(
     local[index] = { ...local[index], aiAnalysis }
     saveLocalReports(local)
   }
-  const remote = await loadReports().catch(() => [] as TraineeReport[])
-  const remoteReport = remote.find((report) => report.id === id)
+
+  // Ищем отчёт и в «моих», и в общем списке (dual-role / инструктор)
+  const [mine, all] = await Promise.all([
+    loadReports({ mine: true }).catch(() => [] as TraineeReport[]),
+    loadReports().catch(() => [] as TraineeReport[]),
+  ])
+  const remoteReport =
+    mine.find((report) => report.id === id) ??
+    all.find((report) => report.id === id) ??
+    (index >= 0 ? local[index] : undefined)
+
   if (remoteReport) {
     await saveReport({ ...remoteReport, aiAnalysis })
+    // Держим localStorage в синхроне с сохранённым разбором
+    const synced = loadLocalReports()
+    const syncedIndex = synced.findIndex((report) => report.id === id)
+    const next = { ...remoteReport, aiAnalysis }
+    if (syncedIndex >= 0) synced[syncedIndex] = next
+    else synced.unshift(next)
+    saveLocalReports(synced)
   }
 }
 

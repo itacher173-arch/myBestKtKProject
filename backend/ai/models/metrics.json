@@ -1,0 +1,199 @@
+{
+  "split": "GroupShuffleSplit by sessionId, test_size=0.2",
+  "randomState": 42,
+  "actionClassifier": {
+    "accuracy": 1.0,
+    "precisionWeighted": 1.0,
+    "recallWeighted": 1.0,
+    "f1Weighted": 1.0,
+    "classificationReport": {
+      "CRITICAL_OPERATION_ERROR": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 252.0
+      },
+      "DUPLICATE_COMMAND": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 200.0
+      },
+      "EQUIPMENT_NOT_READY": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 208.0
+      },
+      "NORMAL": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 460.0
+      },
+      "PARAMETER_ERROR": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 300.0
+      },
+      "RESPONSE_TIME_ERROR": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 288.0
+      },
+      "SEQUENCE_ERROR": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 296.0
+      },
+      "accuracy": 1.0,
+      "macro avg": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 2004.0
+      },
+      "weighted avg": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 2004.0
+      }
+    },
+    "labels": [
+      "CRITICAL_OPERATION_ERROR",
+      "DUPLICATE_COMMAND",
+      "EQUIPMENT_NOT_READY",
+      "NORMAL",
+      "PARAMETER_ERROR",
+      "RESPONSE_TIME_ERROR",
+      "SEQUENCE_ERROR"
+    ],
+    "confusionMatrix": [
+      [
+        252,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        200,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        208,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        460,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        300,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        288,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        296
+      ]
+    ],
+    "trainRows": 7996,
+    "testRows": 2004,
+    "target": "label"
+  },
+  "riskPredictor": {
+    "accuracy": 1.0,
+    "precisionWeighted": 1.0,
+    "recallWeighted": 1.0,
+    "f1Weighted": 1.0,
+    "classificationReport": {
+      "0": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 460.0
+      },
+      "1": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 1544.0
+      },
+      "accuracy": 1.0,
+      "macro avg": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 2004.0
+      },
+      "weighted avg": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 2004.0
+      }
+    },
+    "labels": [
+      0,
+      1
+    ],
+    "confusionMatrix": [
+      [
+        460,
+        0
+      ],
+      [
+        0,
+        1544
+      ]
+    ],
+    "trainRows": 7996,
+    "testRows": 2004,
+    "target": "willError",
+    "probabilityClassOrder": [
+      0,
+      1
+    ],
+    "meanErrorProbability": 0.7683
+  }
+}
