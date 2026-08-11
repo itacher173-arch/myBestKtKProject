@@ -384,3 +384,44 @@
     grid-template-columns: 1fr;
   }
 }
+
+.reports-header,
+.reports-detail-head,
+.group-people li {
+  flex-wrap: wrap;
+}
+
+.reports-header > div,
+.reports-detail-head > div:first-child,
+.member-main {
+  min-width: 0;
+}
+
+.reports-list button,
+.reports-detail,
+.group-people li {
+  overflow-wrap: anywhere;
+}
+
+[data-font-size='large'] .reports-layout {
+  grid-template-columns: minmax(340px, 38%) minmax(0, 1fr);
+}
+
+[data-font-size='large'] .reports-detail-head {
+  align-items: flex-start;
+}
+
+[data-font-size='large'] .reports-meta {
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+[data-font-size='large'] .group-columns,
+[data-font-size='large'] .group-reports-split {
+  grid-template-columns: 1fr;
+}
+
+@media (max-width: 900px) {
+  [data-font-size='large'] .reports-layout {
+    grid-template-columns: 1fr;
+  }
+}

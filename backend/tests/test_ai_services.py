@@ -29,7 +29,7 @@ def test_rag_has_lexical_fallback_without_qdrant(monkeypatch):
     assert "k1-control" in {
         item["articleId"] for item in result["results"]
     }
-    assert result["mode"] in {"vector", "lexical-fallback"}
+    assert result["mode"] in {"vector", "lexical-preferred", "lexical-fallback"}
 
 
 def test_lexical_search_honors_metadata_filter():
@@ -39,6 +39,25 @@ def test_lexical_search_honors_metadata_filter():
         5,
     )
     assert all(item["category"] == "Промышленная безопасность" for item in result)
+
+
+def test_lexical_search_prioritizes_process_overview_for_definition():
+    result = lexical_search("Что такое ЭЛОУ-АВТ?", {}, 3)
+    assert result[0]["articleId"] == "process-overview"
+    assert "process-boundaries" not in {item["articleId"] for item in result}
+    assert any(
+        "электрообессоливающую установку" in item["text"].casefold()
+        for item in result
+    )
+
+
+def test_partial_keyword_match_does_not_block_general_model_knowledge():
+    result = lexical_search("Что такое гидрокрекинг нефти?", {}, 3)
+    assert result
+    assert result[0]["queryCoverage"] < 0.75
+    assert not orchestrator._sources_are_relevant(
+        {"mode": "lexical-preferred"}, result
+    )
 
 
 def test_recommender_ranks_eligible_module():
@@ -134,6 +153,96 @@ def test_local_llm_uses_openai_compatible_endpoint(monkeypatch):
     assert captured["payload"]["stream"] is False
 
 
+def test_knowledge_policy_separates_general_and_operational_questions():
+    assert (
+        orchestrator._knowledge_policy("Что такое ЭЛОУ-АВТ?", {})
+        == "hybrid-general"
+    )
+    assert (
+        orchestrator._knowledge_policy("Как остановить печь при аварии?", {})
+        == "source-bound"
+    )
+    assert (
+        orchestrator._knowledge_policy(
+            "Объясни давление", {"exerciseId": "EX-01"}
+        )
+        == "source-bound"
+    )
+
+
+def test_grounded_definition_uses_reviewed_article_summary(monkeypatch):
+    monkeypatch.setattr(
+        orchestrator,
+        "_rag",
+        lambda *args, **kwargs: {
+            "mode": "lexical-preferred",
+            "indexVersion": "test-index",
+            "results": [
+                {
+                    "articleId": "process-overview",
+                    "chunkId": "process-overview:1",
+                    "title": "Обзор процесса",
+                    "summary": "Проверенное краткое определение.",
+                    "score": 10.0,
+                    "queryCoverage": 1.0,
+                    "text": "Подробное описание процесса.",
+                }
+            ],
+        },
+    )
+    monkeypatch.setattr(
+        orchestrator,
+        "_local_llm_chat",
+        lambda **kwargs: (_ for _ in ()).throw(
+            AssertionError("Для проверенного определения LLM не нужна")
+        ),
+    )
+
+    result = orchestrator.answer_question(
+        {"message": "Что такое технологический процесс?", "context": {}}
+    )
+
+    assert result["answer"].startswith("Проверенное краткое определение.")
+    assert result["mode"] == "local-rag-definition"
+    assert result["knowledgePolicy"] == "source-grounded"
+
+
+def test_operational_answer_does_not_use_free_generation(monkeypatch):
+    monkeypatch.setattr(
+        orchestrator,
+        "_rag",
+        lambda *args, **kwargs: {
+            "mode": "vector",
+            "indexVersion": "test-index",
+            "results": [
+                {
+                    "articleId": "furnace-safety",
+                    "chunkId": "furnace-safety:1",
+                    "title": "Безопасность печи",
+                    "summary": "Проверенная памятка по безопасным действиям.",
+                    "score": 0.9,
+                    "text": "Подробное описание.",
+                }
+            ],
+        },
+    )
+    monkeypatch.setattr(
+        orchestrator,
+        "_local_llm_chat",
+        lambda **kwargs: (_ for _ in ()).throw(
+            AssertionError("Операционный ответ не должен свободно генерироваться")
+        ),
+    )
+
+    result = orchestrator.answer_question(
+        {"message": "Как остановить печь при аварии?", "context": {}}
+    )
+
+    assert result["mode"] == "local-rag-verified"
+    assert result["knowledgePolicy"] == "source-bound"
+    assert "Проверенная памятка" in result["answer"]
+
+
 def test_ktk_chat_returns_short_answer_links_and_training(monkeypatch):
     monkeypatch.setenv("KTK_AI_PROVIDER", "rules")
     monkeypatch.setattr(
@@ -170,6 +279,7 @@ def test_ktk_chat_returns_short_answer_links_and_training(monkeypatch):
     )
     assert result["intent"] == "ktk-knowledge"
     assert result["mode"] == "local-rag-summary"
+    assert result["knowledgePolicy"] == "source-grounded"
     assert len(result["answer"]) < 500
     assert "Подробности" in result["answer"]
     assert len(result["sources"]) == 1

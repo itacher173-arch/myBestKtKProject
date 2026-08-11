@@ -27,6 +27,25 @@
   letter-spacing: 0.14em;
 }
 
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-bottom: 10px;
+}
+
+.login-brand img {
+  width: 46px;
+  height: 46px;
+  flex: none;
+  object-fit: contain;
+}
+
+.login-brand .corporate-mark {
+  margin-bottom: 0;
+  overflow-wrap: anywhere;
+}
+
 .admin-login-card h1 {
   margin: 0;
   color: var(--gpn-deep);

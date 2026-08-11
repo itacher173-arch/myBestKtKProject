@@ -46,3 +46,78 @@
     ),
     url('../../assets/brand/dashboard-hero-dark.jpg') center / cover no-repeat;
 }
+
+.mode-switch button,
+.catalog-tools label,
+.catalog-tools select,
+.launch-button {
+  height: auto;
+  min-height: 34px;
+  padding-block: 7px;
+  line-height: 1.25;
+}
+
+.scenario-grid > button,
+.mini-grid > button {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(160px * var(--font-scale));
+}
+
+.scenario-grid > button > small,
+.mini-card-meta {
+  position: static;
+  margin-top: auto;
+  padding-top: 10px;
+}
+
+.scenario-grid > button > small {
+  padding-right: 28px;
+}
+
+.personal-route > header,
+.session-mode-row,
+.instructor-launch-panel {
+  flex-wrap: wrap;
+}
+
+[data-font-size='large'] .dashboard-stats {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+[data-font-size='large'] .dashboard-stats article div {
+  flex-wrap: wrap;
+}
+
+[data-font-size='large'] .scenario-grid,
+[data-font-size='large'] .mini-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+[data-font-size='large'] .training-workspace {
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 340px);
+}
+
+[data-font-size='large'] .catalog-header {
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+[data-font-size='large'] .session-mode-row > em {
+  width: 100%;
+  margin-left: 0;
+}
+
+@media (max-width: 880px) {
+  [data-font-size='large'] .training-workspace {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  [data-font-size='large'] .dashboard-stats,
+  [data-font-size='large'] .scenario-grid,
+  [data-font-size='large'] .mini-grid {
+    grid-template-columns: 1fr;
+  }
+}

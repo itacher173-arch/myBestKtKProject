@@ -1,19 +1,19 @@
 {
-  "artifactVersion": "ai-model-qwen2.5-0.5b-v1",
-  "file": "Qwen2.5-0.5B-Instruct-Q4_K_M.gguf",
+  "artifactVersion": "ai-model-qwen2.5-1.5b-v1",
+  "file": "Qwen2.5-1.5B-Instruct-Q4_K_M.gguf",
   "format": "GGUF",
   "quantization": "Q4_K_M",
-  "sizeBytes": 397808192,
-  "sha256": "6eb923e7d26e9cea28811e1a8e852009b21242fb157b26149d3b188f3a8c8653",
+  "sizeBytes": 986048768,
+  "sha256": "1adf0b11065d8ad2e8123ea110d1ec956dab4ab038eab665614adba04b6c3370",
   "runtime": "llama.cpp",
   "source": {
-    "repository": "bartowski/Qwen2.5-0.5B-Instruct-GGUF",
-    "url": "https://huggingface.co/bartowski/Qwen2.5-0.5B-Instruct-GGUF",
-    "upstreamModel": "Qwen/Qwen2.5-0.5B-Instruct"
+    "repository": "bartowski/Qwen2.5-1.5B-Instruct-GGUF",
+    "url": "https://huggingface.co/bartowski/Qwen2.5-1.5B-Instruct-GGUF",
+    "upstreamModel": "Qwen/Qwen2.5-1.5B-Instruct"
   },
   "license": "Apache-2.0",
   "release": {
-    "tag": "ai-model-qwen2.5-0.5b-v1",
-    "url": "https://github.com/itacher173-arch/myBestKtKProject/releases/download/ai-model-qwen2.5-0.5b-v1/Qwen2.5-0.5B-Instruct-Q4_K_M.gguf"
+    "tag": "ai-model-qwen2.5-1.5b-v1",
+    "url": "https://github.com/itacher173-arch/myBestKtKProject/releases/download/ai-model-qwen2.5-1.5b-v1/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf"
   }
 }

@@ -26,7 +26,7 @@
   display: grid;
   grid-template-columns: 52px 10px 1fr;
   gap: 6px;
-  min-height: 48px;
+  min-height: calc(48px * var(--font-scale));
 }
 
 .ai-trajectory time {
@@ -51,7 +51,7 @@
   top: 6px;
   left: 1px;
   width: 1px;
-  height: 39px;
+  height: calc(39px * var(--font-scale));
   background: var(--border);
 }
 

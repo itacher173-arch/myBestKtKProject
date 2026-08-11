@@ -146,8 +146,15 @@ export function AppShell({
       <div className="shell-stage">
         <header className="shell-topbar">
           <div className="shell-heading">
-            <h1>{title}</h1>
-            {subtitle && <p>{subtitle}</p>}
+            <img
+              className="shell-heading-logo"
+              src={ktkMarkUrl}
+              alt="КТК ЭЛОУ-АВТ"
+            />
+            <div>
+              <h1>{title}</h1>
+              {subtitle && <p>{subtitle}</p>}
+            </div>
           </div>
           <div className="shell-top-actions">
             {actions}

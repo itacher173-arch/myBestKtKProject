@@ -17,7 +17,7 @@ from backend.rag.embeddings import embed_text
 
 COLLECTION = os.getenv("KTK_RAG_COLLECTION", "ktk_knowledge")
 QDRANT_URL = os.getenv("KTK_QDRANT_URL", "http://qdrant:6333").rstrip("/")
-INDEX_VERSION = os.getenv("KTK_KNOWLEDGE_INDEX_VERSION", "knowledge-v1")
+INDEX_VERSION = os.getenv("KTK_KNOWLEDGE_INDEX_VERSION", "knowledge-v3")
 CHUNK_MAX_CHARS = int(os.getenv("KTK_RAG_CHUNK_MAX_CHARS", "1200"))
 
 
@@ -88,6 +88,7 @@ def knowledge_chunks() -> list[KnowledgeChunk]:
                         "articleId": article["id"],
                         "chunkId": chunk_id,
                         "title": article.get("title", ""),
+                        "summary": article.get("summary", ""),
                         "category": article.get("category", ""),
                         "revision": article.get("revision", "1.0"),
                         "status": article.get("status", ""),
@@ -202,27 +203,78 @@ def _tokens(text: str) -> set[str]:
     return set(re.findall(r"[a-zа-яё0-9-]{2,}", text.casefold()))
 
 
+_LEXICAL_STOPWORDS = {
+    "как",
+    "почему",
+    "что",
+    "это",
+    "такое",
+    "такой",
+    "такая",
+    "такие",
+    "для",
+    "при",
+    "или",
+    "его",
+    "её",
+    "чем",
+    "про",
+    "объясни",
+    "расскажи",
+    "меняется",
+    "изменяется",
+    "работает",
+    "работать",
+    "устроен",
+    "устроена",
+}
+
+
 def lexical_search(
     query: str, filters: dict[str, Any], limit: int
 ) -> list[dict[str, Any]]:
-    query_tokens = _tokens(query)
-    scored: list[tuple[float, KnowledgeChunk]] = []
+    query_tokens = _tokens(query) - _LEXICAL_STOPWORDS
+    definition_query = bool(
+        re.search(
+            r"\b(что такое|что означает|определени\w*|расшифруй)\b",
+            query.casefold(),
+        )
+    )
+    scored: list[tuple[float, float, KnowledgeChunk]] = []
     for chunk in knowledge_chunks():
         if not _filters_match(chunk.payload, filters):
             continue
         title_tokens = _tokens(str(chunk.payload.get("title", "")))
         text_tokens = _tokens(chunk.text)
+        matched_tokens = query_tokens & (title_tokens | text_tokens)
+        query_coverage = (
+            len(matched_tokens) / len(query_tokens) if query_tokens else 0.0
+        )
         score = len(query_tokens & title_tokens) * 4 + len(query_tokens & text_tokens)
+        if definition_query and score:
+            normalized_text = chunk.text.casefold()
+            normalized_title = str(chunk.payload.get("title", "")).casefold()
+            if "аббревиатур" in normalized_text or " означает " in normalized_text:
+                score += 4
+            if re.search(
+                r"\b(общ\w*|обзор\w*|основ\w*|назначени\w*)\b",
+                normalized_title,
+            ):
+                score += 2
         if score:
-            scored.append((float(score), chunk))
-    scored.sort(key=lambda item: (-item[0], item[1].id))
+            scored.append((float(score), query_coverage, chunk))
+    scored.sort(key=lambda item: (-item[0], item[2].id))
+    if scored:
+        relative_cutoff = max(1.0, scored[0][0] * 0.6)
+        scored = [item for item in scored if item[0] >= relative_cutoff]
     return [
         {
             "score": score,
+            "queryCoverage": query_coverage,
             "text": chunk.text,
             **chunk.payload,
         }
-        for score, chunk in scored[:limit]
+        for score, query_coverage, chunk in scored[:limit]
     ]
 
 
@@ -268,8 +320,17 @@ def search(
         raise ValueError("query обязателен")
     safe_limit = max(1, min(int(limit), 12))
     safe_filters = filters if isinstance(filters, dict) else {}
+    lexical_results = lexical_search(clean_query, safe_filters, safe_limit)
     try:
         results, provider = vector_search(clean_query, safe_filters, safe_limit)
+        if provider == "hash" and lexical_results:
+            return {
+                "ok": True,
+                "mode": "lexical-preferred",
+                "embeddingProvider": provider,
+                "indexVersion": INDEX_VERSION,
+                "results": lexical_results,
+            }
         if results:
             return {
                 "ok": True,
@@ -285,7 +346,7 @@ def search(
         "mode": "lexical-fallback",
         "embeddingProvider": None,
         "indexVersion": INDEX_VERSION,
-        "results": lexical_search(clean_query, safe_filters, safe_limit),
+        "results": lexical_results,
     }
 
 

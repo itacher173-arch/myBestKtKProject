@@ -112,6 +112,7 @@ export interface AiChatResponse {
   answer: string
   mode: string
   intent?: 'conversation' | 'ktk-knowledge'
+  knowledgePolicy?: 'hybrid-general' | 'source-grounded' | 'source-bound'
   sources: AiChatSource[]
   relatedTrainings: AiChatTraining[]
   promptVersion?: string

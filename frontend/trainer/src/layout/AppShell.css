@@ -12,4 +12,110 @@
   width: 100%;
   height: 100%;
   display: block;
+  object-fit: contain;
+}
+
+.shell-stage {
+  grid-template-rows: minmax(70px, auto) minmax(28px, auto) minmax(0, 1fr);
+}
+
+.shell-topbar,
+.service-strip {
+  min-height: 0;
+  padding-block: 7px;
+}
+
+.shell-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.shell-heading > div {
+  min-width: 0;
+}
+
+.shell-heading-logo {
+  display: none;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  object-fit: contain;
+}
+
+.shell-top-actions {
+  min-width: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.shell-action,
+.ai-top-button,
+.user-chip,
+.user-popover > button {
+  height: auto;
+  min-height: 38px;
+  padding-block: 7px;
+  line-height: 1.25;
+}
+
+.shell-rail nav button,
+.shell-rail-bottom button {
+  height: auto;
+  line-height: 1.2;
+}
+
+[data-font-size='large'] .shell {
+  grid-template-columns: 88px minmax(0, 1fr);
+}
+
+[data-font-size='large'] .shell-topbar {
+  gap: 12px;
+}
+
+[data-font-size='large'] .shell-heading h1,
+[data-font-size='large'] .shell-heading p {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+[data-font-size='large'] .shell-rail nav button,
+[data-font-size='large'] .shell-rail-bottom button {
+  min-height: 62px;
+  padding-block: 8px;
+}
+
+[data-font-size='large'] .service-strip {
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  line-height: 1.25;
+}
+
+@media (max-width: 920px) {
+  [data-font-size='large'] .shell {
+    grid-template-columns: 68px minmax(0, 1fr);
+  }
+
+  .shell-heading-logo {
+    display: block;
+  }
+}
+
+@media (max-width: 620px) {
+  [data-font-size='large'] .shell {
+    grid-template-columns: 1fr;
+  }
+
+  .shell-stage {
+    grid-template-rows: minmax(62px, auto) minmax(24px, auto) minmax(0, 1fr);
+  }
+
+  .shell-topbar {
+    padding-block: 7px;
+  }
+
+  .shell-heading-logo {
+    width: 34px;
+    height: 34px;
+  }
 }

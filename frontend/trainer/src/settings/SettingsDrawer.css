@@ -402,3 +402,44 @@
     padding-inline: 18px;
   }
 }
+
+.settings-drawer > header {
+  height: auto;
+  min-height: 82px;
+  padding-block: 12px;
+}
+
+.segmented button,
+.settings-field select,
+.font-scale-presets button {
+  height: auto;
+  min-height: 38px;
+  padding-block: 7px;
+  line-height: 1.25;
+}
+
+.settings-drawer > footer {
+  flex-wrap: wrap;
+  min-height: 64px;
+}
+
+[data-font-size='large'] .theme-grid {
+  grid-template-columns: 1fr;
+}
+
+[data-font-size='large'] .theme-grid > button {
+  grid-template-columns: 96px minmax(0, 1fr);
+  align-items: center;
+}
+
+[data-font-size='large'] .theme-preview {
+  width: 96px;
+}
+
+[data-font-size='large'] .font-scale-presets {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+[data-font-size='large'] .settings-toggle {
+  align-items: start;
+}

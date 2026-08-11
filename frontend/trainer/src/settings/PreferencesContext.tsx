@@ -150,6 +150,12 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
       root.dataset.contrast = preferences.highContrast ? 'high' : 'normal'
       root.dataset.motion = preferences.reducedMotion ? 'reduced' : 'normal'
       root.dataset.font = preferences.fontFamily
+      root.dataset.fontSize =
+        preferences.fontScale >= 1.3
+          ? 'large'
+          : preferences.fontScale >= 1.15
+            ? 'medium'
+            : 'normal'
       root.lang = preferences.locale
       root.style.setProperty('--font-scale', String(preferences.fontScale))
     }

@@ -34,11 +34,13 @@
 
 .confirm-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
 }
 
 .confirm-btn {
+  min-height: 40px;
   border-radius: 8px;
   padding: 9px 14px;
   font: inherit;

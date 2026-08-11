@@ -12,7 +12,7 @@
 - **auth-api**, **system-api**, **ai-api** (AI orchestrator)
 - **rag-api**, **ml-recommender**, **qdrant**
 - **postgres**, **redis**
-- **llm-server**: **llama.cpp** + Qwen2.5 0.5B GGUF из GitHub Release
+- **llm-server**: **llama.cpp** + Qwen2.5 1.5B GGUF из GitHub Release
 
 ## Требования
 

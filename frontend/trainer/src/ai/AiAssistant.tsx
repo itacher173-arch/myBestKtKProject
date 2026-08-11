@@ -19,7 +19,7 @@ export function AiAssistant({ open, onClose }: { open: boolean; onClose: () => v
   const [input, setInput] = useState('')
   const [pending, setPending] = useState(false)
   const [messages, setMessages] = useState<Message[]>([
-    { id: 'welcome', role: 'assistant', text: 'Привет! Я локальный ИИ-ассистент. Со мной можно общаться обычным языком, а по вопросам КТК я дам краткое объяснение и предложу материалы или тренировку.' },
+    { id: 'welcome', role: 'assistant', text: 'Привет! Я локальный ИИ-ассистент. Общие понятия объясню с помощью встроенных знаний, а режимные и безопасностные вопросы сверю с локальной базой КТК.' },
   ])
   const endRef = useRef<HTMLDivElement>(null)
 
@@ -96,7 +96,7 @@ export function AiAssistant({ open, onClose }: { open: boolean; onClose: () => v
               <textarea value={input} onChange={(event) => setInput(event.target.value)} placeholder="Напишите сообщение или задайте вопрос по КТК…" rows={2} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void send(input) } }} />
               <button type="submit" disabled={!input.trim() || pending} aria-label="Отправить"><Icon name="send" /></button>
             </form>
-            <footer><Icon name="shield" />Ответы о процессах КТК предназначены для обучения; подробности подтверждаются материалами базы знаний.</footer>
+            <footer><Icon name="shield" />Инструкции, режимные параметры и безопасность подтверждаются только локальными материалами КТК.</footer>
           </>
         )}
       </aside>

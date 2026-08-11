@@ -70,7 +70,7 @@ services:
       KTK_QDRANT_URL: "http://qdrant:6333"
       KTK_RAG_COLLECTION: "${KTK_RAG_COLLECTION:-ktk_knowledge}"
       KTK_RAG_EMBEDDING_PROVIDER: "${KTK_RAG_EMBEDDING_PROVIDER:-hash}"
-      KTK_KNOWLEDGE_INDEX_VERSION: "${KTK_KNOWLEDGE_INDEX_VERSION:-knowledge-v1}"
+      KTK_KNOWLEDGE_INDEX_VERSION: "${KTK_KNOWLEDGE_INDEX_VERSION:-knowledge-v3}"
     depends_on:
       qdrant:
         condition: service_started
@@ -100,10 +100,10 @@ services:
     image: curlimages/curl:latest
     user: "0:0"
     environment:
-      KTK_LLM_MODEL_FILE: "${KTK_LLM_MODEL_FILE:-Qwen2.5-0.5B-Instruct-Q4_K_M.gguf}"
-      KTK_LLM_MODEL_URL: "${KTK_LLM_MODEL_URL:-https://github.com/itacher173-arch/myBestKtKProject/releases/download/ai-model-qwen2.5-0.5b-v1/Qwen2.5-0.5B-Instruct-Q4_K_M.gguf}"
-      KTK_LLM_MODEL_FALLBACK_URL: "https://huggingface.co/bartowski/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/Qwen2.5-0.5B-Instruct-Q4_K_M.gguf?download=true"
-      KTK_LLM_MODEL_SHA256: "${KTK_LLM_MODEL_SHA256:-6eb923e7d26e9cea28811e1a8e852009b21242fb157b26149d3b188f3a8c8653}"
+      KTK_LLM_MODEL_FILE: "${KTK_LLM_MODEL_FILE:-Qwen2.5-1.5B-Instruct-Q4_K_M.gguf}"
+      KTK_LLM_MODEL_URL: "${KTK_LLM_MODEL_URL:-https://github.com/itacher173-arch/myBestKtKProject/releases/download/ai-model-qwen2.5-1.5b-v1/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf}"
+      KTK_LLM_MODEL_FALLBACK_URL: "https://huggingface.co/bartowski/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf?download=true"
+      KTK_LLM_MODEL_SHA256: "${KTK_LLM_MODEL_SHA256:-1adf0b11065d8ad2e8123ea110d1ec956dab4ab038eab665614adba04b6c3370}"
     volumes:
       - llm_models:/models
     entrypoint: ["/bin/sh", "-ec"]
@@ -125,13 +125,13 @@ services:
     image: ghcr.io/ggml-org/llama.cpp:server
     command:
       - "-m"
-      - "/models/${KTK_LLM_MODEL_FILE:-Qwen2.5-0.5B-Instruct-Q4_K_M.gguf}"
+      - "/models/${KTK_LLM_MODEL_FILE:-Qwen2.5-1.5B-Instruct-Q4_K_M.gguf}"
       - "--host"
       - "0.0.0.0"
       - "--port"
       - "8080"
       - "-c"
-      - "4096"
+      - "8192"
       - "-np"
       - "2"
       - "--jinja"
@@ -153,8 +153,8 @@ services:
       KTK_ML_URL: "http://ml-recommender:8109"
       KTK_RAG_URL: "http://rag-api:8108"
       KTK_LLM_URL: "http://llm-server:8080"
-      KTK_LLM_MODEL: "${KTK_LLM_MODEL:-qwen2.5-0.5b-instruct}"
-      KTK_AI_PROMPT_VERSION: "${KTK_AI_PROMPT_VERSION:-ai-prompts-v1}"
+      KTK_LLM_MODEL: "${KTK_LLM_MODEL:-qwen2.5-1.5b-instruct}"
+      KTK_AI_PROMPT_VERSION: "${KTK_AI_PROMPT_VERSION:-ai-prompts-v2}"
     depends_on:
       llm-server:
         condition: service_started

@@ -285,12 +285,20 @@ function TrainerApp() {
           <div className="scheme-wrap">
             <SchemeViewer />
             <TrainingPanel />
-            {!isMini && <AlarmBar />}
-            {!isMini && showTrendStrip && <TrendStrip />}
-            {!isMini && <EmergencyPanel />}
-            {!isMini && !session.completed && <ScenarioChecklist />}
-            {!isMini && <SchemeQuickBar />}
-            {!isMini && <InstructorLivePanel />}
+            {!isMini && (
+              <div className="scheme-overlay-top">
+                <AlarmBar />
+                {showTrendStrip && <TrendStrip />}
+                <SchemeQuickBar />
+              </div>
+            )}
+            {!isMini && (
+              <div className="scheme-overlay-side">
+                <EmergencyPanel />
+                {!session.completed && <ScenarioChecklist />}
+                <InstructorLivePanel />
+              </div>
+            )}
             {!(session.completed && aiEnabled) && <DebriefPanel />}
           </div>
           <EquipmentPanel />

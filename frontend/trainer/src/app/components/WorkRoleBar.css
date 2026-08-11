@@ -45,11 +45,12 @@
 }
 
 .dashboard-role-bar .mode-switch button {
-  height: 32px;
+  min-height: 32px;
+  height: auto;
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 0 11px;
+  padding: 7px 11px;
   border: 0;
   border-radius: 8px;
   background: transparent;
@@ -58,6 +59,17 @@
   font-size: calc(10px * var(--font-scale));
   font-weight: 700;
   cursor: pointer;
+}
+
+[data-font-size='large'] .dashboard-role-bar {
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+[data-font-size='large'] .dashboard-role-bar .mode-switch {
+  order: 3;
+  flex-basis: 100%;
+  flex-wrap: wrap;
 }
 
 .dashboard-role-bar .mode-switch button.active {

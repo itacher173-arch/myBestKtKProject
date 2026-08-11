@@ -12,6 +12,7 @@ import {
   validatePassword,
 } from './sim/authApi'
 import { appendAudit } from './sim/auditStorage'
+import ktkMarkUrl from './assets/brand/ktk-mark.svg'
 import './App.css'
 
 export default function App() {
@@ -71,7 +72,10 @@ export default function App() {
   return (
     <div className="admin-login">
       <div className="admin-login-card">
-        <div className="corporate-mark">ГАЗПРОМ НЕФТЬ</div>
+        <div className="login-brand">
+          <img src={ktkMarkUrl} alt="КТК ЭЛОУ-АВТ" />
+          <div className="corporate-mark">ГАЗПРОМ НЕФТЬ</div>
+        </div>
         <h1>Админ-панель КТК</h1>
         <p className="lead">Управление пользователями и группами</p>
 

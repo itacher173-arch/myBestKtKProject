@@ -10,6 +10,9 @@
   background: color-mix(in srgb, var(--surface) 96%, transparent);
   box-shadow: var(--shadow-lg);
   color: var(--gpn-ink);
+  max-height: calc(100% - 24px);
+  overflow: auto;
+  scrollbar-gutter: stable;
 }
 
 .mini-training-head {

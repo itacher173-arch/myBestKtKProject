@@ -46,9 +46,9 @@
 }
 
 .sc-check .mark {
-  flex: 0 0 18px;
-  width: 18px;
-  height: 18px;
+  flex: 0 0 calc(18px * var(--font-scale));
+  width: calc(18px * var(--font-scale));
+  height: calc(18px * var(--font-scale));
   border-radius: 50%;
   border: 1px solid var(--border);
   display: inline-flex;
