@@ -19,7 +19,6 @@ import { DebriefPanel } from '../simulator/components/DebriefPanel'
 import { EmergencyPanel } from '../simulator/components/EmergencyPanel'
 import { InstructorLivePanel } from '../simulator/components/InstructorLivePanel'
 import { ScenarioChecklist } from '../simulator/components/ScenarioChecklist'
-import { SchemeQuickBar } from '../simulator/components/SchemeQuickBar'
 import { TrendStrip } from '../simulator/components/TrendStrip'
 import { ReportsPage } from '../storage/pages/ReportsPage'
 import { MyResultsPage } from '../storage/pages/MyResultsPage'
@@ -296,10 +295,9 @@ function TrainerApp() {
           <div className="scheme-wrap">
             <SchemeViewer />
             <TrainingPanel />
-            {!isMini && (
+            {!isMini && showTrendStrip && (
               <div className="scheme-overlay-top">
-                {showTrendStrip && <TrendStrip />}
-                <SchemeQuickBar />
+                <TrendStrip />
               </div>
             )}
             {!isMini && (
