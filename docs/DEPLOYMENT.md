@@ -16,6 +16,24 @@
 
 ## Конфигурация
 
+### Локальная демонстрация
+
+Для запуска с тремя готовыми учётными записями используйте отдельный профиль:
+
+```bash
+cp .env.test .env
+```
+
+```powershell
+Copy-Item .env.test .env
+```
+
+Профиль создаёт `admin/admin`, `instructor/instructor` и `trainee/trainee`.
+При каждом старте `auth-api` эти записи восстанавливаются. Профиль нельзя
+использовать в общей инфраструктуре или публиковать в сети.
+
+### Собственная конфигурация
+
 Скопируйте шаблон, не изменяя его в Git:
 
 ```bash
@@ -48,6 +66,7 @@ Copy-Item .env.example .env
 | `KTK_AI_PROMPT_VERSION` | `ai-prompts-v1` | версия prompt-контракта |
 | `KTK_COOKIE_SECURE` | выключено | установить `1` только за HTTPS |
 | `KTK_CORS_ORIGINS` | локальные адреса | явный allowlist источников |
+| `KTK_DEMO_ACCOUNTS_ENABLED` | `false` | создание фиксированных локальных demo-записей |
 
 Полный перечень и комментарии находятся в [`.env.example`](../.env.example).
 

@@ -22,6 +22,7 @@ VALID_ROLES = ("trainee", "instructor", "admin")
 LOGIN_FAIL_LIMIT = 8
 LOGIN_FAIL_WINDOW_SEC = 15 * 60
 LOGIN_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9_]{2,31}$")
+TRUE_VALUES = {"1", "true", "yes", "on"}
 
 
 class LoginRateLimitError(Exception):
@@ -413,6 +414,111 @@ def _bootstrap_admin_credentials() -> tuple[str, str, str]:
     if len(full_name) < 1 or len(password) < 4:
         raise ValueError("KTK_ADMIN_NAME/PASSWORD некорректны")
     return login, full_name, password
+
+
+def _demo_accounts_enabled() -> bool:
+    value = (os.environ.get("KTK_DEMO_ACCOUNTS_ENABLED") or "").strip().lower()
+    return value in TRUE_VALUES
+
+
+def _demo_account_specs() -> list[dict[str, str]]:
+    """Возвращает фиксированные учётные записи только для demo-профиля."""
+    if not _demo_accounts_enabled():
+        return []
+    return [
+        {
+            "login": os.environ.get("KTK_ADMIN_LOGIN") or "admin",
+            "full_name": os.environ.get("KTK_ADMIN_NAME") or "Демо-администратор",
+            "password": os.environ.get("KTK_ADMIN_PASSWORD") or "admin",
+            "role": "admin",
+        },
+        {
+            "login": os.environ.get("KTK_DEMO_INSTRUCTOR_LOGIN") or "instructor",
+            "full_name": os.environ.get("KTK_DEMO_INSTRUCTOR_NAME") or "Демо-инструктор",
+            "password": os.environ.get("KTK_DEMO_INSTRUCTOR_PASSWORD") or "instructor",
+            "role": "instructor",
+        },
+        {
+            "login": os.environ.get("KTK_DEMO_TRAINEE_LOGIN") or "trainee",
+            "full_name": os.environ.get("KTK_DEMO_TRAINEE_NAME") or "Демо-обучаемый",
+            "password": os.environ.get("KTK_DEMO_TRAINEE_PASSWORD") or "trainee",
+            "role": "trainee",
+        },
+    ]
+
+
+def ensure_demo_accounts() -> None:
+    """Создаёт или восстанавливает три локальные demo-записи.
+
+    В demo-режиме пароль намеренно сбрасывается при каждом старте auth-сервиса,
+    чтобы опубликованные в README данные входа оставались воспроизводимыми.
+    """
+    specs = _demo_account_specs()
+    if not specs:
+        return
+
+    normalized: list[dict[str, str]] = []
+    seen_logins: set[str] = set()
+    for spec in specs:
+        login = validate_login(spec["login"])
+        full_name = spec["full_name"].strip()
+        password = spec["password"]
+        role = normalize_roles(spec["role"])[0]
+        _validate_credentials(full_name, password, role, login=login)
+        if login in seen_logins:
+            raise ValueError(f"Дублирующийся demo-логин: {login}")
+        seen_logins.add(login)
+        normalized.append(
+            {
+                "login": login,
+                "full_name": full_name,
+                "password": password,
+                "role": role,
+            }
+        )
+
+    with connect() as conn:
+        for spec in normalized:
+            row = conn.execute(
+                "SELECT id FROM users WHERE lower(login) = lower(%s)",
+                (spec["login"],),
+            ).fetchone()
+            password_hash = hash_password(spec["password"])
+            if row:
+                conn.execute(
+                    """
+                    UPDATE users
+                    SET full_name = %s,
+                        password_hash = %s,
+                        role = %s,
+                        roles = %s
+                    WHERE id = %s
+                    """,
+                    (
+                        spec["full_name"],
+                        password_hash,
+                        spec["role"],
+                        [spec["role"]],
+                        row["id"],
+                    ),
+                )
+            else:
+                conn.execute(
+                    """
+                    INSERT INTO users (id, login, full_name, password_hash, role, roles)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        _uid(),
+                        spec["login"],
+                        spec["full_name"],
+                        password_hash,
+                        spec["role"],
+                        [spec["role"]],
+                    ),
+                )
+        conn.commit()
+    print("[storage] demo accounts ready: admin, instructor, trainee", flush=True)
 
 
 def ensure_bootstrap_admin() -> None:

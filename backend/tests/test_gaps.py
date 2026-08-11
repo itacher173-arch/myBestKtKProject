@@ -7,10 +7,12 @@ from backend.scenarios.schema import validate_scenario_dict
 from backend.simulator.paz import interlock_reason
 from backend.simulator.process_model import create_initial_process, tick_process
 from backend.simulator.session import SessionStore
+from backend.storage import auth as auth_module
 from backend.storage.access import is_admin, is_instructor, require_roles
 from backend.storage.audit_chain import hash_entry, verify_chain
 from backend.storage.auth import (
     _bootstrap_admin_credentials,
+    _demo_account_specs,
     hash_password,
     normalize_roles,
     primary_role,
@@ -151,6 +153,100 @@ def test_bootstrap_admin_password_is_hashed(monkeypatch):
     assert login == "first_admin"
     assert password not in encoded
     assert verify_password(password, encoded)
+
+
+def test_demo_accounts_are_disabled_by_default(monkeypatch):
+    monkeypatch.delenv("KTK_DEMO_ACCOUNTS_ENABLED", raising=False)
+    assert _demo_account_specs() == []
+
+
+def test_demo_accounts_cover_all_roles(monkeypatch):
+    monkeypatch.setenv("KTK_DEMO_ACCOUNTS_ENABLED", "true")
+    monkeypatch.setenv("KTK_ADMIN_LOGIN", "admin")
+    monkeypatch.setenv("KTK_ADMIN_NAME", "Демо-администратор")
+    monkeypatch.setenv("KTK_ADMIN_PASSWORD", "admin")
+    specs = _demo_account_specs()
+    assert [item["login"] for item in specs] == ["admin", "instructor", "trainee"]
+    assert [item["role"] for item in specs] == ["admin", "instructor", "trainee"]
+    assert [item["password"] for item in specs] == ["admin", "instructor", "trainee"]
+
+
+def test_demo_accounts_are_upserted_idempotently(monkeypatch):
+    class Result:
+        def __init__(self, row=None):
+            self.row = row
+
+        def fetchone(self):
+            return self.row
+
+    class Connection:
+        def __init__(self):
+            self.users = {
+                "instructor": {
+                    "id": "existing-instructor",
+                    "login": "instructor",
+                    "full_name": "Старое имя",
+                    "password_hash": "old",
+                    "role": "trainee",
+                    "roles": ["trainee"],
+                }
+            }
+            self.commits = 0
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def execute(self, query, params):
+            normalized = " ".join(query.split())
+            if normalized.startswith("SELECT id FROM users"):
+                row = self.users.get(params[0].lower())
+                return Result({"id": row["id"]} if row else None)
+            if normalized.startswith("UPDATE users"):
+                full_name, password_hash, role, roles, user_id = params
+                user = next(item for item in self.users.values() if item["id"] == user_id)
+                user.update(
+                    full_name=full_name,
+                    password_hash=password_hash,
+                    role=role,
+                    roles=roles,
+                )
+                return Result()
+            if normalized.startswith("INSERT INTO users"):
+                user_id, login, full_name, password_hash, role, roles = params
+                self.users[login] = {
+                    "id": user_id,
+                    "login": login,
+                    "full_name": full_name,
+                    "password_hash": password_hash,
+                    "role": role,
+                    "roles": roles,
+                }
+                return Result()
+            raise AssertionError(f"Неожиданный SQL: {normalized}")
+
+        def commit(self):
+            self.commits += 1
+
+    connection = Connection()
+    monkeypatch.setenv("KTK_DEMO_ACCOUNTS_ENABLED", "true")
+    monkeypatch.setenv("KTK_ADMIN_LOGIN", "admin")
+    monkeypatch.setenv("KTK_ADMIN_NAME", "Демо-администратор")
+    monkeypatch.setenv("KTK_ADMIN_PASSWORD", "admin")
+    monkeypatch.setattr(auth_module, "connect", lambda: connection)
+    monkeypatch.setattr(auth_module, "hash_password", lambda value: f"hash:{value}")
+
+    auth_module.ensure_demo_accounts()
+    auth_module.ensure_demo_accounts()
+
+    assert set(connection.users) == {"admin", "instructor", "trainee"}
+    assert connection.users["admin"]["role"] == "admin"
+    assert connection.users["instructor"]["role"] == "instructor"
+    assert connection.users["trainee"]["role"] == "trainee"
+    assert connection.users["instructor"]["password_hash"] == "hash:instructor"
+    assert connection.commits == 2
 
 
 def test_multiple_roles_are_normalized_and_authorized():
