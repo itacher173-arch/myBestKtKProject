@@ -11,7 +11,6 @@
 - минимум одно одобрение; для кода безопасности и предметного контента — два профильных одобрения;
 - сброс одобрений после новых коммитов;
 - обязательное разрешение review threads;
-- обязательные CI checks: Documentation, Backend и три Frontend job;
 - требование актуальной ветки перед merge;
 - ограниченный bypass только для назначенных владельцев;
 - линейная история и автоматическое удаление объединённых веток.
@@ -23,9 +22,8 @@
 - Dependabot alerts и security updates;
 - secret scanning и push protection;
 - Private Vulnerability Reporting;
-- CodeQL для Python и JavaScript/TypeScript после согласования CI;
-- запрет публикации Actions secrets в pull requests из fork;
-- минимальные `GITHUB_TOKEN` permissions, уже заданные в workflow.
+- запрет публикации секретов в pull requests из fork;
+- обязательное документирование выполненных локальных проверок в pull request.
 
 ## Владение
 
@@ -42,7 +40,7 @@
 
 ## Environments
 
-После появления pipeline создайте GitHub Environments `TEST`, `PREPROD`, `PROD`. Для PREPROD и PROD задайте required reviewers, раздельные secrets и запрет deployment из непроверенных веток. Производственные секреты не должны быть доступны TEST job.
+После появления корпоративного контура поставки создайте раздельные среды `TEST`, `PREPROD`, `PROD`. Для PREPROD и PROD задайте required reviewers, раздельные secrets и запрет deployment из непроверенных веток. Производственные секреты не должны быть доступны TEST.
 
 ## Репозиторий и релизы
 
@@ -50,4 +48,4 @@
 - используйте semantic tags после формального baseline;
 - release notes формируйте из [`CHANGELOG.md`](../CHANGELOG.md);
 - бинарные модели публикуйте как release assets с manifest и SHA-256, а не коммитьте в Git;
-- определите retention для Actions artifacts и логов с учётом чувствительности данных.
+- определите retention для сборочных артефактов и логов с учётом чувствительности данных.

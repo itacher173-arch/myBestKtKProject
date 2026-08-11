@@ -17,7 +17,7 @@ Thumbs.db
 **/dist
 **/release
 coverage
-frontend/scripts
+backend/ai/training/data
 backend/runtime/*
 !backend/runtime/.gitkeep
 docs

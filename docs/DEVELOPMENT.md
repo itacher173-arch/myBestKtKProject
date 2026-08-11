@@ -7,7 +7,7 @@
 3. внести изменение вместе с тестами и документацией;
 4. выполнить локальные проверки;
 5. открыть pull request по шаблону;
-6. получить review и дождаться успешного CI;
+6. получить review и подтвердить результаты обязательных локальных проверок;
 7. объединить через squash или rebase согласно настройкам репозитория.
 
 Прямой force-push в `main` не допускается.
@@ -57,6 +57,8 @@ npm run dev --prefix frontend/auth      # :5175
 
 Frontend ожидает gateway на `/api`. Для интеграционной работы проще поднять backend-зависимости через Compose и использовать Nginx-профиль.
 
+Из корня репозитория `npm run build` последовательно собирает все три приложения, а `npm run verify:domain` проверяет сценарии, мини-тренировки, органы управления и полноту мнемосхемы.
+
 ## Правила изменения доменных данных
 
 - идентификаторы сценариев, статей, оборудования и мини-тренировок стабильны;
@@ -82,7 +84,7 @@ fix(auth): invalidate session after role change
 docs(knowledge): clarify article approval workflow
 ```
 
-Поддерживаемые типы: `feat`, `fix`, `docs`, `test`, `refactor`, `perf`, `build`, `ci`, `chore`.
+Поддерживаемые типы: `feat`, `fix`, `docs`, `test`, `refactor`, `perf`, `build`, `chore`.
 
 ## Definition of Done
 

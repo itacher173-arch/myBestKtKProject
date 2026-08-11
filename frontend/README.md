@@ -1,6 +1,6 @@
 # Frontend
 
-Frontend разделён на три React 18 + TypeScript + Vite приложения. В Docker они собираются независимо и публикуются одним Nginx.
+Frontend разделён на три React 18 + TypeScript + Vite приложения. Контейнерная сборка централизована: единый multi-stage образ собирает приложения независимо и публикует их одним Nginx.
 
 | Приложение | Маршрут | Назначение | Dev-порт |
 | --- | --- | --- | ---: |
@@ -20,6 +20,8 @@ npm run build --prefix frontend/admin
 ```
 
 Не запускайте `npm install` для обновления зависимостей без намеренного изменения соответствующего `package-lock.json`.
+
+Контейнерная сборка определяется только в [`deploy/docker/Dockerfile.web`](../deploy/docker/Dockerfile.web), маршрутизация — в [`deploy/docker/nginx.conf.template`](../deploy/docker/nginx.conf.template).
 
 ## Общие правила
 

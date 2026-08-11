@@ -9,6 +9,7 @@
 | unit/integration | симулятор, роли, аудит, AI и знания | `pytest -q backend/tests` |
 | frontend typecheck | TypeScript-контракты | `npm run build --prefix frontend/<app>` |
 | frontend build | production-бандлы трёх приложений | та же команда build |
+| domain verification | сценарии, мини-тренировки, схема и органы управления | `npm run verify:domain` |
 | docs | существование локальных Markdown-ссылок | `python scripts/check_docs.py` |
 | container smoke | запуск и health полного стека | `docker compose up --build -d` |
 
@@ -18,10 +19,12 @@
 ruff check backend --config backend/ruff.toml
 python -m compileall backend
 pytest -q backend/tests
-npm ci --prefix frontend/trainer && npm run build --prefix frontend/trainer
-npm ci --prefix frontend/auth && npm run build --prefix frontend/auth
-npm ci --prefix frontend/admin && npm run build --prefix frontend/admin
-python scripts/check_docs.py
+npm ci --prefix frontend/trainer
+npm ci --prefix frontend/auth
+npm ci --prefix frontend/admin
+npm run build
+npm run verify:domain
+npm run check:docs
 docker compose config --quiet
 ```
 

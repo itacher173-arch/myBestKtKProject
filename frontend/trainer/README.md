@@ -8,8 +8,7 @@
 npm ci
 npm run dev
 npm run build
-npm run verify:training
-npm run verify:pipe-arrows
+npm run verify:all
 ```
 
 ## Основные каталоги

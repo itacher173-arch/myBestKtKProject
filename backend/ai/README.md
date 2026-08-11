@@ -19,7 +19,14 @@
 | `rules_analysis.py` | объяснимый анализ без LLM |
 | `engine.py` | совместимые контракты и рекомендации |
 | `models/` | joblib-модели, метрики и LLM manifest |
-| `train_models.py` | воспроизводимое обучение демонстрационных моделей |
-| `dataset_*.csv` | синтетические/учебные наборы без персональных данных |
+| `training/` | воспроизводимая генерация данных и обучение демонстрационных моделей |
+| `training/data/` | синтетические учебные наборы без персональных данных |
 
-Подробности: [`docs/AI_ARCHITECTURE.md`](../../docs/AI_ARCHITECTURE.md). Изменение модели требует обновить manifest, checksum, метрики и regression/eval-тесты.
+Обучение запускается из корня репозитория:
+
+```bash
+python -m backend.ai.training.generate_dataset
+python -m backend.ai.training.train_models
+```
+
+Подробности: [`docs/AI_ARCHITECTURE.md`](../../docs/AI_ARCHITECTURE.md) и [`training/README.md`](training/README.md). Изменение модели требует обновить manifest, checksum, метрики и regression/eval-тесты.

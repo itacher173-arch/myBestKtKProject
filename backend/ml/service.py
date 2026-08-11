@@ -11,7 +11,6 @@ from backend.ai.engine import (
     _analyze_session_ml,
     ml_available,
     ml_status,
-    predict_risk,
 )
 from backend.ai.rules_analysis import analyze_session_rules
 

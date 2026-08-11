@@ -55,7 +55,10 @@ function loadAll(): Map<string, KnowledgeArticle> {
     if (!Array.isArray(items)) continue
     for (const item of items) {
       if (item && typeof item === 'object' && 'id' in item) {
-        articles.set(String((item as KnowledgeArticle).id), item as KnowledgeArticle)
+        const article = item as KnowledgeArticle
+        const id = String(article.id)
+        const existing = articles.get(id)
+        articles.set(id, existing ? { ...existing, ...article, id } : article)
       }
     }
   }
