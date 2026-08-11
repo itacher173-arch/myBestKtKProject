@@ -25,10 +25,9 @@ git switch -c feat/short-description
 ruff check backend --config backend/ruff.toml
 python -m compileall backend
 pytest -q backend/tests
-npm run build --prefix frontend/trainer
-npm run build --prefix frontend/auth
-npm run build --prefix frontend/admin
-python scripts/check_docs.py
+npm run build
+npm run verify:domain
+npm run check:docs
 ```
 
 ## Предметный review
@@ -61,4 +60,4 @@ AI не может изменять оценку, правила экзамен�
 
 ## Definition of Done
 
-Код, тесты, документация, переменные окружения и эксплуатационные инструкции согласованы; CI успешен; секреты отсутствуют; breaking changes и rollback описаны; требуемые эксперты подтвердили изменение.
+Код, тесты, документация, переменные окружения и эксплуатационные инструкции согласованы; обязательные локальные проверки успешны; секреты отсутствуют; breaking changes и rollback описаны; требуемые эксперты подтвердили изменение.

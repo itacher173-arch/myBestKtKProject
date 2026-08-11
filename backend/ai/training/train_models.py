@@ -8,7 +8,12 @@ import joblib
 import pandas as pd
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, precision_recall_fscore_support
+from sklearn.metrics import (
+    accuracy_score,
+    classification_report,
+    confusion_matrix,
+    precision_recall_fscore_support,
+)
 from sklearn.model_selection import GroupShuffleSplit
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
@@ -52,7 +57,9 @@ def metrics(y_true, y_pred) -> dict:
         "precisionWeighted": round(float(precision), 4),
         "recallWeighted": round(float(recall), 4),
         "f1Weighted": round(float(f1), 4),
-        "classificationReport": classification_report(y_true, y_pred, output_dict=True, zero_division=0),
+        "classificationReport": classification_report(
+            y_true, y_pred, output_dict=True, zero_division=0
+        ),
         "labels": labels,
         "confusionMatrix": confusion_matrix(y_true, y_pred, labels=labels).tolist(),
     }
@@ -71,7 +78,12 @@ def train_action_model(data_dir: Path, output_dir: Path) -> dict:
     result = metrics(test[target], predicted)
     result.update({"trainRows": len(train), "testRows": len(test), "target": target})
     joblib.dump(
-        {"pipeline": pipeline, "features": categorical + numeric, "target": target, "labels": sorted(frame[target].unique())},
+        {
+            "pipeline": pipeline,
+            "features": categorical + numeric,
+            "target": target,
+            "labels": sorted(frame[target].unique()),
+        },
         output_dir / "action_error_classifier.joblib",
     )
     return result
@@ -81,7 +93,15 @@ def train_risk_model(data_dir: Path, output_dir: Path) -> dict:
     frame = pd.read_csv(data_dir / "dataset_risk.csv")
     target = "willError"
     train, test = split_by_session(frame, target)
-    leakage = {"riskId", "sessionId", "operatorId", target, "riskClass", "riskScore", "predictedErrorLabel"}
+    leakage = {
+        "riskId",
+        "sessionId",
+        "operatorId",
+        target,
+        "riskClass",
+        "riskScore",
+        "predictedErrorLabel",
+    }
     categorical = ["scenarioId", "candidateAction", "previousAction"]
     numeric = [column for column in frame.columns if column not in leakage | set(categorical)]
     pipeline = build_pipeline(categorical, numeric)
@@ -89,15 +109,27 @@ def train_risk_model(data_dir: Path, output_dir: Path) -> dict:
     predicted = pipeline.predict(test[categorical + numeric])
     probabilities = pipeline.predict_proba(test[categorical + numeric])
     result = metrics(test[target], predicted)
-    result.update({
-        "trainRows": len(train),
-        "testRows": len(test),
-        "target": target,
-        "probabilityClassOrder": pipeline.named_steps["model"].classes_.tolist(),
-        "meanErrorProbability": round(float(probabilities[:, list(pipeline.named_steps["model"].classes_).index(1)].mean()), 4),
-    })
+    result.update(
+        {
+            "trainRows": len(train),
+            "testRows": len(test),
+            "target": target,
+            "probabilityClassOrder": pipeline.named_steps["model"].classes_.tolist(),
+            "meanErrorProbability": round(
+                float(
+                    probabilities[:, list(pipeline.named_steps["model"].classes_).index(1)].mean()
+                ),
+                4,
+            ),
+        }
+    )
     joblib.dump(
-        {"pipeline": pipeline, "features": categorical + numeric, "target": target, "positiveClass": 1},
+        {
+            "pipeline": pipeline,
+            "features": categorical + numeric,
+            "target": target,
+            "positiveClass": 1,
+        },
         output_dir / "risk_predictor.joblib",
     )
     return result
@@ -105,8 +137,13 @@ def train_risk_model(data_dir: Path, output_dir: Path) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data-dir", type=Path, default=Path(__file__).resolve().parent)
-    parser.add_argument("--output-dir", type=Path, default=Path(__file__).resolve().parent / "models")
+    training_dir = Path(__file__).resolve().parent
+    parser.add_argument("--data-dir", type=Path, default=training_dir / "data")
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=training_dir.parent / "models",
+    )
     args = parser.parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
     report = {
@@ -115,12 +152,19 @@ def main() -> None:
         "actionClassifier": train_action_model(args.data_dir, args.output_dir),
         "riskPredictor": train_risk_model(args.data_dir, args.output_dir),
     }
-    (args.output_dir / "metrics.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(json.dumps({
-        "actionF1": report["actionClassifier"]["f1Weighted"],
-        "riskF1": report["riskPredictor"]["f1Weighted"],
-        "outputDir": str(args.output_dir),
-    }, ensure_ascii=False))
+    (args.output_dir / "metrics.json").write_text(
+        json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    print(
+        json.dumps(
+            {
+                "actionF1": report["actionClassifier"]["f1Weighted"],
+                "riskF1": report["riskPredictor"]["f1Weighted"],
+                "outputDir": str(args.output_dir),
+            },
+            ensure_ascii=False,
+        )
+    )
 
 
 if __name__ == "__main__":

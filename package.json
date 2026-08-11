@@ -1,21 +1,25 @@
 {
-  "name": "myktkprodject",
+  "name": "ktk-elou-avt",
   "private": true,
   "version": "0.1.0",
-  "description": "myKTKProdject — КТК ЭЛОУ-АВТ (auth + trainer + admin + backend)",
+  "description": "КТК ЭЛОУ-АВТ — модульный цифровой учебный полигон",
   "scripts": {
-    "dev": "npm --prefix frontend/trainer run dev",
-    "build": "npm --prefix frontend/trainer run build",
+    "dev": "npm run dev:trainer",
+    "dev:trainer": "npm --prefix frontend/trainer run dev",
+    "dev:auth": "npm --prefix frontend/auth run dev",
+    "dev:admin": "npm --prefix frontend/admin run dev",
+    "build": "npm run build:auth && npm run build:trainer && npm run build:admin",
+    "build:trainer": "npm --prefix frontend/trainer run build",
+    "build:auth": "npm --prefix frontend/auth run build",
+    "build:admin": "npm --prefix frontend/admin run build",
     "preview": "npm --prefix frontend/trainer run preview",
+    "verify:domain": "npm --prefix frontend/trainer run verify:all",
+    "check:docs": "python scripts/check_docs.py",
     "backend": "python3 -m backend.run_all",
     "dev:api": "python3 -m backend.run_all",
     "docker:up": "docker compose up --build -d",
     "docker:down": "docker compose down --remove-orphans",
     "docker:logs": "docker compose logs -f",
-    "build:web": "docker compose build web",
-    "build:admin": "npm --prefix frontend/admin run build",
-    "dev:admin": "npm --prefix frontend/admin run dev",
-    "build:auth": "npm --prefix frontend/auth run build",
-    "dev:auth": "npm --prefix frontend/auth run dev"
+    "build:web": "docker compose build web"
   }
 }

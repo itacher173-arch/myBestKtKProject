@@ -9,9 +9,12 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
+    "verify:smoke": "tsx scripts/smoke-check.mts",
+    "verify:controls": "tsx scripts/controls-check.mts",
     "verify:scheme-pdf": "tsx scripts/verify-scheme-pdf.mts",
     "verify:training": "tsx scripts/verify-training.mts",
-    "verify:pipe-arrows": "tsx scripts/verify-pipe-arrows.mts"
+    "verify:pipe-arrows": "tsx scripts/verify-pipe-arrows.mts",
+    "verify:all": "npm run verify:smoke && npm run verify:controls && npm run verify:training && npm run verify:scheme-pdf && npm run verify:pipe-arrows"
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.3.0",

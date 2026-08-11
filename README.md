@@ -9,7 +9,6 @@
 Динамическая модель процесса · интерактивная мнемосхема · сценарии и мини-тренировки<br />
 ролевая работа · база знаний · отчётность · отключаемый локальный ИИ-помощник
 
-[![CI](https://img.shields.io/github/actions/workflow/status/itacher173-arch/myBestKtKProject/ci.yml?branch=main&style=for-the-badge&label=CI)](https://github.com/itacher173-arch/myBestKtKProject/actions/workflows/ci.yml)
 ![Stage](https://img.shields.io/badge/стадия-прототип-0B6FB8?style=for-the-badge)
 ![React](https://img.shields.io/badge/React_+_TypeScript-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
 ![FastAPI](https://img.shields.io/badge/FastAPI_+_Python-075985?style=for-the-badge&logo=fastapi&logoColor=white)
@@ -55,11 +54,11 @@
 
 Мнемосхема представляет технологическую цепочку, связи оборудования и инженерные коммуникации в едином рабочем поле. Масштабируемые зоны позволяют переходить от общего состояния установки к конкретному сегменту тренировки.
 
-<a href="frontend/trainer/scripts/snapshots/scheme-chrome.png">
-  <img src="frontend/trainer/scripts/snapshots/scheme-chrome.png" width="100%" alt="Интерактивная мнемосхема КТК ЭЛОУ-АВТ" />
+<a href="docs/assets/screenshots/trainer-workspace.png">
+  <img src="docs/assets/screenshots/trainer-workspace.png" width="100%" alt="Рабочая сессия в тренажёре КТК ЭЛОУ-АВТ" />
 </a>
 
-<div align="center"><sub>Снимок текущей интерактивной мнемосхемы. Нажмите, чтобы открыть в полном размере.</sub></div>
+<div align="center"><sub>Фактический экран текущего React-прототипа: управление сессией, тревоги, сценарный чек-лист, мнемосхема, параметры и журнал действий. Нажмите, чтобы открыть в полном размере.</sub></div>
 
 ## 🧩 Архитектура
 
@@ -194,18 +193,20 @@ ruff check backend --config backend/ruff.toml
 python -m compileall backend
 pytest -q backend/tests
 
-# Frontend
-npm ci --prefix frontend/trainer && npm run build --prefix frontend/trainer
-npm ci --prefix frontend/auth && npm run build --prefix frontend/auth
-npm ci --prefix frontend/admin && npm run build --prefix frontend/admin
+# Frontend: установка выполняется отдельно из-за независимых lock-файлов
+npm ci --prefix frontend/trainer
+npm ci --prefix frontend/auth
+npm ci --prefix frontend/admin
+npm run build
+npm run verify:domain
 
 # Документация
-python scripts/check_docs.py
+npm run check:docs
 ```
 
 </details>
 
-Те же проверки запускаются в GitHub Actions для каждого pull request. Полная матрица и критерии приёмки приведены в [руководстве по тестированию](docs/TESTING.md).
+Полная матрица локальных проверок и критерии приёмки приведены в [руководстве по тестированию](docs/TESTING.md).
 
 ## 🛡️ Статус и границы решения
 
@@ -234,20 +235,10 @@ python scripts/check_docs.py
 
 ## 🤝 Участие в разработке
 
-Изменения в `main` должны проходить через короткоживущую ветку, pull request и успешный CI. Изменения учебного контента и правил безопасности требуют предметной проверки технологом и специалистом по промышленной безопасности.
+Изменения в `main` должны проходить через короткоживущую ветку, pull request, локальные проверки и review. Изменения учебного контента и правил безопасности требуют предметной проверки технологом и специалистом по промышленной безопасности.
 
 Перед началом работы прочитайте [CONTRIBUTING.md](CONTRIBUTING.md). Уязвимости не публикуются в открытых issues — используйте порядок из [SECURITY.md](SECURITY.md).
 
 ## ⚖️ Правовой статус
 
 Исходный код и материалы проекта не получают открытую лицензию автоматически. Условия использования приведены в [LICENSE.md](LICENSE.md), сведения о сторонних компонентах — в [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-
----
-
-<div align="center">
-
-**КТК ЭЛОУ-АВТ** — обучение сложным технологическим действиям без воздействия на реальную установку.
-
-<sub>Документация описывает текущее состояние репозитория и отдельно фиксирует целевые требования промышленной эксплуатации.</sub>
-
-</div>
