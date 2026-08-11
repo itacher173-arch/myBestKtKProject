@@ -20,8 +20,8 @@ from backend.rag.service import search as local_rag_search
 
 ML_URL = os.getenv("KTK_ML_URL", "http://ml-recommender:8109").rstrip("/")
 RAG_URL = os.getenv("KTK_RAG_URL", "http://rag-api:8108").rstrip("/")
-OLLAMA_URL = os.getenv("KTK_OLLAMA_URL", "http://ollama:11434").rstrip("/")
-LLM_MODEL = os.getenv("KTK_OLLAMA_MODEL", "ktk-assistant")
+LLM_URL = os.getenv("KTK_LLM_URL", "http://llm-server:8080").rstrip("/")
+LLM_MODEL = os.getenv("KTK_LLM_MODEL", "qwen2.5-0.5b-instruct")
 PROMPT_VERSION = os.getenv("KTK_AI_PROMPT_VERSION", "ai-prompts-v1")
 CATALOG_PATH = (
     Path(__file__).resolve().parents[2]
@@ -82,14 +82,14 @@ def _rag(
         return local_rag_search(query, filters=filters, limit=limit)
 
 
-def _ollama_chat(
+def _local_llm_chat(
     *,
     system: str,
     user: str,
     temperature: float = 0.2,
     history: list[dict[str, str]] | None = None,
 ) -> str | None:
-    if _provider() not in {"auto", "ollama"}:
+    if _provider() not in {"auto", "local", "llama-cpp"}:
         return None
     messages: list[dict[str, str]] = [{"role": "system", "content": system}]
     for item in (history or [])[-8:]:
@@ -102,13 +102,16 @@ def _ollama_chat(
         "model": LLM_MODEL,
         "stream": False,
         "messages": messages,
-        "options": {"temperature": temperature},
+        "temperature": temperature,
+        "max_tokens": 700,
     }
     try:
-        response = post_json(f"{OLLAMA_URL}/api/chat", payload, timeout=90)
+        response = post_json(f"{LLM_URL}/v1/chat/completions", payload, timeout=90)
     except ServiceUnavailable:
         return None
-    text = str((response.get("message") or {}).get("content") or "").strip()
+    choices = response.get("choices") or []
+    first = choices[0] if isinstance(choices, list) and choices else {}
+    text = str((first.get("message") or {}).get("content") or "").strip()
     return text or None
 
 
@@ -213,13 +216,13 @@ def _llm_debrief(
         "Для фактов из базы знаний указывай citation. Если источников недостаточно, "
         "скажи об этом."
     )
-    text = _ollama_chat(
+    text = _local_llm_chat(
         system=system,
         user=json.dumps(context, ensure_ascii=False),
         temperature=0.2,
     )
     if text:
-        return text, "local-ollama-rag-debrief"
+        return text, "local-llama-cpp-rag-debrief"
     return _template_debrief(analysis, payload), "local-template-debrief"
 
 
@@ -382,7 +385,7 @@ def _conversation_fallback(kind: str) -> str:
         ),
         "general": (
             "Я могу поддержать простой разговор. Для развёрнутого свободного "
-            "ответа должна быть доступна локальная LLM-модель Ollama."
+            "ответа должна быть доступна локальная LLM через llama.cpp."
         ),
     }
     return answers[kind]
@@ -434,9 +437,11 @@ def answer_question(payload: dict[str, Any]) -> dict[str, Any]:
     intent, conversation_kind = _chat_intent(message, context)
 
     if intent == "conversation":
-        answer = _ollama_chat(
+        answer = _local_llm_chat(
             system=(
-                "Ты дружелюбный локальный ИИ-ассистент учебного приложения. "
+                "Ты локальный ИИ-ассистент учебного приложения КТК ЭЛОУ-АВТ. "
+                "Не называй себя ChatGPT, Claude, Anthropic, OpenAI и не "
+                "приписывай себе другого разработчика. "
                 "Поддерживай обычный человеческий разговор и отвечай на простые "
                 "общие вопросы естественно, кратко и по-русски. Не притворяйся, "
                 "что имеешь эмоции, доступ в интернет или актуальные внешние данные. "
@@ -444,10 +449,10 @@ def answer_question(payload: dict[str, Any]) -> dict[str, Any]:
                 "уточнить оборудование или сценарий."
             ),
             user=message,
-            temperature=0.55,
+            temperature=0.35,
             history=history,
         )
-        mode = "local-ollama-conversation"
+        mode = "local-llama-cpp-conversation"
         if not answer:
             answer = _conversation_fallback(conversation_kind)
             mode = "local-conversation-fallback"
@@ -479,7 +484,7 @@ def answer_question(payload: dict[str, Any]) -> dict[str, Any]:
         }
         for item in results[:6]
     ]
-    answer = _ollama_chat(
+    answer = _local_llm_chat(
         system=(
             "Ты локальный учебный ассистент КТК ЭЛОУ-АВТ. Ответь по-русски "
             "кратко: 2–4 предложения, без копирования длинных фрагментов. "
@@ -503,7 +508,7 @@ def answer_question(payload: dict[str, Any]) -> dict[str, Any]:
         ),
         history=history,
     )
-    mode = "local-ollama-rag"
+    mode = "local-llama-cpp-rag"
     if not answer:
         mode = "local-rag-summary"
         if source_results:
@@ -553,7 +558,7 @@ def health() -> dict[str, Any]:
     for name, url in (
         ("ml", f"{ML_URL}/health"),
         ("rag", f"{RAG_URL}/health"),
-        ("ollama", f"{OLLAMA_URL}/api/tags"),
+        ("llm", f"{LLM_URL}/health"),
     ):
         try:
             payload = get_json(url, timeout=2)

@@ -11,7 +11,7 @@
   border-radius: 7px;
   background: var(--surface-muted);
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: calc(10px * var(--font-scale));
 }
 
 .ai-trajectory-summary strong { color: var(--text-primary); }
@@ -32,7 +32,7 @@
 .ai-trajectory time {
   padding-top: 2px;
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: calc(9px * var(--font-scale));
   text-align: right;
 }
 
@@ -57,6 +57,6 @@
 
 .ai-trajectory li:last-child > i::after { display: none; }
 .ai-trajectory li > div { display: grid; align-content: start; gap: 2px; }
-.ai-trajectory li span { color: var(--ai); font-size: 9px; font-weight: 800; text-transform: uppercase; }
-.ai-trajectory li strong { font-size: 10px; }
-.ai-trajectory li small { color: var(--text-muted); font-size: 9px; }
+.ai-trajectory li span { color: var(--ai); font-size: calc(9px * var(--font-scale)); font-weight: 800; text-transform: uppercase; }
+.ai-trajectory li strong { font-size: calc(10px * var(--font-scale)); }
+.ai-trajectory li small { color: var(--text-muted); font-size: calc(9px * var(--font-scale)); }

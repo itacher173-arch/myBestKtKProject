@@ -26,7 +26,7 @@
 
 .ctrl-header h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: calc(16px * var(--font-scale));
   color: var(--text-primary);
 }
 
@@ -34,7 +34,7 @@
   border: none;
   background: transparent;
   color: var(--text-secondary);
-  font-size: 22px;
+  font-size: calc(22px * var(--font-scale));
   line-height: 1;
   cursor: pointer;
 }
@@ -42,13 +42,13 @@
 .ctrl-body {
   padding: 14px 16px 16px;
   color: var(--text-secondary);
-  font-size: 15px;
+  font-size: calc(15px * var(--font-scale));
 }
 
 .ctrl-desc {
   margin: 0 0 12px;
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: calc(14px * var(--font-scale));
   line-height: 1.4;
 }
 
@@ -108,7 +108,7 @@
 }
 
 .signal-value {
-  font-size: 22px;
+  font-size: calc(22px * var(--font-scale));
   font-weight: 700;
   color: var(--text-primary);
 }
@@ -118,6 +118,6 @@
 }
 
 .hint {
-  font-size: 13px;
+  font-size: calc(13px * var(--font-scale));
   color: var(--text-muted);
 }

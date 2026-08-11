@@ -13,7 +13,7 @@
   box-shadow: var(--shadow-sm);
   padding: 10px 12px;
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: calc(13px * var(--font-scale));
   backdrop-filter: blur(8px);
 }
 
@@ -54,7 +54,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale));
 }
 
 .sc-check li.done .mark {

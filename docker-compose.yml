@@ -69,10 +69,8 @@ services:
     environment:
       KTK_QDRANT_URL: "http://qdrant:6333"
       KTK_RAG_COLLECTION: "${KTK_RAG_COLLECTION:-ktk_knowledge}"
-      KTK_RAG_EMBEDDING_PROVIDER: "${KTK_RAG_EMBEDDING_PROVIDER:-auto}"
+      KTK_RAG_EMBEDDING_PROVIDER: "${KTK_RAG_EMBEDDING_PROVIDER:-hash}"
       KTK_KNOWLEDGE_INDEX_VERSION: "${KTK_KNOWLEDGE_INDEX_VERSION:-knowledge-v1}"
-      KTK_OLLAMA_URL: "http://ollama:11434"
-      KTK_OLLAMA_EMBED_MODEL: "${KTK_OLLAMA_EMBED_MODEL:-nomic-embed-text}"
     depends_on:
       qdrant:
         condition: service_started
@@ -98,54 +96,51 @@ services:
       start_period: 20s
     restart: unless-stopped
 
-  ollama:
-    image: ollama/ollama:latest
-    profiles: ["llm"]
-    volumes:
-      - ollama_data:/root/.ollama
-    restart: unless-stopped
-
-  ollama-init:
-    image: ollama/ollama:latest
-    profiles: ["llm"]
+  llm-model:
+    image: curlimages/curl:latest
+    user: "0:0"
     environment:
-      OLLAMA_HOST: "http://ollama:11434"
-      KTK_OLLAMA_BASE_MODEL: "${KTK_OLLAMA_BASE_MODEL:-qwen2.5:3b}"
-      KTK_OLLAMA_MODEL: "${KTK_OLLAMA_MODEL:-ktk-assistant}"
-      KTK_OLLAMA_EMBED_MODEL: "${KTK_OLLAMA_EMBED_MODEL:-nomic-embed-text}"
+      KTK_LLM_MODEL_FILE: "${KTK_LLM_MODEL_FILE:-Qwen2.5-0.5B-Instruct-Q4_K_M.gguf}"
+      KTK_LLM_MODEL_URL: "${KTK_LLM_MODEL_URL:-https://github.com/itacher173-arch/myBestKtKProject/releases/download/ai-model-qwen2.5-0.5b-v1/Qwen2.5-0.5B-Instruct-Q4_K_M.gguf}"
+      KTK_LLM_MODEL_FALLBACK_URL: "https://huggingface.co/bartowski/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/Qwen2.5-0.5B-Instruct-Q4_K_M.gguf?download=true"
+      KTK_LLM_MODEL_SHA256: "${KTK_LLM_MODEL_SHA256:-6eb923e7d26e9cea28811e1a8e852009b21242fb157b26149d3b188f3a8c8653}"
     volumes:
-      - ./backend/ai/ollama:/model:ro
-    entrypoint: ["/bin/sh", "-c"]
+      - llm_models:/models
+    entrypoint: ["/bin/sh", "-ec"]
     command:
       - |
-        until ollama list >/dev/null 2>&1; do sleep 2; done
-        ollama pull "$${KTK_OLLAMA_BASE_MODEL}"
-        ollama pull "$${KTK_OLLAMA_EMBED_MODEL}"
-        ollama create "$${KTK_OLLAMA_MODEL}" -f /model/Modelfile
-    depends_on:
-      ollama:
-        condition: service_started
+        target="/models/$${KTK_LLM_MODEL_FILE}"
+        if [ ! -s "$${target}" ]; then
+          echo "Downloading $${KTK_LLM_MODEL_FILE}"
+          curl --fail --location --retry 5 "$${KTK_LLM_MODEL_URL}" --output "$${target}.part" ||
+            curl --fail --location --retry 5 "$${KTK_LLM_MODEL_FALLBACK_URL}" --output "$${target}.part"
+          if [ -n "$${KTK_LLM_MODEL_SHA256}" ]; then
+            echo "$${KTK_LLM_MODEL_SHA256}  $${target}.part" | sha256sum -c -
+          fi
+          mv "$${target}.part" "$${target}"
+        fi
     restart: "no"
 
-  rag-index-ollama:
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
-    profiles: ["llm"]
-    command: ["python", "-m", "backend.rag.indexer", "--force"]
-    environment:
-      KTK_QDRANT_URL: "http://qdrant:6333"
-      KTK_RAG_COLLECTION: "${KTK_RAG_COLLECTION:-ktk_knowledge}"
-      KTK_RAG_EMBEDDING_PROVIDER: "ollama"
-      KTK_KNOWLEDGE_INDEX_VERSION: "${KTK_KNOWLEDGE_INDEX_VERSION:-knowledge-v1}"
-      KTK_OLLAMA_URL: "http://ollama:11434"
-      KTK_OLLAMA_EMBED_MODEL: "${KTK_OLLAMA_EMBED_MODEL:-nomic-embed-text}"
+  llm-server:
+    image: ghcr.io/ggml-org/llama.cpp:server
+    command:
+      - "-m"
+      - "/models/${KTK_LLM_MODEL_FILE:-Qwen2.5-0.5B-Instruct-Q4_K_M.gguf}"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8080"
+      - "-c"
+      - "4096"
+      - "-np"
+      - "2"
+      - "--jinja"
+    volumes:
+      - llm_models:/models:ro
     depends_on:
-      ollama-init:
+      llm-model:
         condition: service_completed_successfully
-      qdrant:
-        condition: service_started
-    restart: "no"
+    restart: unless-stopped
 
   ai-api:
     build:
@@ -154,13 +149,15 @@ services:
     command: ["python", "-m", "backend.ai.app", "--host", "0.0.0.0", "--port", "8107"]
     environment:
       KTK_AI_ENABLED: "${KTK_AI_ENABLED:-true}"
-      KTK_AI_PROVIDER: "${KTK_AI_PROVIDER:-rules}"
+      KTK_AI_PROVIDER: "${KTK_AI_PROVIDER:-auto}"
       KTK_ML_URL: "http://ml-recommender:8109"
       KTK_RAG_URL: "http://rag-api:8108"
-      KTK_OLLAMA_URL: "http://ollama:11434"
-      KTK_OLLAMA_MODEL: "${KTK_OLLAMA_MODEL:-ktk-assistant}"
+      KTK_LLM_URL: "http://llm-server:8080"
+      KTK_LLM_MODEL: "${KTK_LLM_MODEL:-qwen2.5-0.5b-instruct}"
       KTK_AI_PROMPT_VERSION: "${KTK_AI_PROMPT_VERSION:-ai-prompts-v1}"
     depends_on:
+      llm-server:
+        condition: service_started
       ml-recommender:
         condition: service_healthy
       rag-api:
@@ -240,7 +237,7 @@ services:
 
 volumes:
   backend_runtime:
-  ollama_data:
+  llm_models:
   postgres_data:
   qdrant_data:
   redis_data:

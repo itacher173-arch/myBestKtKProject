@@ -43,7 +43,7 @@
   display: block;
   margin-bottom: 3px;
   color: var(--accent);
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale));
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -51,7 +51,7 @@
 
 .settings-drawer h2 {
   margin: 0;
-  font-size: 21px;
+  font-size: calc(21px * var(--font-scale));
 }
 
 .settings-drawer > header button {
@@ -87,7 +87,7 @@
   align-items: center;
   gap: 8px;
   margin: 0 0 15px;
-  font-size: 14px;
+  font-size: calc(14px * var(--font-scale));
   text-transform: uppercase;
   letter-spacing: 0.07em;
 }
@@ -123,7 +123,7 @@
 
 .theme-grid > button > span:nth-child(2) {
   padding: 0 3px 3px;
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale));
   font-weight: 700;
 }
 
@@ -198,7 +198,7 @@
   background: transparent;
   color: var(--text-secondary);
   font: inherit;
-  font-size: 13px;
+  font-size: calc(13px * var(--font-scale));
   cursor: pointer;
 }
 
@@ -217,7 +217,7 @@
 
 .settings-field > span,
 .settings-range > span {
-  font-size: 13px;
+  font-size: calc(13px * var(--font-scale));
   font-weight: 700;
 }
 
@@ -264,7 +264,7 @@
   background: var(--surface-muted);
   color: var(--text-secondary);
   font: inherit;
-  font-size: 13px;
+  font-size: calc(13px * var(--font-scale));
   font-weight: 700;
   cursor: pointer;
 }
@@ -291,12 +291,12 @@
 }
 
 .settings-toggle strong {
-  font-size: 14px;
+  font-size: calc(14px * var(--font-scale));
 }
 
 .settings-toggle small {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale));
   line-height: 1.4;
 }
 
@@ -357,12 +357,12 @@
 }
 
 .settings-security-note strong {
-  font-size: 13px;
+  font-size: calc(13px * var(--font-scale));
 }
 
 .settings-security-note small {
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale));
   line-height: 1.45;
 }
 
@@ -379,7 +379,7 @@
 
 .settings-drawer > footer span {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale));
 }
 
 .settings-drawer > footer button {
@@ -387,7 +387,7 @@
   background: transparent;
   color: var(--accent);
   font: inherit;
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale));
   font-weight: 700;
   cursor: pointer;
 }

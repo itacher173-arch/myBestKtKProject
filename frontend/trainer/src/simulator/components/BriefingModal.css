@@ -20,7 +20,7 @@
 
 .briefing-mode {
   margin: 0 0 6px;
-  font-size: 13px;
+  font-size: calc(13px * var(--font-scale));
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--warning);
@@ -28,20 +28,20 @@
 
 .briefing-card h2 {
   margin: 0 0 8px;
-  font-size: 18px;
+  font-size: calc(18px * var(--font-scale));
   color: var(--text-primary);
 }
 
 .briefing-desc {
   margin: 0 0 14px;
-  font-size: 15px;
+  font-size: calc(15px * var(--font-scale));
   color: var(--text-muted);
   line-height: 1.4;
 }
 
 .briefing-card h3 {
   margin: 12px 0 6px;
-  font-size: 14px;
+  font-size: calc(14px * var(--font-scale));
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-muted);
@@ -50,13 +50,13 @@
 .briefing-card ul {
   margin: 0;
   padding-left: 18px;
-  font-size: 15px;
+  font-size: calc(15px * var(--font-scale));
   line-height: 1.45;
 }
 
 .briefing-tip {
   margin: 12px 0 0;
-  font-size: 14px;
+  font-size: calc(14px * var(--font-scale));
   color: var(--accent);
 }
 

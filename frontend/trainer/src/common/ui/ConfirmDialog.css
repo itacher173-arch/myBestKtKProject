@@ -20,13 +20,13 @@
 
 .confirm-title {
   margin: 0 0 8px;
-  font-size: 17px;
+  font-size: calc(17px * var(--font-scale));
   color: var(--text-primary, #f2f6fa);
 }
 
 .confirm-message {
   margin: 0 0 18px;
-  font-size: 15px;
+  font-size: calc(15px * var(--font-scale));
   line-height: 1.45;
   color: var(--text-muted, #9aabbc);
   white-space: pre-line;
@@ -42,7 +42,7 @@
   border-radius: 8px;
   padding: 9px 14px;
   font: inherit;
-  font-size: 15px;
+  font-size: calc(15px * var(--font-scale));
   font-weight: 600;
   cursor: pointer;
   border: 1px solid var(--border, #2c3846);

@@ -12,7 +12,7 @@
 - **auth-api**, **system-api**, **ai-api** (AI orchestrator)
 - **rag-api**, **ml-recommender**, **qdrant**
 - **postgres**, **redis**
-- опциональный профиль **llm**: **ollama** + загрузка небольшой модели и embedding-модели
+- **llm-server**: **llama.cpp** + Qwen2.5 0.5B GGUF из GitHub Release
 
 ## Требования
 
@@ -33,17 +33,16 @@ npm run docker:up
 # эквивалент: docker compose up --build -d
 ```
 
-Этот режим запускает ML и RAG с локальным fallback, но без генеративной LLM.
-Полный AI-контур с Ollama:
+Обычный запуск поднимает полный AI-контур с локальной LLM без Ollama:
 
 ```bash
-docker compose --env-file .env.test --profile llm up --build -d
+docker compose --env-file .env.test up --build -d
 ```
 
-При первом запуске профиль `llm` скачает модели из переменных
-`KTK_OLLAMA_MODEL` и `KTK_OLLAMA_EMBED_MODEL`, поэтому старт займёт больше
-времени. После загрузки `rag-index-ollama` заново опубликует базу знаний в
-Qdrant с embeddings Ollama.
+При первом запуске `llm-model` скачает GGUF-артефакт из GitHub Release в
+именованный Docker volume и проверит SHA-256, после чего `llm-server` запустит
+его через `llama.cpp`. В репозитории хранятся только manifest и checksum,
+поэтому бинарные веса не раздувают git-историю.
 
 Готово, когда контейнеры healthy. Открыть:
 
@@ -63,7 +62,7 @@ Qdrant с embeddings Ollama.
 - `rag-api` — версионируемый поиск по `backend/knowledge`; при недоступном
   Qdrant остаётся lexical fallback.
 - `qdrant` — индекс фрагментов базы знаний и метаданных источников.
-- `ollama` — генеративное объяснение и ответы RAG; не принимает решение о
+- `llm-server` (`llama.cpp`) — генеративное объяснение и ответы RAG; не принимает решение о
   зачёте или обязательном переобучении.
 
 Подробные границы, fallback и версия модели описаны в

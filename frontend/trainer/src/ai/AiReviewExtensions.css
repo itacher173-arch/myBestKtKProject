@@ -11,7 +11,7 @@
   border-radius: 999px;
   background: var(--surface);
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: calc(10px * var(--font-scale));
 }
 
 .ai-pipeline strong {
@@ -28,7 +28,7 @@
 .ai-debrief p {
   margin: 0;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale));
   line-height: 1.6;
   white-space: pre-wrap;
 }
@@ -37,7 +37,7 @@
   display: block;
   margin-top: 7px;
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: calc(10px * var(--font-scale));
 }
 
 .ai-next-module {
@@ -48,13 +48,13 @@
 }
 
 .ai-next-module > strong {
-  font-size: 14px;
+  font-size: calc(14px * var(--font-scale));
 }
 
 .ai-next-module > p {
   margin: 6px 0;
   color: var(--text-secondary);
-  font-size: 10px;
+  font-size: calc(10px * var(--font-scale));
   line-height: 1.45;
 }
 
@@ -67,7 +67,7 @@
 
 .ai-next-module span {
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: calc(10px * var(--font-scale));
 }
 
 .ai-next-module button,
@@ -82,7 +82,7 @@
 
 .ai-next-module button {
   padding: 7px 10px;
-  font-size: 10px;
+  font-size: calc(10px * var(--font-scale));
   font-weight: 700;
 }
 
@@ -105,12 +105,12 @@
 }
 
 .ai-sources strong {
-  font-size: 10px;
+  font-size: calc(10px * var(--font-scale));
 }
 
 .ai-sources span {
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: calc(10px * var(--font-scale));
 }
 
 @media (max-width: 680px) {

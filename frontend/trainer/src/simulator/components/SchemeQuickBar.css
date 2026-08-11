@@ -25,11 +25,11 @@
 
 .scheme-quickbar-head strong {
   display: block;
-  font-size: 15px;
+  font-size: calc(15px * var(--font-scale));
 }
 
 .scheme-quickbar-head span {
-  font-size: 13px;
+  font-size: calc(13px * var(--font-scale));
   color: var(--text-muted);
   font-family: 'IBM Plex Mono', monospace;
 }
@@ -45,7 +45,7 @@
   color: var(--text-secondary);
   border-radius: 4px;
   padding: 4px 8px;
-  font-size: 13px;
+  font-size: calc(13px * var(--font-scale));
   cursor: pointer;
 }
 

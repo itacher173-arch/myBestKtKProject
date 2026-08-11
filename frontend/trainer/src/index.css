@@ -2,7 +2,6 @@
 
 :root {
   --font-scale: 1;
-  --ui-scale: var(--font-scale);
   --font-interface: 'IBM Plex Sans', 'Segoe UI', sans-serif;
   --font-humanist: 'PT Root UI', Arial, sans-serif;
   --font-system: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -235,14 +234,9 @@ body,
   overflow: hidden;
 }
 
-#root {
-  width: calc(100% / var(--ui-scale));
-  height: calc(100% / var(--ui-scale));
-  zoom: var(--ui-scale);
-}
-
 body {
   font-family: var(--font-interface);
+  font-size: calc(16px * var(--font-scale));
   background: var(--app-bg);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
@@ -313,10 +307,4 @@ html[data-motion='reduced'] *::after {
   animation-duration: 0.01ms !important;
   animation-iteration-count: 1 !important;
   transition-duration: 0.01ms !important;
-}
-
-@media (max-width: 700px) {
-  #root {
-    --ui-scale: min(var(--font-scale), 1.25);
-  }
 }

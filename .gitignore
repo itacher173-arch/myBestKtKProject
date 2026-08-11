@@ -12,3 +12,5 @@ release
 backend/runtime/*
 !backend/runtime/.gitkeep
 !backend/runtime/.gitignore
+*.gguf
+*.gguf.part

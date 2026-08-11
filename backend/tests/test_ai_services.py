@@ -96,7 +96,7 @@ def test_general_chat_uses_base_llm_with_history(monkeypatch):
         captured.update(kwargs)
         return "Конечно, давайте разберёмся."
 
-    monkeypatch.setattr(orchestrator, "_ollama_chat", fake_chat)
+    monkeypatch.setattr(orchestrator, "_local_llm_chat", fake_chat)
     result = orchestrator.answer_question(
         {
             "message": "Можешь объяснить проще?",
@@ -109,8 +109,29 @@ def test_general_chat_uses_base_llm_with_history(monkeypatch):
         }
     )
     assert result["intent"] == "conversation"
-    assert result["mode"] == "local-ollama-conversation"
+    assert result["mode"] == "local-llama-cpp-conversation"
     assert captured["history"][-1]["role"] == "assistant"
+
+
+def test_local_llm_uses_openai_compatible_endpoint(monkeypatch):
+    captured = {}
+
+    def fake_post(url, payload, *, timeout):
+        captured.update({"url": url, "payload": payload, "timeout": timeout})
+        return {"choices": [{"message": {"content": "Локальный ответ"}}]}
+
+    monkeypatch.setenv("KTK_AI_PROVIDER", "auto")
+    monkeypatch.setattr(orchestrator, "post_json", fake_post)
+    answer = orchestrator._local_llm_chat(
+        system="Системная инструкция",
+        user="Привет",
+        history=[{"role": "assistant", "content": "Здравствуйте"}],
+    )
+
+    assert answer == "Локальный ответ"
+    assert captured["url"].endswith("/v1/chat/completions")
+    assert captured["payload"]["messages"][-1]["content"] == "Привет"
+    assert captured["payload"]["stream"] is False
 
 
 def test_ktk_chat_returns_short_answer_links_and_training(monkeypatch):

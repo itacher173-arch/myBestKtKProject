@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { AiAssistant } from '../ai/AiAssistant'
 import { AiReviewPanel } from '../ai/AiReviewPanel'
 import { isInstructorAuthed } from '../storage/auditStorage'
@@ -45,6 +45,7 @@ const SPEEDS: TimeScale[] = [0.25, 0.5, 1, 2, 4]
 function TrainerApp() {
   const { t, showTrendStrip, aiEnabled } = usePreferences()
   const [aiOpen, setAiOpen] = useState(false)
+  const [resultOpen, setResultOpen] = useState(false)
   const {
     state,
     completeExercise,
@@ -70,6 +71,10 @@ function TrainerApp() {
   )
   const canViewOwnResults = Boolean(user && hasRole(user, 'trainee'))
   const canViewReports = canViewInstructorReports || canViewOwnResults
+
+  useEffect(() => {
+    setResultOpen(session.completed)
+  }, [session.completed, session.exerciseId])
 
   const navItems = useMemo(
     () => [
@@ -235,6 +240,15 @@ function TrainerApp() {
             </button>
           </>
         )}
+        {session.completed && (
+          <button
+            type="button"
+            className="shell-action primary"
+            onClick={() => setResultOpen(true)}
+          >
+            <Icon name="chart" /> Результат
+          </button>
+        )}
         <button type="button" className="shell-action" onClick={resetToStart}>
           <Icon name="home" /> На главную
         </button>
@@ -267,27 +281,7 @@ function TrainerApp() {
           </span>
         </div>
 
-        {session.completed && (
-          <div
-            className={`result-banner ${session.qualified ? 'pass' : 'fail'}`}
-          >
-            {session.qualificationSummary}
-            {session.responseSeconds != null && (
-              <>
-                {' '}
-                · реакция: {session.responseSeconds.toFixed(1)} с
-                {session.respondedInTime === false ? ' (сверх нормы)' : ''}
-              </>
-            )}
-            {session.criticalFailReason
-              ? ` · ${session.criticalFailReason}`
-              : session.qualificationSummary
-                ? ` · ${session.qualificationSummary}`
-                : ''}
-          </div>
-        )}
-
-        <main className={`app-main${session.completed && aiEnabled ? ' with-ai-review' : ''}`}>
+        <main className="app-main">
           <div className="scheme-wrap">
             <SchemeViewer />
             <TrainingPanel />
@@ -299,22 +293,94 @@ function TrainerApp() {
             {!isMini && <InstructorLivePanel />}
             {!(session.completed && aiEnabled) && <DebriefPanel />}
           </div>
-          {session.completed && aiEnabled ? (
-            <aside className="exercise-ai-review">
-              <AiReviewPanel
-                compact
-                analysis={aiAnalysis}
-                status={aiAnalysisStatus}
-                error={aiAnalysisError}
-                onRetry={retryAiAnalysis}
-                onOpenKnowledge={openKnowledge}
-                onOpenTraining={assignMiniTraining}
-              />
-            </aside>
-          ) : (
-            <EquipmentPanel />
-          )}
+          <EquipmentPanel />
         </main>
+        {session.completed && resultOpen && (
+          <div
+            className="result-dialog-backdrop"
+            onMouseDown={() => setResultOpen(false)}
+          >
+            <section
+              className="result-dialog"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="result-dialog-title"
+              onMouseDown={(event) => event.stopPropagation()}
+            >
+              <header>
+                <div>
+                  <span>Сессия завершена</span>
+                  <h2 id="result-dialog-title">Результат тестирования</h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setResultOpen(false)}
+                  aria-label="Закрыть результат"
+                >
+                  <Icon name="close" />
+                </button>
+              </header>
+              <div
+                className={`result-dialog-summary ${
+                  session.qualified ? 'pass' : 'fail'
+                }`}
+              >
+                <strong>{session.scorePercent}%</strong>
+                <div>
+                  <h3>{session.qualified ? 'Тест пройден' : 'Требуется повторение'}</h3>
+                  <p>
+                    {session.criticalFailReason ||
+                      session.qualificationSummary ||
+                      'Результат сохранён в журнале обучения.'}
+                  </p>
+                </div>
+                <dl>
+                  <div>
+                    <dt>Реакция</dt>
+                    <dd>
+                      {session.responseSeconds != null
+                        ? `${session.responseSeconds.toFixed(1)} с`
+                        : '—'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Статус</dt>
+                    <dd>{session.qualified ? 'PASS' : 'FAIL'}</dd>
+                  </div>
+                </dl>
+              </div>
+              <div className="result-dialog-content">
+                {aiEnabled ? (
+                  <AiReviewPanel
+                    analysis={aiAnalysis}
+                    status={aiAnalysisStatus}
+                    error={aiAnalysisError}
+                    onRetry={retryAiAnalysis}
+                    onOpenKnowledge={openKnowledge}
+                    onOpenTraining={assignMiniTraining}
+                  />
+                ) : (
+                  <div className="result-dialog-ai-disabled">
+                    <Icon name="sparkles" />
+                    <p>
+                      ИИ-интерпретация отключена. Её можно включить в настройках.
+                    </p>
+                  </div>
+                )}
+              </div>
+              <footer>
+                <button type="button" onClick={() => setResultOpen(false)}>
+                  Вернуться к схеме
+                </button>
+                {canViewReports && (
+                  <button type="button" className="primary" onClick={openReports}>
+                    Открыть архив результатов
+                  </button>
+                )}
+              </footer>
+            </section>
+          </div>
+        )}
         <ControlPanel />
         {!isMini && <BriefingModal />}
       </div>
