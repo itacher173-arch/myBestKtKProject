@@ -1,0 +1,82 @@
+<svg width="1440" height="420" viewBox="0 0 1440 420" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">КТК ЭЛОУ-АВТ</title>
+  <desc id="desc">Стилизованная технологическая схема установки на синем фоне</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1440" y2="420" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#061B2C"/>
+      <stop offset="0.52" stop-color="#0B3A5B"/>
+      <stop offset="1" stop-color="#0878B8"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="180" y1="0" x2="1260" y2="0" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#49C8F0"/>
+      <stop offset="1" stop-color="#A8E8FF"/>
+    </linearGradient>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" stroke="#8FDFFF" stroke-opacity="0.08"/>
+    </pattern>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1440" height="420" rx="28" fill="url(#bg)"/>
+  <rect width="1440" height="420" rx="28" fill="url(#grid)"/>
+  <circle cx="1285" cy="52" r="220" fill="#20B8E8" fill-opacity="0.08"/>
+  <circle cx="136" cy="380" r="250" fill="#3BCBF5" fill-opacity="0.05"/>
+
+  <g opacity="0.95" stroke="url(#accent)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M104 312H260V271H377"/>
+    <path d="M377 271H458V224H582"/>
+    <path d="M582 224H684V288H812"/>
+    <path d="M812 288H925V231H1034"/>
+    <path d="M1034 231H1132V278H1318"/>
+    <path d="M260 271V176H458" opacity="0.55"/>
+    <path d="M684 288V151H812" opacity="0.55"/>
+    <path d="M925 231V142H1132" opacity="0.55"/>
+  </g>
+
+  <g fill="#0B2D46" stroke="#7EDCFA" stroke-width="3">
+    <rect x="82" y="270" width="88" height="84" rx="12"/>
+    <rect x="338" y="224" width="78" height="94" rx="12"/>
+    <rect x="544" y="154" width="76" height="140" rx="18"/>
+    <rect x="772" y="230" width="80" height="116" rx="16"/>
+    <rect x="994" y="170" width="80" height="122" rx="16"/>
+    <rect x="1276" y="237" width="84" height="83" rx="12"/>
+  </g>
+
+  <g fill="#49C8F0" filter="url(#glow)">
+    <circle cx="260" cy="271" r="7"/>
+    <circle cx="458" cy="224" r="7"/>
+    <circle cx="684" cy="288" r="7"/>
+    <circle cx="925" cy="231" r="7"/>
+    <circle cx="1132" cy="278" r="7"/>
+  </g>
+
+  <g fill="#C8F1FF" font-family="Arial, Helvetica, sans-serif" text-anchor="middle">
+    <text x="126" y="310" font-size="16" font-weight="700">ЭЛОУ</text>
+    <text x="377" y="274" font-size="15" font-weight="700">К-1</text>
+    <text x="582" y="228" font-size="15" font-weight="700">К-2</text>
+    <text x="812" y="292" font-size="15" font-weight="700">К-3</text>
+    <text x="1034" y="235" font-size="15" font-weight="700">К-4</text>
+    <text x="1318" y="282" font-size="15" font-weight="700">ПРОДУКТ</text>
+  </g>
+
+  <g font-family="Arial, Helvetica, sans-serif">
+    <rect x="73" y="49" width="86" height="86" rx="22" fill="#0B6FA8" stroke="#8BE4FF" stroke-width="2"/>
+    <path d="M95 105V83L116 69L137 83V105M104 105V91H128V105M116 69V55" stroke="#E0F8FF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="187" y="80" fill="#FFFFFF" font-size="34" font-weight="700" letter-spacing="1">КТК ЭЛОУ-АВТ</text>
+    <text x="187" y="113" fill="#A9E7FA" font-size="19" font-weight="400" letter-spacing="2">МОДУЛЬНЫЙ ЦИФРОВОЙ УЧЕБНЫЙ ПОЛИГОН</text>
+  </g>
+
+  <g font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="700">
+    <rect x="982" y="55" width="111" height="34" rx="17" fill="#49C8F0" fill-opacity="0.16" stroke="#74DDFB"/>
+    <text x="1037" y="77" fill="#CCF4FF" text-anchor="middle">SIMULATION</text>
+    <rect x="1106" y="55" width="102" height="34" rx="17" fill="#49C8F0" fill-opacity="0.16" stroke="#74DDFB"/>
+    <text x="1157" y="77" fill="#CCF4FF" text-anchor="middle">TRAINING</text>
+    <rect x="1221" y="55" width="132" height="34" rx="17" fill="#49C8F0" fill-opacity="0.16" stroke="#74DDFB"/>
+    <text x="1287" y="77" fill="#CCF4FF" text-anchor="middle">KNOWLEDGE + AI</text>
+  </g>
+
+  <text x="720" y="388" fill="#BCEEFF" fill-opacity="0.74" font-family="Arial, Helvetica, sans-serif" font-size="14" letter-spacing="3" text-anchor="middle">БЕЗ ПОДКЛЮЧЕНИЯ К РЕАЛЬНОЙ АСУ ТП</text>
+</svg>

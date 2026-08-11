@@ -1,9 +1,0 @@
-node_modules/
-.venv/
-__pycache__/
-*.pyc
-apps/frontend/dist/
-apps/frontend/release/
-runtime/
-.cache/
-*.log

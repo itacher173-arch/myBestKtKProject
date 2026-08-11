@@ -1,0 +1,74 @@
+name: Ошибка
+description: Сообщить о воспроизводимом дефекте без чувствительных данных
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Не публикуйте секреты, персональные данные, внутренние документы и детали уязвимостей. Для security-проблем используйте SECURITY.md.
+  - type: input
+    id: version
+    attributes:
+      label: Версия
+      description: Commit SHA, ветка или release
+      placeholder: 0123abcd / main
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Компонент
+      options:
+        - Trainer UI
+        - Auth UI
+        - Admin UI
+        - Simulator/API
+        - Авторизация и роли
+        - База знаний
+        - AI/ML/RAG
+        - Docker/инфраструктура
+        - Документация
+        - Другое
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Шаги воспроизведения
+      placeholder: "1. ...\n2. ...\n3. ..."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Ожидаемый результат
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Фактический результат
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Окружение
+      description: ОС, браузер, Docker/Compose, AI provider; без секретов
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Обезличенные логи или скриншоты
+      description: Удалите cookie, токены, ФИО, внутренние адреса и учебные данные сотрудников
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Проверка публикации
+      options:
+        - label: Я удалил секреты, персональные и производственно-чувствительные данные
+          required: true
+        - label: Это не отчёт об уязвимости безопасности
+          required: true
