@@ -31,7 +31,7 @@ import { SchemeViewer } from '../scheme/components/SchemeViewer'
 import { ConfirmProvider } from '../common/ui/ConfirmDialog'
 import { TrainerProvider, useTrainer } from '../simulator/TrainerContext'
 import { getExercise } from '../scenarios/exercises'
-import type { TimeScale } from '../simulator/types'
+import { TIME_SCALES, type TimeScale } from '../simulator/types'
 import './App.css'
 
 function formatSimTime(sec: number) {
@@ -39,8 +39,6 @@ function formatSimTime(sec: number) {
   const s = Math.floor(sec % 60)
   return `${m}:${s.toString().padStart(2, '0')}`
 }
-
-const SPEEDS: TimeScale[] = [0.25, 0.5, 1, 2, 4]
 
 function TrainerApp() {
   const { t, showTrendStrip, aiEnabled } = usePreferences()
@@ -183,16 +181,22 @@ function TrainerApp() {
         {!session.completed && (session.briefingAccepted || isMini) && (
           <>
             <div className="speed-group shell-speed" title="Скорость времени">
-              {SPEEDS.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  className={`shell-action${session.timeScale === s ? ' primary' : ''}`}
-                  onClick={() => setTimeScale(s)}
-                >
-                  {s}×
-                </button>
-              ))}
+              <label htmlFor="simulation-speed">Скорость</label>
+              <select
+                id="simulation-speed"
+                className="shell-action speed-select"
+                value={session.timeScale}
+                onChange={(event) =>
+                  setTimeScale(Number(event.target.value) as TimeScale)
+                }
+                aria-label="Скорость симуляции"
+              >
+                {TIME_SCALES.map((scale) => (
+                  <option key={scale} value={scale}>
+                    ×{scale}
+                  </option>
+                ))}
+              </select>
             </div>
             <button
               type="button"

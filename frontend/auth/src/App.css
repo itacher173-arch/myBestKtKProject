@@ -88,13 +88,6 @@
   font-size: 16px;
 }
 
-.auth-login-card .hint {
-  margin: 14px 0 0;
-  color: var(--gpn-muted);
-  font-size: 16px;
-  text-align: center;
-}
-
 .auth-login-card > button {
   width: 100%;
   margin-top: 4px;
@@ -114,6 +107,52 @@
 
 .auth-login-card > button:hover:not(:disabled) {
   background: var(--gpn-deep);
+}
+
+.admin-access {
+  display: grid;
+  gap: 9px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #d9e9f2;
+}
+
+.admin-access > span {
+  color: var(--gpn-muted);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.admin-panel-link {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 14px;
+  border: 1px solid #9fc9df;
+  border-radius: 8px;
+  background: #f3f9fc;
+  color: var(--gpn-deep);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+  text-decoration: none;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.admin-panel-link:hover {
+  border-color: var(--gpn-blue);
+  background: #e4f3fa;
+}
+
+.admin-panel-link:focus-visible {
+  outline: 3px solid rgba(0, 174, 239, 0.35);
+  outline-offset: 2px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -139,9 +178,7 @@
     color: #edf7fc;
   }
 
-  .auth-login-card .lead,
-  .auth-login-card .hint,
-  .auth-login-card .hint a {
+  .auth-login-card .lead {
     color: #a9c8d8;
   }
 
@@ -152,6 +189,26 @@
   .auth-login-card input {
     border-color: #31586f;
     background: #0b2a3e;
+    color: #edf7fc;
+  }
+
+  .admin-access {
+    border-top-color: #31586f;
+  }
+
+  .admin-access > span {
+    color: #a9c8d8;
+  }
+
+  .admin-panel-link {
+    border-color: #31586f;
+    background: #0b2a3e;
+    color: #b9d9e8;
+  }
+
+  .admin-panel-link:hover {
+    border-color: #55c4ed;
+    background: #12384f;
     color: #edf7fc;
   }
 }

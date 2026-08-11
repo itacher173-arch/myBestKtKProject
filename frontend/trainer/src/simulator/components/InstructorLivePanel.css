@@ -51,6 +51,7 @@
 
 .instr-auth button,
 .instr-actions button,
+.instr-actions select,
 .instr-inject {
   border: 1px solid color-mix(in srgb, var(--warning) 45%, var(--border));
   background: var(--warning-soft);
@@ -77,11 +78,6 @@
   flex-wrap: wrap;
   gap: 4px;
   margin-bottom: 8px;
-}
-
-.instr-actions button.on {
-  background: color-mix(in srgb, var(--warning-soft) 80%, var(--surface-muted));
-  border-color: color-mix(in srgb, var(--warning) 50%, var(--border));
 }
 
 .instr-inject {

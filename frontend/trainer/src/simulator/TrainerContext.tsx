@@ -54,15 +54,16 @@ import {
 } from '../storage/reportsStorage'
 import { exercises, getExercise, SCENARIO_VERSION } from '../scenarios/exercises'
 import { scoreExercise } from './scoring'
-import type {
-  AnalogTag,
-  PanelKind,
-  ProcessState,
-  Role,
-  SessionMode,
-  SessionSnapshot,
-  TimeScale,
-  TrainerState,
+import {
+  TIME_SCALES,
+  type AnalogTag,
+  type PanelKind,
+  type ProcessState,
+  type Role,
+  type SessionMode,
+  type SessionSnapshot,
+  type TimeScale,
+  type TrainerState,
 } from './types'
 import { usePreferences } from '../settings/PreferencesContext'
 import { useConfirm } from '../common/ui/ConfirmDialog'
@@ -701,7 +702,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
       if (
         scale &&
         scale !== stateRef.current.session.timeScale &&
-        [0.25, 0.5, 1, 2, 4].includes(scale)
+        TIME_SCALES.includes(scale)
       ) {
         dispatch({ type: 'SET_TIME_SCALE', timeScale: scale })
       }

@@ -499,7 +499,7 @@ def _apply_action_to_process(
         scale = action.get("timeScale", action.get("value", action.get("scale")))
         if scale is None:
             return "set-time-scale requires timeScale/value"
-        session.time_scale = _clamp(float(scale), 0.25, 4.0)
+        session.time_scale = _clamp(float(scale), 0.25, 10.0)
         return None
 
     if t in ("inject-fault", "injectFault"):

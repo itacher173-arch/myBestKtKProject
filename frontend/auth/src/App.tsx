@@ -117,9 +117,12 @@ export default function App() {
           {busy ? 'Вход…' : 'Войти'}
         </button>
 
-        <p className="hint">
-          Администраторам — панель <a href="/admin/">/admin/</a>
-        </p>
+        <div className="admin-access">
+          <span>Для администраторов</span>
+          <a className="admin-panel-link" href="/admin/">
+            Открыть панель администратора
+          </a>
+        </div>
       </div>
     </div>
   )

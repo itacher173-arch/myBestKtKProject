@@ -4,7 +4,9 @@ export type Role = 'instructor' | 'trainee' | 'admin'
 
 export type SessionMode = 'train' | 'exam'
 
-export type TimeScale = 0.25 | 0.5 | 1 | 2 | 4
+export const TIME_SCALES = [0.25, 0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const
+
+export type TimeScale = (typeof TIME_SCALES)[number]
 
 export type PumpState = 'stopped' | 'starting' | 'running' | 'tripped'
 

@@ -8,6 +8,7 @@ import {
 import { getAnalogs } from '../processModel'
 import { getExercise } from '../../scenarios/exercises'
 import { useTrainer } from '../TrainerContext'
+import { TIME_SCALES, type TimeScale } from '../types'
 import './InstructorLivePanel.css'
 
 export function InstructorLivePanel() {
@@ -90,16 +91,20 @@ export function InstructorLivePanel() {
             <button type="button" onClick={() => setPaused(!session.paused)}>
               {session.paused ? 'Resume' : 'Freeze'}
             </button>
-            {([0.25, 0.5, 1, 2, 4] as const).map((s) => (
-              <button
-                key={s}
-                type="button"
-                className={session.timeScale === s ? 'on' : ''}
-                onClick={() => setTimeScale(s)}
-              >
-                {s}×
-              </button>
-            ))}
+            <select
+              value={session.timeScale}
+              onChange={(event) =>
+                setTimeScale(Number(event.target.value) as TimeScale)
+              }
+              aria-label="Скорость симуляции"
+              title="Скорость симуляции"
+            >
+              {TIME_SCALES.map((scale) => (
+                <option key={scale} value={scale}>
+                  ×{scale}
+                </option>
+              ))}
+            </select>
           </div>
 
           {ex?.faultType && !state.faultTriggered && !session.completed && (

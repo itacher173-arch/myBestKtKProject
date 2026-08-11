@@ -30,13 +30,24 @@
 
 .shell-speed {
   display: inline-flex;
+  align-items: center;
   gap: 4px;
 }
 
-.shell-speed .shell-action {
-  min-width: 40px;
+.shell-speed label {
+  color: var(--text-muted);
+  font-size: calc(13px * var(--font-scale));
+}
+
+.shell-speed .speed-select {
+  min-width: 72px;
   padding-inline: 8px;
-  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text-primary);
+  font: inherit;
+  cursor: pointer;
 }
 
 .app-header {
