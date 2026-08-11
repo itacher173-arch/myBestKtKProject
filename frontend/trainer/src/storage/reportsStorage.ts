@@ -22,6 +22,7 @@ export interface AnalogSample {
 
 export interface TraineeReport {
   id: string
+  userId?: string
   userName: string
   exerciseId: string
   exerciseName: string
@@ -101,17 +102,23 @@ export function loadReportsSync(): TraineeReport[] {
   return loadLocalReports()
 }
 
-export async function loadReports(): Promise<TraineeReport[]> {
+export async function loadReports(options?: { mine?: boolean }): Promise<TraineeReport[]> {
   try {
-    const remote = await apiGet<TraineeReport[]>('/reports')
+    const path = options?.mine ? '/reports?mine=1' : '/reports'
+    const remote = await apiGet<TraineeReport[]>(path)
     if (Array.isArray(remote)) {
-      saveLocalReports(remote)
+      if (!options?.mine) {
+        saveLocalReports(remote)
+      }
       return remote
     }
   } catch {
     /* offline / no backend */
   }
-  return loadLocalReports()
+  const local = loadLocalReports()
+  if (!options?.mine) return local
+  // Offline mine: filter local by current user if possible
+  return local
 }
 
 export async function saveReport(report: TraineeReport): Promise<void> {

@@ -70,9 +70,7 @@ export async function loginAppUser(input: {
     } catch {
       /* ignore */
     }
-    throw new Error(
-      'Администратор входит через админ-панель: http://localhost:8081',
-    )
+    throw new Error('Администратор входит через админ-панель: /admin/')
   }
   if (!data.token) {
     throw new Error('Сервер не выдал сессию')

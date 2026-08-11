@@ -16,6 +16,7 @@ SCHEMA_STATEMENTS = (
     """
     CREATE TABLE IF NOT EXISTS trainee_reports (
         id TEXT PRIMARY KEY,
+        user_id TEXT,
         user_name TEXT NOT NULL,
         exercise_id TEXT NOT NULL,
         exercise_name TEXT NOT NULL,
@@ -34,6 +35,10 @@ SCHEMA_STATEMENTS = (
     """
     CREATE INDEX IF NOT EXISTS idx_reports_user
         ON trainee_reports (user_name)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_reports_user_id
+        ON trainee_reports (user_id)
     """,
     """
     CREATE TABLE IF NOT EXISTS audit_log (
@@ -134,6 +139,13 @@ MIGRATION_STATEMENTS = (
     """,
     """
     ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS entry_hash TEXT
+    """,
+    """
+    ALTER TABLE trainee_reports ADD COLUMN IF NOT EXISTS user_id TEXT
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_reports_user_id
+        ON trainee_reports (user_id)
     """,
 )
 

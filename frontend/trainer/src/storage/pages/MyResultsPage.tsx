@@ -72,11 +72,22 @@ export function MyResultsPage() {
   const refresh = async () => {
     setBusy(true)
     try {
-      const next = await loadReports()
-      setReports(next)
+      const next = await loadReports({ mine: true })
+      const mine = user
+        ? next.filter((report) => {
+            if (report.userId && user.id) return report.userId === user.id
+            const names = [user.fullName, user.login]
+              .map((v) => (v || '').trim().toLocaleLowerCase('ru-RU'))
+              .filter(Boolean)
+            return names.includes(
+              (report.userName || '').trim().toLocaleLowerCase('ru-RU'),
+            )
+          })
+        : next
+      setReports(mine)
       setSelectedId((prev) => {
-        if (prev && next.some((report) => report.id === prev)) return prev
-        return next[0]?.id ?? null
+        if (prev && mine.some((report) => report.id === prev)) return prev
+        return mine[0]?.id ?? null
       })
     } finally {
       setBusy(false)

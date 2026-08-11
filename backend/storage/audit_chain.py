@@ -10,10 +10,20 @@ from typing import Any
 
 
 def audit_secret() -> bytes:
-    raw = (os.environ.get("KTK_AUDIT_HMAC_SECRET") or "ktk-dev-audit-secret").encode(
-        "utf-8"
-    )
-    return raw
+    raw = (os.environ.get("KTK_AUDIT_HMAC_SECRET") or "").strip()
+    if not raw:
+        # Локальный fallback только при явном разрешении
+        if os.environ.get("KTK_ALLOW_INSECURE_DEFAULTS", "").casefold() in {
+            "1",
+            "true",
+            "yes",
+        }:
+            raw = "ktk-dev-audit-secret"
+        else:
+            raise RuntimeError(
+                "Задайте KTK_AUDIT_HMAC_SECRET (или KTK_ALLOW_INSECURE_DEFAULTS=1 для локальной разработки)"
+            )
+    return raw.encode("utf-8")
 
 
 def canonicalize(entry: dict[str, Any], prev_hash: str) -> str:

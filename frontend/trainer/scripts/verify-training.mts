@@ -4,7 +4,7 @@
  */
 import { equipment } from '../src/scheme/equipment'
 import { SCHEME_ZONES } from '../src/scheme/zones'
-import { getArticle } from '../src/knowledge/store'
+import { getArticle } from './knowledge-loader.mts'
 import {
   MINI_TRAININGS,
   evaluateMiniTraining,

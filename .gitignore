@@ -6,6 +6,7 @@ release
 .env
 .env.*
 !.env.example
+!.env.test
 .tmp_plan
 .venv
 backend/runtime/*

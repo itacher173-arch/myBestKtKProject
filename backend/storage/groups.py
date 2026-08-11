@@ -377,7 +377,13 @@ def group_reports(group_id: str) -> list:
                 FROM group_members m
                 JOIN users u ON u.id = m.user_id
                 WHERE m.group_id = %s
-                  AND lower(u.full_name) = lower(r.user_name)
+                  AND (
+                    (r.user_id IS NOT NULL AND btrim(r.user_id) <> '' AND r.user_id = m.user_id)
+                    OR (
+                      (r.user_id IS NULL OR btrim(r.user_id) = '')
+                      AND lower(u.full_name) = lower(r.user_name)
+                    )
+                  )
             )
             ORDER BY r.completed_at DESC
             """,

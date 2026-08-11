@@ -169,7 +169,7 @@ class SessionStore:
           {"type": "stop-N1"} / {"type": "stop-N2"} / {"type": "stop-N3"}
           {"type": "set-avo", "on": true}
           {"type": "set-level-setpoint", "column": "K-1", "percent": 50}
-          {"type": "patch", "patch": {...}}  # raw process patch (still PAZ-checked if type known)
+          # raw "patch" is rejected — use typed commands only
           optional "description" for the actions_log entry
 
         Returns:
@@ -477,11 +477,8 @@ def _apply_action_to_process(
         return None
 
     if t == "patch":
-        patch = action.get("patch")
-        if not isinstance(patch, dict):
-            return "patch action requires patch object"
-        p.update(copy.copy(patch))
-        return None
+        # Произвольный patch запрещён: только типизированные команды.
+        return "patch action is disabled; use typed commands"
 
     if t in ("pause",):
         session.paused = True

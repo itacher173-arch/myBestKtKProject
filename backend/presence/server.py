@@ -11,6 +11,7 @@ from typing import Any
 from websockets.asyncio.server import ServerConnection, serve
 
 from backend.common.redis_client import get_redis, wait_for_redis
+from backend.storage.sessions import extract_token, get_session
 
 Presence = dict[str, Any]
 
@@ -98,6 +99,37 @@ def _mark_offline(user_id: str) -> Presence | None:
     return current
 
 
+def _request_headers(websocket: ServerConnection) -> dict[str, str]:
+    request = getattr(websocket, "request", None)
+    headers = getattr(request, "headers", None) if request is not None else None
+    if headers is None:
+        return {}
+    try:
+        return {str(k): str(v) for k, v in headers.items()}
+    except Exception:
+        return {}
+
+
+def _user_from_connection(
+    websocket: ServerConnection,
+    *,
+    body_token: str | None = None,
+) -> dict[str, Any] | None:
+    headers = _request_headers(websocket)
+    cookie = headers.get("Cookie") or headers.get("cookie")
+    authorization = headers.get("Authorization") or headers.get("authorization")
+    token = extract_token(
+        cookie_header=cookie,
+        authorization=authorization,
+        body_token=body_token,
+    )
+    session = get_session(token)
+    if not session:
+        return None
+    user = session.get("user")
+    return user if isinstance(user, dict) and user.get("id") else None
+
+
 _clients: set[ServerConnection] = set()
 
 
@@ -115,6 +147,7 @@ async def _broadcast(message: dict[str, Any]) -> None:
 
 async def _handler(websocket: ServerConnection) -> None:
     user_id: str | None = None
+    session_user: dict[str, Any] | None = None
     _clients.add(websocket)
     await websocket.send(
         json.dumps(
@@ -130,14 +163,29 @@ async def _handler(websocket: ServerConnection) -> None:
                 continue
             msg_type = msg.get("type")
             if msg_type == "hello":
-                user_id = str(msg.get("userId") or "").strip()
-                if not user_id:
-                    continue
+                session_user = _user_from_connection(
+                    websocket,
+                    body_token=str(msg.get("token") or "") or None,
+                )
+                if not session_user:
+                    await websocket.send(
+                        json.dumps(
+                            {"type": "error", "error": "unauthorized"},
+                            ensure_ascii=False,
+                        )
+                    )
+                    await websocket.close(code=4401, reason="unauthorized")
+                    return
+                user_id = str(session_user["id"])
                 entry = _set_presence(
                     user_id,
                     {
-                        "fullName": str(msg.get("fullName") or ""),
-                        "role": str(msg.get("role") or "trainee"),
+                        "fullName": str(
+                            session_user.get("fullName")
+                            or msg.get("fullName")
+                            or ""
+                        ),
+                        "role": str(session_user.get("role") or "trainee"),
                         "online": True,
                         "activity": str(msg.get("activity") or "online"),
                         "catalogId": msg.get("catalogId"),
@@ -147,15 +195,14 @@ async def _handler(websocket: ServerConnection) -> None:
                 )
                 await _broadcast({"type": "presence_update", "user": entry})
             elif msg_type == "presence":
-                uid = str(msg.get("userId") or user_id or "").strip()
-                if not uid:
+                if not session_user or not user_id:
                     continue
-                user_id = uid
+                # Идентичность только из сессии — client userId игнорируется
                 entry = _set_presence(
-                    uid,
+                    user_id,
                     {
-                        "fullName": str(msg.get("fullName") or ""),
-                        "role": str(msg.get("role") or "trainee"),
+                        "fullName": str(session_user.get("fullName") or ""),
+                        "role": str(session_user.get("role") or "trainee"),
                         "online": bool(msg.get("online", True)),
                         "activity": str(msg.get("activity") or "online"),
                         "catalogId": msg.get("catalogId"),

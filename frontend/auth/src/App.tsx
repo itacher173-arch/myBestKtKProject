@@ -115,7 +115,6 @@ export default function App() {
 
         <p className="hint">
           Администраторам — панель <a href="/admin/">/admin/</a>
-          {" "}(локально: порт 8081).
         </p>
       </div>
     </div>

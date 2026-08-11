@@ -169,6 +169,25 @@ def sim_command(
 @app.websocket("/api/sim/ws/{session_id}")
 async def sim_ws(websocket: WebSocket, session_id: str) -> None:
     from backend.simulator.session import store
+    from backend.storage.sessions import extract_token, get_session
+
+    token = extract_token(
+        cookie_header=websocket.headers.get("cookie"),
+        authorization=websocket.headers.get("authorization"),
+        body_token=websocket.query_params.get("token"),
+    )
+    auth = get_session(token)
+    user = auth.get("user") if auth else None
+    if not user:
+        await websocket.close(code=4401)
+        return
+
+    sess = store.get(session_id)
+    if not sess or (
+        sess.user_id != user["id"] and not has_any_role(user, "admin", "instructor")
+    ):
+        await websocket.close(code=4403)
+        return
 
     await websocket.accept()
     add_gauge("ws_active", 1)
@@ -179,6 +198,16 @@ async def sim_ws(websocket: WebSocket, session_id: str) -> None:
             inc("ws_events")
             kind = msg.get("type")
             if kind == "command":
+                # Re-check ownership each command (session may expire)
+                live = store.get(session_id)
+                if not live or (
+                    live.user_id != user["id"]
+                    and not has_any_role(user, "admin", "instructor")
+                ):
+                    await websocket.send_json(
+                        {"type": "error", "error": "forbidden"}
+                    )
+                    break
                 result = store.apply_command(
                     session_id,
                     str(msg.get("action") or ""),
@@ -186,9 +215,12 @@ async def sim_ws(websocket: WebSocket, session_id: str) -> None:
                 )
                 await websocket.send_json({"type": "command_result", **result})
             elif kind == "ping":
-                sess = store.get(session_id)
+                sess_live = store.get(session_id)
                 await websocket.send_json(
-                    {"type": "state", "session": sess.public() if sess else None}
+                    {
+                        "type": "state",
+                        "session": sess_live.public() if sess_live else None,
+                    }
                 )
             else:
                 await websocket.send_json({"type": "error", "error": "unknown type"})

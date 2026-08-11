@@ -151,11 +151,11 @@ function reducer(state: TrainerState, action: Action): TrainerState {
     case 'SYNC_ALARM_TIMES':
       return { ...state, alarmRaisedAt: action.raisedAt }
     case 'OPEN_REPORTS':
+      // Не переключаем рабочую роль: dual-role остаётся в trainee → «Мои результаты»
       return {
         ...state,
         session: {
           ...state.session,
-          role: 'instructor',
           view: 'reports',
           started: false,
           completed: false,
@@ -1562,8 +1562,10 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     }
 
     if (cur.session.role === 'trainee' && cur.session.userName.trim()) {
+      const authed = getAuthedUser()
       void saveReport({
         id: reportId,
+        userId: authed?.id,
         userName: cur.session.userName.trim(),
         exerciseId: cur.session.exerciseId ?? training?.id ?? '',
         exerciseName: training?.title ?? ex?.name ?? '—',

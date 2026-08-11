@@ -13,6 +13,7 @@ from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 from backend.common.http import JsonHandler
+from backend.storage.sessions import extract_token, get_session
 
 ROOT = Path(__file__).resolve().parents[2]
 FRONTEND_DIST = ROOT / "frontend" / "trainer" / "dist"
@@ -30,6 +31,18 @@ def fetch_json(url: str) -> object:
 
 
 class Handler(JsonHandler):
+    def require_user(self) -> dict | None:
+        token = extract_token(
+            cookie_header=self.headers.get("Cookie"),
+            authorization=self.headers.get("Authorization"),
+        )
+        session = get_session(token)
+        user = session.get("user") if session else None
+        if not user:
+            self.send_error_json("Требуется авторизация", 401)
+            return None
+        return user
+
     def proxy(self, base: str, target_path: str) -> None:
         body = None
         if self.command in ("POST", "PUT", "PATCH", "DELETE"):
@@ -130,6 +143,8 @@ class Handler(JsonHandler):
         if path == "/api/groups" or path.startswith("/api/groups/"):
             return self.proxy(STORAGE_URL, self.path[len("/api") :])
         if path.startswith("/api/ai/"):
+            if not self.require_user():
+                return
             return self.proxy(AI_URL, path[len("/api/ai") :])
         if path.startswith("/api/"):
             return self.send_error_json("not found", 404)
@@ -152,6 +167,8 @@ class Handler(JsonHandler):
         if path == "/api/groups" or path.startswith("/api/groups/"):
             return self.proxy(STORAGE_URL, path[len("/api") :])
         if path.startswith("/api/ai/"):
+            if not self.require_user():
+                return
             return self.proxy(AI_URL, path[len("/api/ai") :])
         self.send_error_json("not found", 404)
 

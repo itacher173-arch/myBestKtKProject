@@ -58,13 +58,14 @@ def _migrate_json_if_needed() -> None:
                 conn.execute(
                     """
                     INSERT INTO trainee_reports (
-                        id, user_name, exercise_id, exercise_name,
+                        id, user_id, user_name, exercise_id, exercise_name,
                         completed_at, score_percent, penalty, qualified, payload
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (id) DO NOTHING
                     """,
                     (
                         report["id"],
+                        report.get("userId") or None,
                         report.get("userName") or "",
                         report.get("exerciseId") or "",
                         report.get("exerciseName") or "",
@@ -77,29 +78,79 @@ def _migrate_json_if_needed() -> None:
                 )
 
         if audit_count == 0 and AUDIT_PATH.is_file():
+            prev_hash = ""
             for entry in read_json_list(AUDIT_PATH):
                 if not isinstance(entry, dict) or not entry.get("id"):
                     continue
+                record = {
+                    "id": entry["id"],
+                    "at": int(entry.get("at") or 0),
+                    "actor": entry.get("actor") or "system",
+                    "role": entry.get("role") or "system",
+                    "action": entry.get("action") or "event",
+                    "detail": entry.get("detail"),
+                }
+                entry_hash = entry.get("entry_hash") or hash_entry(record, prev_hash)
+                row_prev = entry.get("prev_hash")
+                if row_prev is None or row_prev == "":
+                    row_prev = prev_hash
                 conn.execute(
                     """
-                    INSERT INTO audit_log (id, at, actor, role, action, detail)
-                    VALUES (%s, %s, %s, %s, %s, %s)
+                    INSERT INTO audit_log (
+                        id, at, actor, role, action, detail, prev_hash, entry_hash
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (id) DO NOTHING
                     """,
                     (
-                        entry["id"],
-                        int(entry.get("at") or 0),
-                        entry.get("actor") or "system",
-                        entry.get("role") or "system",
-                        entry.get("action") or "event",
-                        entry.get("detail"),
+                        record["id"],
+                        record["at"],
+                        record["actor"],
+                        record["role"],
+                        record["action"],
+                        record["detail"],
+                        row_prev,
+                        entry_hash,
                     ),
                 )
+                prev_hash = entry_hash
+        conn.commit()
+
+    # Backfill user_id for legacy reports matched by full_name
+    with connect() as conn:
+        conn.execute(
+            """
+            UPDATE trainee_reports r
+            SET user_id = u.id
+            FROM users u
+            WHERE (r.user_id IS NULL OR btrim(r.user_id) = '')
+              AND lower(u.full_name) = lower(r.user_name)
+            """
+        )
+        # Mirror userId into payload JSON when missing
+        rows = conn.execute(
+            """
+            SELECT id, user_id, payload
+            FROM trainee_reports
+            WHERE user_id IS NOT NULL AND btrim(user_id) <> ''
+            """
+        ).fetchall()
+        for row in rows:
+            payload = row["payload"]
+            if not isinstance(payload, dict):
+                continue
+            if str(payload.get("userId") or "").strip():
+                continue
+            payload = {**payload, "userId": row["user_id"]}
+            conn.execute(
+                "UPDATE trainee_reports SET payload = %s WHERE id = %s",
+                (jsonb(payload), row["id"]),
+            )
         conn.commit()
 
 
-def list_reports(*, for_user: dict | None = None) -> list:
-    """Если for_user — обучаемый (не admin/instructor), вернуть только его отчёты."""
+def list_reports(*, for_user: dict | None = None, mine_only: bool = False) -> list:
+    """Список отчётов. mine_only — только свои (для «Мои результаты» у dual-role)."""
     with connect() as conn:
         rows = conn.execute(
             "SELECT payload FROM trainee_reports ORDER BY completed_at DESC"
@@ -109,28 +160,20 @@ def list_reports(*, for_user: dict | None = None) -> list:
         return reports
     from backend.storage.access import is_admin, is_instructor, user_roles
 
+    if mine_only:
+        return [report for report in reports if report_belongs_to_user(report, for_user)]
     if is_admin(for_user) or is_instructor(for_user):
         return reports
     if "trainee" not in user_roles(for_user):
         return []
-    names = {
-        str(for_user.get("fullName") or "").strip().casefold(),
-        str(for_user.get("login") or "").strip().casefold(),
-    }
-    names.discard("")
-    if not names:
-        return []
-    return [
-        report
-        for report in reports
-        if str(report.get("userName") or "").strip().casefold() in names
-    ]
+    return [report for report in reports if report_belongs_to_user(report, for_user)]
 
 
 def save_report(report: dict) -> dict:
     if not isinstance(report, dict) or not report.get("id"):
         raise ValueError("report.id обязателен")
 
+    user_id = str(report.get("userId") or "").strip() or None
     user_name = report.get("userName") or ""
     exercise_id = report.get("exerciseId") or ""
     score = int(report.get("scorePercent") or 0)
@@ -141,14 +184,15 @@ def save_report(report: dict) -> dict:
         duplicate = conn.execute(
             """
             SELECT id FROM trainee_reports
-            WHERE user_name = %s
+            WHERE COALESCE(user_id, '') = COALESCE(%s, '')
+              AND user_name = %s
               AND exercise_id = %s
               AND score_percent = %s
               AND penalty = %s
               AND ABS(completed_at - %s) < 3000
             LIMIT 1
             """,
-            (user_name, exercise_id, score, penalty, completed_at),
+            (user_id, user_name, exercise_id, score, penalty, completed_at),
         ).fetchone()
         if duplicate:
             return {"ok": True, "id": report["id"], "duplicate": True}
@@ -156,10 +200,11 @@ def save_report(report: dict) -> dict:
         conn.execute(
             """
             INSERT INTO trainee_reports (
-                id, user_name, exercise_id, exercise_name,
+                id, user_id, user_name, exercise_id, exercise_name,
                 completed_at, score_percent, penalty, qualified, payload
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT (id) DO UPDATE SET
+                user_id = EXCLUDED.user_id,
                 user_name = EXCLUDED.user_name,
                 exercise_id = EXCLUDED.exercise_id,
                 exercise_name = EXCLUDED.exercise_name,
@@ -171,6 +216,7 @@ def save_report(report: dict) -> dict:
             """,
             (
                 report["id"],
+                user_id,
                 user_name,
                 exercise_id,
                 report.get("exerciseName") or "",
@@ -202,6 +248,11 @@ def get_report(report_id: str) -> dict | None:
 
 
 def report_belongs_to_user(report: dict, user: dict) -> bool:
+    uid = str(user.get("id") or "").strip()
+    report_uid = str(report.get("userId") or "").strip()
+    if uid and report_uid:
+        return report_uid == uid
+    # Legacy rows without userId: match by display name / login
     names = {
         str(user.get("fullName") or "").strip().casefold(),
         str(user.get("login") or "").strip().casefold(),
@@ -272,17 +323,7 @@ def append_audit(entry: dict) -> dict:
                 entry_hash,
             ),
         )
-        conn.execute(
-            """
-            DELETE FROM audit_log
-            WHERE id IN (
-                SELECT id FROM audit_log
-                ORDER BY at DESC
-                OFFSET %s
-            )
-            """,
-            (AUDIT_MAX,),
-        )
+        # Не обрезаем журнал: OFFSET-удаление ломает HMAC-цепочку.
         conn.commit()
     return record
 
@@ -358,7 +399,8 @@ class Handler(JsonHandler):
 
             if path == "/reports":
                 require_roles(user, "admin", "instructor", "trainee")
-                return self.send_json(list_reports(for_user=user))
+                mine = (query.get("mine") or [""])[0].lower() in ("1", "true", "yes")
+                return self.send_json(list_reports(for_user=user, mine_only=mine))
             if path == "/audit":
                 require_roles(user, "admin", "instructor")
                 return self.send_json(list_audit())
@@ -418,9 +460,12 @@ class Handler(JsonHandler):
 
             if path == "/reports":
                 require_roles(user, "admin", "instructor", "trainee")
-                # Не даём подменить автора произвольной строкой без сессии
-                if "userName" not in body or not str(body.get("userName") or "").strip():
-                    body = {**body, "userName": user.get("fullName") or user.get("login")}
+                # Автор всегда из сессии — клиент не может подменить userId/userName
+                body = {
+                    **body,
+                    "userId": user["id"],
+                    "userName": user.get("fullName") or user.get("login") or "",
+                }
                 return self.send_json(save_report(body), 201)
             if path == "/audit":
                 require_roles(user, "admin", "instructor", "trainee")

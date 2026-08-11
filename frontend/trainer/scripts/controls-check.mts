@@ -24,7 +24,7 @@ import {
   levelSetpointToken,
   protectLevelToken,
 } from '../src/training/actions'
-import { articleCount, getArticle, listArticles, listCategories } from '../src/knowledge/store'
+import { articleCount, getArticle, listArticles, listCategories } from './knowledge-loader.mts'
 import { EQUIPMENT_ARTICLES } from '../src/knowledge/links'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
