@@ -476,6 +476,36 @@ def _apply_action_to_process(
             p["levelSetpointK1"] = percent
         return None
 
+    if t == "restore-snapshot":
+        snapshot = action.get("process")
+        if not isinstance(snapshot, dict):
+            return "restore-snapshot requires process"
+        required_keys = set(create_initial_process())
+        missing_keys = required_keys.difference(snapshot)
+        if missing_keys:
+            return (
+                "restore-snapshot is missing process fields: "
+                + ", ".join(sorted(missing_keys))
+            )
+        restored = {
+            key: copy.deepcopy(snapshot[key])
+            for key in required_keys
+        }
+        try:
+            session.sim_time = max(0.0, float(restored["simTimeSec"]))
+        except (TypeError, ValueError):
+            return "restore-snapshot has invalid simTimeSec"
+        restored["simTimeSec"] = session.sim_time
+        restored["running"] = True
+        session.process = restored
+        session.running = True
+        session.paused = bool(action.get("paused", False))
+        session.fault_triggered = bool(action.get("faultTriggered", False))
+        session._pump_n1_start_sim = (
+            session.sim_time if restored.get("pumpN1") == "starting" else None
+        )
+        return None
+
     if t == "patch":
         # Произвольный patch запрещён: только типизированные команды.
         return "patch action is disabled; use typed commands"

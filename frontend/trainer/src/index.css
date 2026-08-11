@@ -2,7 +2,7 @@
 
 :root {
   --font-scale: 1;
-  --font-interface: 'IBM Plex Sans', 'Segoe UI', sans-serif;
+  --font-interface: 'GPN DIN', 'IBM Plex Sans', 'Segoe UI', sans-serif;
   --font-humanist: 'PT Root UI', Arial, sans-serif;
   --font-system: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --accent: #0087c9;

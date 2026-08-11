@@ -11,7 +11,12 @@ from urllib.request import Request, urlopen
 import pytest
 
 from backend.ai import app as ai_app
-from backend.ai.engine import analyze_session, answer_question, search_articles
+from backend.ai.engine import (
+    _action_from_description,
+    analyze_session,
+    answer_question,
+    search_articles,
+)
 
 
 def _base_process(**overrides: object) -> dict:
@@ -67,6 +72,28 @@ def test_analyze_detects_long_pause_and_metrics():
     assert result["metrics"]["durationSeconds"] == 100.0
     assert result["metrics"]["controlAreasCount"] == 2
     assert "ACTION-PAUSE" in {item["code"] for item in result["findings"]}
+
+
+def test_analyze_recognizes_level_setpoint_range_as_single_action():
+    description = "Колонна 'К-1': уровень куба изменён с 47% до 64%"
+    result = analyze_session(
+        {
+            "scorePercent": 80,
+            "penalty": 0,
+            "process": _base_process(),
+            "actionsLog": [
+                {
+                    "at": 1_000,
+                    "description": description,
+                }
+            ],
+            "systemEvents": [],
+        }
+    )
+
+    assert len(result["trajectory"]) == 1
+    assert result["trajectory"][0]["category"] == "Колонны"
+    assert _action_from_description(description) == ("set-level-setpoint-K1", 64.0)
 
 
 @pytest.mark.parametrize(

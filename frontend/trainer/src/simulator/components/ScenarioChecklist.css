@@ -1,11 +1,10 @@
 .sc-check {
   position: absolute;
   left: 12px;
-  /* над блоком подсказки + легенды цветов труб */
   bottom: 110px;
   width: min(320px, calc(100% - 24px));
-  max-height: min(34vh, calc(100% - 140px));
-  overflow: auto;
+  max-height: min(48vh, 460px);
+  overflow: hidden;
   z-index: 5;
   border-radius: 10px;
   border: 1px solid var(--border);
@@ -19,33 +18,88 @@
 
 .sc-check header {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  gap: 12px;
   color: var(--text-muted);
 }
 
-.sc-check ol {
+.sc-check header > div {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sc-progress-text {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: calc(12px * var(--font-scale));
+}
+
+.sc-toggle {
+  flex: none;
+  border: 0;
+  border-radius: 5px;
+  padding: 4px 7px;
+  background: var(--surface-muted);
+  color: var(--accent);
+  font: inherit;
+  font-size: calc(12px * var(--font-scale));
+  cursor: pointer;
+}
+
+.sc-toggle:hover {
+  background: var(--accent-soft);
+}
+
+.sc-progress {
+  height: 3px;
+  margin: 8px 0 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-muted);
+}
+
+.sc-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--success);
+  transition: width 180ms ease;
+}
+
+.sc-list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
   gap: 5px;
+  max-height: min(36vh, 340px);
+  overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 
-.sc-check li {
+.sc-list li {
   display: flex;
   gap: 8px;
   align-items: flex-start;
   opacity: 0.75;
 }
 
-.sc-check li.done {
+.sc-list li.current {
+  opacity: 1;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.sc-list li.done {
   opacity: 1;
   color: var(--success);
 }
 
-.sc-check .mark {
+.sc-check .mark,
+.sc-modal .mark {
   flex: 0 0 calc(18px * var(--font-scale));
   width: calc(18px * var(--font-scale));
   height: calc(18px * var(--font-scale));
@@ -57,12 +111,36 @@
   font-size: calc(12px * var(--font-scale));
 }
 
-.sc-check li.done .mark {
+.sc-list li.done .mark,
+.sc-current.done .mark {
   border-color: var(--success-border);
   background: var(--success-soft);
 }
 
-.sc-check .txt {
+.sc-current {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--text-primary);
+}
+
+.sc-current > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sc-current small {
+  color: var(--text-muted);
+  font-size: calc(11px * var(--font-scale));
+}
+
+.sc-current.done {
+  color: var(--success);
+}
+
+.sc-check .txt,
+.sc-modal .txt {
   line-height: 1.3;
 }
 
@@ -70,8 +148,94 @@
   max-height: none;
 }
 
+.sc-check.exam header {
+  margin-bottom: 8px;
+}
+
 .sc-exam-note {
   margin: 0;
   color: var(--text-muted);
   line-height: 1.35;
+}
+
+.sc-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(4, 14, 24, 0.68);
+  backdrop-filter: blur(3px);
+}
+
+.sc-modal {
+  width: min(620px, 100%);
+  max-height: min(78vh, 720px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  color: var(--text-secondary);
+  font-size: calc(14px * var(--font-scale));
+}
+
+.sc-modal > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.sc-modal h2 {
+  margin: 0 0 3px;
+  color: var(--text-primary);
+  font-size: calc(20px * var(--font-scale));
+}
+
+.sc-modal header span {
+  color: var(--text-muted);
+  font-size: calc(13px * var(--font-scale));
+}
+
+.sc-modal-close {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-muted);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.sc-modal .sc-progress {
+  flex: none;
+  margin: 14px 0;
+}
+
+.sc-modal .sc-list {
+  max-height: none;
+  gap: 10px;
+  padding-right: 8px;
+}
+
+@media (max-width: 620px) {
+  .sc-modal-backdrop {
+    align-items: end;
+    padding: 12px;
+  }
+
+  .sc-modal {
+    max-height: 84vh;
+    border-radius: 12px 12px 8px 8px;
+    padding: 14px;
+  }
 }

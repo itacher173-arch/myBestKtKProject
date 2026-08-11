@@ -159,6 +159,10 @@ def sim_command(
         sess.user_id != user["id"] and not has_any_role(user, "admin", "instructor")
     ):
         raise HTTPException(404, "Сессия не найдена")
+    if body.action == "restore-snapshot" and not has_any_role(
+        user, "admin", "instructor"
+    ):
+        raise HTTPException(403, "Восстановление снимка доступно только инструктору")
     result = store.apply_command(session_id, body.action, body.payload)
     inc("sim_commands")
     if not result.get("ok"):

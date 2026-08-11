@@ -301,6 +301,13 @@ def _action_from_description(description: str) -> tuple[str, float]:
         "вентиляц" in text and "восстанов" in text
     ):
         return "restore-ventilation", 1.0
+    if "уровень куба" in text:
+        values = re.findall(r"([0-9]+(?:[.,][0-9]+)?)\s*%", text)
+        value = _to_float(values[-1].replace(",", ".")) if values else 0.0
+        if re.search(r"[кk]-1", text):
+            return "set-level-setpoint-K1", value
+        if re.search(r"[кk]-2", text):
+            return "set-level-setpoint-K2", value
     if "защита уровня k-1" in text or "защита к-1" in text:
         return "protect-K1", 0.0
     if "защита уровня k-2" in text or "защита к-2" in text:

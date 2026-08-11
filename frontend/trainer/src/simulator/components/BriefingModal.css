@@ -76,3 +76,8 @@
 .briefing-go:hover {
   background: color-mix(in srgb, var(--warning-soft) 80%, var(--surface-muted));
 }
+
+.briefing-go:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}

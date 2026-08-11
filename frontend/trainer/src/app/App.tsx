@@ -13,7 +13,6 @@ import { SettingsDrawer } from '../settings/SettingsDrawer'
 import { PreferencesProvider, usePreferences } from '../settings/PreferencesContext'
 import { TrainingPanel } from '../training/TrainingPanel'
 import { Icon } from '../common/ui/Icon'
-import { AlarmBar } from '../simulator/components/AlarmBar'
 import { BriefingModal } from '../simulator/components/BriefingModal'
 import { ControlPanel } from '../simulator/components/ControlPanel'
 import { DebriefPanel } from '../simulator/components/DebriefPanel'
@@ -61,6 +60,7 @@ function TrainerApp() {
     aiAnalysisError,
     retryAiAnalysis,
     assignMiniTraining,
+    sessionTransition,
   } = useTrainer()
   const { session } = state
   const user = getAuthedUser()
@@ -201,9 +201,16 @@ function TrainerApp() {
             <button
               type="button"
               className="shell-action"
+              disabled={sessionTransition !== null}
               onClick={() => setPaused(!session.paused)}
             >
-              {session.paused ? 'Продолжить' : 'Пауза'}
+              {sessionTransition
+                ? sessionTransition === 'resume'
+                  ? 'Запуск…'
+                  : 'Пауза…'
+                : session.paused
+                  ? 'Продолжить'
+                  : 'Пауза'}
             </button>
             {session.role === 'instructor' && (
               <>
@@ -291,16 +298,19 @@ function TrainerApp() {
             <TrainingPanel />
             {!isMini && (
               <div className="scheme-overlay-top">
-                <AlarmBar />
                 {showTrendStrip && <TrendStrip />}
                 <SchemeQuickBar />
               </div>
             )}
             {!isMini && (
               <div className="scheme-overlay-side">
+                <InstructorLivePanel />
+              </div>
+            )}
+            {!isMini && (
+              <div className="scheme-overlay-bottom-center">
                 <EmergencyPanel />
                 {!session.completed && <ScenarioChecklist />}
-                <InstructorLivePanel />
               </div>
             )}
             {!(session.completed && aiEnabled) && <DebriefPanel />}

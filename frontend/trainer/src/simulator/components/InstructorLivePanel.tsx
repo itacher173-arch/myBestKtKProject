@@ -18,6 +18,7 @@ export function InstructorLivePanel() {
     injectCurrentFault,
     setPaused,
     setTimeScale,
+    sessionTransition,
   } = useTrainer()
   const { session, process, actionsLog, systemEvents } = state
   const [pin, setPin] = useState('')
@@ -88,8 +89,16 @@ export function InstructorLivePanel() {
           </p>
 
           <div className="instr-actions">
-            <button type="button" onClick={() => setPaused(!session.paused)}>
-              {session.paused ? 'Resume' : 'Freeze'}
+            <button
+              type="button"
+              disabled={sessionTransition !== null}
+              onClick={() => setPaused(!session.paused)}
+            >
+              {sessionTransition
+                ? 'Ожидание…'
+                : session.paused
+                  ? 'Resume'
+                  : 'Freeze'}
             </button>
             <select
               value={session.timeScale}

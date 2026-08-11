@@ -387,6 +387,7 @@ function reducer(state: TrainerState, action: Action): TrainerState {
           ...state.session,
           view: 'exercise',
           completed: false,
+          paused: snap.paused,
           scorePercent: 0,
           penalty: 0,
           qualified: null,
@@ -476,6 +477,7 @@ interface TrainerApi {
   saveSnapshot: () => void
   restoreSnapshot: () => void
   canControl: boolean
+  sessionTransition: 'pause' | 'resume' | null
   trainingMode: 'full' | 'mini'
   setTrainingMode: (mode: 'full' | 'mini') => void
   miniTrainings: MiniTraining[]
@@ -525,6 +527,12 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
   const recoveryLogged = useRef(false)
   const saltAlarmLogged = useRef(false)
   const criticalFailHandled = useRef(false)
+  const levelSetpointChanges = useRef<
+    Record<
+      'K-1' | 'K-2',
+      { from: number; to: number; timer: number } | null
+    >
+  >({ 'K-1': null, 'K-2': null })
   const serverSimIdRef = useRef<string | null>(null)
   const [serverSimId, setServerSimId] = useState<string | null>(null)
   const serverSimMetaRef = useRef<{
@@ -537,6 +545,22 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     scenarioVersion: SCENARIO_VERSION,
   })
   const lastPolledSimTime = useRef(-1)
+  const serverMutationRevision = useRef(0)
+  const serverMutationsPending = useRef(0)
+  const sessionTransitionRef = useRef<'pause' | 'resume' | null>(null)
+  const [sessionTransition, setSessionTransition] = useState<
+    'pause' | 'resume' | null
+  >(null)
+
+  useEffect(
+    () => () => {
+      for (const change of Object.values(levelSetpointChanges.current)) {
+        if (change) window.clearTimeout(change.timer)
+      }
+      levelSetpointChanges.current = { 'K-1': null, 'K-2': null }
+    },
+    [state.session.exerciseId],
+  )
 
   const [trainingMode, setTrainingModeState] = useState<'full' | 'mini'>('full')
   const [selectedMiniTrainingId, setSelectedMiniTrainingId] = useState<
@@ -729,14 +753,28 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
         pushSystem('Нет серверной сессии симуляции.')
         return false
       }
+      const revision = ++serverMutationRevision.current
+      serverMutationsPending.current += 1
       try {
         const result = await sendServerSimCommand(id, action, payload)
         if (!result.ok) {
           pushSystem(result.reason || 'Команда отклонена сервером.')
-          if (result.session) applyServerSession(result.session)
+          if (
+            result.session &&
+            revision === serverMutationRevision.current &&
+            serverSimIdRef.current === id
+          ) {
+            applyServerSession(result.session)
+          }
           return false
         }
-        if (result.session) applyServerSession(result.session)
+        if (
+          result.session &&
+          revision === serverMutationRevision.current &&
+          serverSimIdRef.current === id
+        ) {
+          applyServerSession(result.session)
+        }
         return true
       } catch (reason) {
         pushSystem(
@@ -745,6 +783,11 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
             : 'Ошибка связи с сервером симуляции.',
         )
         return false
+      } finally {
+        serverMutationsPending.current = Math.max(
+          0,
+          serverMutationsPending.current - 1,
+        )
       }
     },
     [applyServerSession, pushSystem],
@@ -789,13 +832,19 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     if (state.session.view !== 'exercise') return
     if (!state.session.started || state.session.completed) return
     let cancelled = false
+    let pollInFlight = false
     const poll = async () => {
+      if (pollInFlight || serverMutationsPending.current > 0) return
+      pollInFlight = true
+      const revision = serverMutationRevision.current
       try {
         const session = await getServerSimSession(serverSimId)
-        if (cancelled) return
+        if (cancelled || revision !== serverMutationRevision.current) return
         applyServerSession(session)
       } catch {
         /* сеть — следующий цикл */
+      } finally {
+        pollInFlight = false
       }
     }
     void poll()
@@ -1193,11 +1242,25 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
       if (!canControl) return
       if (!assertMiniAction(levelSetpointToken(column))) return
       const v = Math.max(10, Math.min(90, Math.round(percent)))
-      if (column === 'K-1') {
-        logAction(`Колонна 'К-1': задан уровень куба ${v}%`)
-      } else {
-        logAction(`Колонна 'К-2': задан уровень куба ${v}%`)
-      }
+      const previous = levelSetpointChanges.current[column]
+      if (previous) window.clearTimeout(previous.timer)
+
+      const from =
+        previous?.from ??
+        (column === 'K-1'
+          ? stateRef.current.process.levelSetpointK1
+          : stateRef.current.process.levelSetpointK2)
+      const timer = window.setTimeout(() => {
+        const change = levelSetpointChanges.current[column]
+        if (!change) return
+        levelSetpointChanges.current[column] = null
+        if (change.from !== change.to) {
+          logAction(
+            `Колонна '${column}': уровень куба изменён с ${change.from}% до ${change.to}%`,
+          )
+        }
+      }, 350)
+      levelSetpointChanges.current[column] = { from, to: v, timer }
       void serverCommand('set-level-setpoint', { column, percent: v })
     },
     [canControl, logAction, assertMiniAction, serverCommand],
@@ -1672,10 +1735,17 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
   ])
 
   const setPaused = useCallback(
-    (paused: boolean) => {
+    async (paused: boolean) => {
       if (stateRef.current.session.view !== 'exercise') return
       if (stateRef.current.session.completed) return
-      void serverCommand(paused ? 'pause' : 'resume')
+      if (sessionTransitionRef.current) return
+      const transition = paused ? 'pause' : 'resume'
+      sessionTransitionRef.current = transition
+      setSessionTransition(transition)
+      const ok = await serverCommand(transition)
+      sessionTransitionRef.current = null
+      setSessionTransition(null)
+      if (!ok) return
       dispatch({ type: 'SET_PAUSED', paused })
       pushSystem(paused ? 'Симуляция на паузе.' : 'Симуляция продолжена.')
       void appendAudit({
@@ -1860,10 +1930,19 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
   }, [pushSystem, serverCommand])
 
   const acceptBriefing = useCallback(() => {
-    dispatch({ type: 'ACCEPT_BRIEFING' })
-    void serverCommand('resume')
-    dispatch({ type: 'SET_PAUSED', paused: false })
-    pushSystem('Брифинг принят. Симуляция запущена.')
+    if (sessionTransitionRef.current) return
+    const resume = async () => {
+      sessionTransitionRef.current = 'resume'
+      setSessionTransition('resume')
+      const ok = await serverCommand('resume')
+      sessionTransitionRef.current = null
+      setSessionTransition(null)
+      if (!ok) return
+      dispatch({ type: 'ACCEPT_BRIEFING' })
+      dispatch({ type: 'SET_PAUSED', paused: false })
+      pushSystem('Брифинг принят. Симуляция запущена.')
+    }
+    void resume()
   }, [pushSystem, serverCommand])
 
   const setTimeScale = useCallback(
@@ -1885,6 +1964,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     const snapshot: SessionSnapshot = {
       savedAt: Date.now(),
       label: `t=${cur.process.simTimeSec.toFixed(0)}с`,
+      paused: cur.session.paused,
       process: { ...cur.process },
       actionsLog: [...cur.actionsLog],
       systemEvents: [...cur.systemEvents],
@@ -1907,11 +1987,21 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
       pushSystem('Нет сохранённого снимка.')
       return
     }
-    recoveryLogged.current = cur.snapshot.faultResponded
-    criticalFailHandled.current = false
-    dispatch({ type: 'RESTORE_SNAPSHOT' })
-    pushSystem('Состояние восстановлено из снимка.')
-  }, [pushSystem])
+    const snapshot = cur.snapshot
+    const restore = async () => {
+      const ok = await serverCommand('restore-snapshot', {
+        process: snapshot.process,
+        paused: snapshot.paused,
+        faultTriggered: snapshot.faultTriggered,
+      })
+      if (!ok) return
+      recoveryLogged.current = snapshot.faultResponded
+      criticalFailHandled.current = false
+      dispatch({ type: 'RESTORE_SNAPSHOT' })
+      pushSystem('Состояние восстановлено из снимка.')
+    }
+    void restore()
+  }, [pushSystem, serverCommand])
 
   const analogs = useMemo(() => getAnalogs(state.process), [state.process])
 
@@ -1956,6 +2046,7 @@ export function TrainerProvider({ children }: { children: ReactNode }) {
     saveSnapshot,
     restoreSnapshot,
     canControl,
+    sessionTransition,
     trainingMode,
     setTrainingMode,
     miniTrainings: MINI_TRAININGS,

@@ -174,6 +174,7 @@ export interface AnalogHistorySample {
 export interface SessionSnapshot {
   savedAt: number
   label: string
+  paused: boolean
   process: ProcessState
   actionsLog: LogEntry[]
   systemEvents: LogEntry[]

@@ -415,6 +415,114 @@ def _bootstrap_admin_credentials() -> tuple[str, str, str]:
     return login, full_name, password
 
 
+def _demo_accounts_enabled() -> bool:
+    return (os.environ.get("KTK_DEMO_ACCOUNTS_ENABLED") or "").strip().casefold() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
+def _demo_account_specs() -> list[tuple[str, str, str, str]]:
+    variables = (
+        ("admin", "KTK_ADMIN", "Демо-администратор"),
+        ("instructor", "KTK_DEMO_INSTRUCTOR", "Демо-инструктор"),
+        ("trainee", "KTK_DEMO_TRAINEE", "Демо-обучаемый"),
+    )
+    accounts: list[tuple[str, str, str, str]] = []
+    for role, prefix, default_name in variables:
+        login = normalize_login(os.environ.get(f"{prefix}_LOGIN") or "")
+        full_name = (os.environ.get(f"{prefix}_NAME") or default_name).strip()
+        password = os.environ.get(f"{prefix}_PASSWORD") or ""
+        if not login or not password:
+            raise RuntimeError(
+                f"Для демо-профиля задайте {prefix}_LOGIN и {prefix}_PASSWORD"
+            )
+        if not LOGIN_RE.match(login):
+            raise ValueError(f"{prefix}_LOGIN некорректен")
+        if len(full_name) < 1 or len(password) < 4:
+            raise ValueError(f"{prefix}_NAME/PASSWORD некорректны")
+        accounts.append((role, login, full_name, password))
+    if len({account[1] for account in accounts}) != len(accounts):
+        raise ValueError("Логины демо-пользователей должны отличаться")
+    return accounts
+
+
+def ensure_demo_accounts() -> None:
+    """Идемпотентно создаёт демо-пользователей, группу и членство из окружения."""
+    if not _demo_accounts_enabled():
+        return
+
+    account_ids: dict[str, str] = {}
+    with connect() as conn:
+        for role, login, full_name, password in _demo_account_specs():
+            user_id = _uid()
+            row = conn.execute(
+                """
+                INSERT INTO users (
+                    id, login, full_name, password_hash, role, roles
+                )
+                VALUES (%s, %s, %s, %s, %s, ARRAY[%s]::TEXT[])
+                ON CONFLICT (login) DO UPDATE
+                SET full_name = EXCLUDED.full_name,
+                    password_hash = EXCLUDED.password_hash,
+                    role = EXCLUDED.role,
+                    roles = EXCLUDED.roles
+                RETURNING id
+                """,
+                (
+                    user_id,
+                    login,
+                    full_name,
+                    hash_password(password),
+                    role,
+                    role,
+                ),
+            ).fetchone()
+            account_ids[role] = str(row["id"])
+
+        group_name = (
+            os.environ.get("KTK_DEMO_GROUP_NAME") or "Демо-группа"
+        ).strip()
+        if not group_name:
+            raise ValueError("KTK_DEMO_GROUP_NAME не может быть пустым")
+        instructor_id = account_ids["instructor"]
+        trainee_id = account_ids["trainee"]
+        group = conn.execute(
+            """
+            SELECT id FROM training_groups
+            WHERE instructor_id = %s AND lower(name) = lower(%s)
+            """,
+            (instructor_id, group_name),
+        ).fetchone()
+        if group:
+            group_id = str(group["id"])
+        else:
+            group_id = f"grp-{int(time.time() * 1000)}-{secrets.token_hex(3)}"
+            conn.execute(
+                """
+                INSERT INTO training_groups (id, name, instructor_id)
+                VALUES (%s, %s, %s)
+                """,
+                (group_id, group_name, instructor_id),
+            )
+        conn.execute(
+            """
+            INSERT INTO group_members (group_id, user_id)
+            VALUES (%s, %s)
+            ON CONFLICT (group_id, user_id) DO NOTHING
+            """,
+            (group_id, trainee_id),
+        )
+        conn.commit()
+    print(
+        "[storage] demo accounts ready: admin, instructor, trainee; "
+        f"group: {group_name}",
+        flush=True,
+    )
+
+
 def ensure_bootstrap_admin() -> None:
     """Создаёт первого админа из окружения, не перезаписывая его пароль."""
     with connect() as conn:

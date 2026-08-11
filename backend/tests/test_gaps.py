@@ -11,6 +11,8 @@ from backend.storage.access import is_admin, is_instructor, require_roles
 from backend.storage.audit_chain import hash_entry, verify_chain
 from backend.storage.auth import (
     _bootstrap_admin_credentials,
+    _demo_account_specs,
+    _demo_accounts_enabled,
     hash_password,
     normalize_roles,
     primary_role,
@@ -103,6 +105,30 @@ def test_inject_fault_command():
     assert got.process.get("pumpN1") == "tripped"
 
 
+def test_restore_snapshot_replaces_server_state_and_pause():
+    store = SessionStore()
+    sess = store.create(user_id="u1", exercise_id="startup")
+    snapshot = create_initial_process()
+    snapshot["simTimeSec"] = 42
+    snapshot["valveL1"] = 75
+
+    result = store.apply_command(
+        sess.id,
+        "restore-snapshot",
+        {"process": snapshot, "paused": False, "faultTriggered": True},
+    )
+
+    assert result["ok"] is True
+    got = store.get(sess.id)
+    assert got is not None
+    assert got.sim_time == 42
+    assert got.process["simTimeSec"] == 42
+    assert got.process["valveL1"] == 75
+    assert got.process["running"] is True
+    assert got.paused is False
+    assert got.fault_triggered is True
+
+
 def test_audit_hmac_chain(monkeypatch):
     monkeypatch.setenv("KTK_AUDIT_HMAC_SECRET", "test-audit-secret")
     e1 = {
@@ -151,6 +177,26 @@ def test_bootstrap_admin_password_is_hashed(monkeypatch):
     assert login == "first_admin"
     assert password not in encoded
     assert verify_password(password, encoded)
+
+
+def test_demo_account_specs_are_loaded_from_environment(monkeypatch):
+    monkeypatch.setenv("KTK_DEMO_ACCOUNTS_ENABLED", "true")
+    monkeypatch.setenv("KTK_ADMIN_LOGIN", "admin")
+    monkeypatch.setenv("KTK_ADMIN_NAME", "Демо-администратор")
+    monkeypatch.setenv("KTK_ADMIN_PASSWORD", "admin")
+    monkeypatch.setenv("KTK_DEMO_INSTRUCTOR_LOGIN", "instructor")
+    monkeypatch.setenv("KTK_DEMO_INSTRUCTOR_NAME", "Демо-инструктор")
+    monkeypatch.setenv("KTK_DEMO_INSTRUCTOR_PASSWORD", "instructor")
+    monkeypatch.setenv("KTK_DEMO_TRAINEE_LOGIN", "trainee")
+    monkeypatch.setenv("KTK_DEMO_TRAINEE_NAME", "Демо-обучаемый")
+    monkeypatch.setenv("KTK_DEMO_TRAINEE_PASSWORD", "trainee")
+
+    assert _demo_accounts_enabled() is True
+    assert _demo_account_specs() == [
+        ("admin", "admin", "Демо-администратор", "admin"),
+        ("instructor", "instructor", "Демо-инструктор", "instructor"),
+        ("trainee", "trainee", "Демо-обучаемый", "trainee"),
+    ]
 
 
 def test_multiple_roles_are_normalized_and_authorized():

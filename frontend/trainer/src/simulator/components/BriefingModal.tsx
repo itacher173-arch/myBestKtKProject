@@ -3,7 +3,7 @@ import { useTrainer } from '../TrainerContext'
 import './BriefingModal.css'
 
 export function BriefingModal() {
-  const { state, acceptBriefing } = useTrainer()
+  const { state, acceptBriefing, sessionTransition } = useTrainer()
   const { session } = state
   if (session.view !== 'exercise' || !session.started) return null
   if (session.briefingAccepted || session.completed) return null
@@ -60,8 +60,13 @@ export function BriefingModal() {
           </p>
         )}
 
-        <button type="button" className="briefing-go" onClick={acceptBriefing}>
-          Начать упражнение
+        <button
+          type="button"
+          className="briefing-go"
+          disabled={sessionTransition === 'resume'}
+          onClick={acceptBriefing}
+        >
+          {sessionTransition === 'resume' ? 'Запуск…' : 'Начать упражнение'}
         </button>
       </div>
     </div>

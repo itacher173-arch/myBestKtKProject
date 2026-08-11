@@ -16,6 +16,7 @@ from backend.storage.auth import (
     create_user,
     delete_user,
     ensure_bootstrap_admin,
+    ensure_demo_accounts,
     get_user_by_id,
     list_users,
     login_user,
@@ -222,6 +223,7 @@ def bootstrap() -> None:
     init_schema()
     wait_for_redis()
     ensure_bootstrap_admin()
+    ensure_demo_accounts()
     print(f"[auth] PostgreSQL {safe_db_label()}", flush=True)
     print(f"[auth] Redis {redis_status().get('url') or 'ok'}", flush=True)
 

@@ -69,11 +69,13 @@ export function SchemeViewer() {
   const panRef = useRef(pan)
   const dragRef = useRef<{
     active: boolean
+    moved: boolean
     startX: number
     startY: number
     panX: number
     panY: number
   } | null>(null)
+  const suppressClickRef = useRef(false)
 
   useEffect(() => {
     scaleRef.current = scale
@@ -266,6 +268,7 @@ export function SchemeViewer() {
       if (target.closest('[data-equip], .scheme-zoom, .scheme-footer, .scheme-hint, button')) return
       dragRef.current = {
         active: true,
+        moved: false,
         startX: e.clientX,
         startY: e.clientY,
         panX: pan.x,
@@ -279,17 +282,35 @@ export function SchemeViewer() {
   const onPointerMove = useCallback((e: ReactPointerEvent) => {
     const d = dragRef.current
     if (!d?.active) return
+    if (!d.moved && Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < 4) {
+      return
+    }
+    d.moved = true
     setPan({
       x: d.panX + (e.clientX - d.startX),
       y: d.panY + (e.clientY - d.startY),
     })
   }, [])
 
-  const onPointerUp = useCallback(() => {
-    if (dragRef.current) dragRef.current.active = false
+  const finishPointerGesture = useCallback((e?: ReactPointerEvent) => {
+    const drag = dragRef.current
+    if (drag?.moved) suppressClickRef.current = true
+    dragRef.current = null
+    if (e?.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId)
+    }
   }, [])
 
   const activeZone = activeZoneId ? zoneById[activeZoneId] : null
+  const controlBlockReason = state.session.completed
+    ? 'Управление недоступно: сессия завершена'
+    : state.session.paused
+      ? 'Управление недоступно: симуляция на паузе'
+      : state.session.role !== 'trainee'
+        ? 'Управление доступно только обучаемому'
+        : activeMiniTraining
+          ? 'Мини-тренировка: доступны только выделенные элементы'
+          : null
   const activeBand = useMemo(() => {
     if (!activeZone) return null
     const idx = SCHEME_ZONES.findIndex((z) => z.id === activeZone.id)
@@ -308,8 +329,16 @@ export function SchemeViewer() {
         className="scheme-viewer"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onClick={() => onSelect(null)}
+        onPointerUp={finishPointerGesture}
+        onPointerCancel={finishPointerGesture}
+        onLostPointerCapture={() => finishPointerGesture()}
+        onClick={() => {
+          if (suppressClickRef.current) {
+            suppressClickRef.current = false
+            return
+          }
+          onSelect(null)
+        }}
       >
         <div
           className="scheme-transform"
@@ -495,6 +524,11 @@ export function SchemeViewer() {
       </div>
 
       <div className="scheme-footer">
+        {controlBlockReason && (
+          <div className="scheme-control-status" role="status">
+            {controlBlockReason}
+          </div>
+        )}
         <div className="scheme-hint">
           <span className="scheme-hint-ctrl" aria-hidden />
           Зелёный контур — управление · Клик — выбор · Двойной клик — полное окно

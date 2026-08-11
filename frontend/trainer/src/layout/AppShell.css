@@ -62,11 +62,36 @@
 .shell-rail nav button,
 .shell-rail-bottom button {
   height: auto;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
   line-height: 1.2;
 }
 
+.shell-rail {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.shell-rail nav,
+.shell-rail-bottom {
+  min-width: 0;
+}
+
+.shell-rail button span {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
+  text-align: center;
+}
+
 [data-font-size='large'] .shell {
-  grid-template-columns: 88px minmax(0, 1fr);
+  grid-template-columns: 112px minmax(0, 1fr);
 }
 
 [data-font-size='large'] .shell-topbar {
