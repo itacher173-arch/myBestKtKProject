@@ -9,8 +9,10 @@
 `npm run docker:up` (или `docker compose up --build -d`) собирает UI **внутри** образа `web` и поднимает стек:
 
 - **web** — nginx: вход `/`, КТК `/app/`, админка `/admin/` (фронты собираются в Docker)
-- **auth-api**, **system-api**, **ai-api**
+- **auth-api**, **system-api**, **ai-api** (AI orchestrator)
+- **rag-api**, **ml-recommender**, **qdrant**
 - **postgres**, **redis**
+- опциональный профиль **llm**: **ollama** + загрузка небольшой модели и embedding-модели
 
 ## Требования
 
@@ -31,6 +33,18 @@ npm run docker:up
 # эквивалент: docker compose up --build -d
 ```
 
+Этот режим запускает ML и RAG с локальным fallback, но без генеративной LLM.
+Полный AI-контур с Ollama:
+
+```bash
+docker compose --env-file .env.test --profile llm up --build -d
+```
+
+При первом запуске профиль `llm` скачает модели из переменных
+`KTK_OLLAMA_MODEL` и `KTK_OLLAMA_EMBED_MODEL`, поэтому старт займёт больше
+времени. После загрузки `rag-index-ollama` заново опубликует базу знаний в
+Qdrant с embeddings Ollama.
+
 Готово, когда контейнеры healthy. Открыть:
 
 | Что        | URL                              |
@@ -41,6 +55,27 @@ npm run docker:up
 | API health | http://localhost:8000/api/health |
 
 Вход в админку — логин/пароль из `export` выше (создаётся при первом старте, если админов ещё нет).
+
+## AI-контур
+
+- `ai-api` — единая точка `/analyze`, `/chat`, `/risk-preview`, объединяет результаты.
+- `ml-recommender` — классификация ошибок, профиль навыков и ranking следующего модуля.
+- `rag-api` — версионируемый поиск по `backend/knowledge`; при недоступном
+  Qdrant остаётся lexical fallback.
+- `qdrant` — индекс фрагментов базы знаний и метаданных источников.
+- `ollama` — генеративное объяснение и ответы RAG; не принимает решение о
+  зачёте или обязательном переобучении.
+
+Подробные границы, fallback и версия модели описаны в
+[`docs/AI_ARCHITECTURE.md`](docs/AI_ARCHITECTURE.md).
+
+Проверить состояние:
+
+```bash
+docker compose ps
+curl -s http://localhost:8000/api/health | python3 -m json.tool
+docker compose logs ai-api rag-api ml-recommender
+```
 
 ### Остановка и логи
 

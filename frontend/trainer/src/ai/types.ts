@@ -20,6 +20,30 @@ export interface AiRecommendation {
   articleTitle: string
 }
 
+export interface AiRankedModule {
+  moduleId: string
+  title: string
+  segment: string
+  durationMinutes: number
+  score: number
+  skills: string[]
+  matchedSkills: string[]
+  prerequisites: string[]
+  missingPrerequisites: string[]
+  eligible: boolean
+  reasons: string[]
+}
+
+export interface AiAnalysisSource {
+  articleId: string
+  chunkId: string
+  title: string
+  category: string
+  revision: string
+  score?: number
+  indexVersion?: string
+}
+
 export interface AiAnalysis {
   analysisId: string
   generatedAt: number
@@ -49,12 +73,32 @@ export interface AiAnalysis {
   findings: AiFinding[]
   recommendations: AiRecommendation[]
   disclaimer: string
+  debrief?: {
+    narrative: string
+    mode: string
+  }
+  recommendationRanking?: AiRankedModule[]
+  nextBestModule?: AiRankedModule | null
+  sources?: AiAnalysisSource[]
+  modelVersion?: string
+  skillGraphVersion?: string
+  orchestration?: {
+    ml: string
+    rag: string
+    llm: string
+    promptVersion: string
+    generatedAt: number
+  }
 }
 
 export interface AiChatSource {
   articleId: string
+  chunkId?: string
   title: string
   category: string
+  revision?: string
+  score?: number
+  indexVersion?: string
 }
 
 export interface AiChatTraining {
@@ -69,4 +113,6 @@ export interface AiChatResponse {
   mode: string
   sources: AiChatSource[]
   relatedTrainings: AiChatTraining[]
+  promptVersion?: string
+  indexVersion?: string
 }

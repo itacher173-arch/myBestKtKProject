@@ -1,52 +1,43 @@
 from __future__ import annotations
 
 import argparse
-import os
 from http.server import ThreadingHTTPServer
 from urllib.parse import urlparse
 
-from backend.ai.orchestrator import (
-    analyze_session,
-    answer_question,
-    health,
-    predict_risk,
-)
+from backend.ai.engine import predict_risk
 from backend.common.http import JsonHandler
+from backend.ml.service import analyze, health, recommend
 
 
 class Handler(JsonHandler):
     def do_GET(self) -> None:
         if urlparse(self.path).path == "/health":
-            result = health()
-            result["enabled"] = (
-                os.getenv("KTK_AI_ENABLED", "true").casefold() != "false"
-            )
-            return self.send_json(result)
+            return self.send_json(health())
         self.send_error_json("not found", 404)
 
     def do_POST(self) -> None:
-        if os.getenv("KTK_AI_ENABLED", "true").casefold() == "false":
-            return self.send_error_json("AI-модуль отключён администратором", 503)
         path = urlparse(self.path).path
         try:
             body = self.read_json()
             if path == "/analyze":
-                return self.send_json(analyze_session(body))
+                return self.send_json(analyze(body))
+            if path == "/recommend":
+                return self.send_json(recommend(body))
             if path == "/risk-preview":
                 return self.send_json(predict_risk(body))
-            if path == "/chat":
-                return self.send_json(answer_question(body))
             self.send_error_json("not found", 404)
-        except Exception as exc:
-            self.send_error_json(exc)
+        except ValueError as exc:
+            self.send_error_json(exc, 400)
+        except Exception as exc:  # noqa: BLE001
+            self.send_error_json(exc, 503)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=8107)
+    parser.add_argument("--port", type=int, default=8109)
     args = parser.parse_args()
-    print(f"[ai] http://{args.host}:{args.port}")
+    print(f"[ml-recommender] http://{args.host}:{args.port}", flush=True)
     ThreadingHTTPServer((args.host, args.port), Handler).serve_forever()
 
 

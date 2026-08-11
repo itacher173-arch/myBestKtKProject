@@ -166,7 +166,7 @@ export function ReportsPage() {
         penalty: report.penalty,
         responseSeconds: report.responseSeconds,
         respondedInTime: report.respondedInTime,
-        process: {},
+        process: report.processSnapshot ?? {},
         actionsLog: report.actionsLog,
         systemEvents: report.systemEvents,
       })

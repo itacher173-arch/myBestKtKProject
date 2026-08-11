@@ -1,0 +1,26 @@
+{
+  "version": "skills-v1",
+  "modules": [
+    {"id": "MT-FEED-01", "skills": ["feed-path", "pump-start"], "prerequisites": []},
+    {"id": "MT-FEED-02", "skills": ["feed-recovery", "pump-diagnostics"], "prerequisites": ["MT-FEED-01"]},
+    {"id": "MT-ELOU-01", "skills": ["desalting-control", "elou-actuators"], "prerequisites": ["MT-FEED-01"]},
+    {"id": "MT-ELOU-02", "skills": ["quality-control", "desalting-control"], "prerequisites": ["MT-ELOU-01"]},
+    {"id": "MT-E1-01", "skills": ["water-drain", "reflux-vessel"], "prerequisites": ["MT-ELOU-01"]},
+    {"id": "MT-K1-01", "skills": ["column-pressure", "cooling-diagnostics"], "prerequisites": ["MT-FEED-02"]},
+    {"id": "MT-K1-02", "skills": ["column-level", "furnace-protection"], "prerequisites": ["MT-K1-01"]},
+    {"id": "MT-FURN-01", "skills": ["furnace-load", "circulation-safety"], "prerequisites": ["MT-FEED-02"]},
+    {"id": "MT-K2-01", "skills": ["column-pressure", "heat-balance"], "prerequisites": ["MT-FURN-01"]},
+    {"id": "MT-K2-02", "skills": ["column-level", "furnace-protection"], "prerequisites": ["MT-K2-01"]},
+    {"id": "MT-UTIL-01", "skills": ["instrument-air", "safe-shutdown"], "prerequisites": []},
+    {"id": "MT-VENT-01", "skills": ["gas-safety", "ventilation"], "prerequisites": []},
+    {"id": "MT-SAFE-01", "skills": ["cooling-loss", "safe-unloading"], "prerequisites": ["MT-K1-01"]}
+  ],
+  "errorSkillMap": {
+    "SEQUENCE_ERROR": ["process-observation"],
+    "RESPONSE_TIME_ERROR": ["safe-shutdown", "safe-unloading"],
+    "DUPLICATE_COMMAND": ["process-observation"],
+    "PARAMETER_ERROR": ["furnace-load", "quality-control"],
+    "EQUIPMENT_NOT_READY": ["pump-diagnostics", "instrument-air"],
+    "CRITICAL_OPERATION_ERROR": ["safe-shutdown", "furnace-protection"]
+  }
+}

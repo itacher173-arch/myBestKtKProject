@@ -45,6 +45,108 @@ services:
       start_period: 10s
     restart: unless-stopped
 
+  qdrant:
+    image: qdrant/qdrant:latest
+    volumes:
+      - qdrant_data:/qdrant/storage
+    restart: unless-stopped
+
+  rag-api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command:
+      [
+        "python",
+        "-m",
+        "backend.rag.app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8108",
+        "--index-on-start",
+      ]
+    environment:
+      KTK_QDRANT_URL: "http://qdrant:6333"
+      KTK_RAG_COLLECTION: "${KTK_RAG_COLLECTION:-ktk_knowledge}"
+      KTK_RAG_EMBEDDING_PROVIDER: "${KTK_RAG_EMBEDDING_PROVIDER:-auto}"
+      KTK_KNOWLEDGE_INDEX_VERSION: "${KTK_KNOWLEDGE_INDEX_VERSION:-knowledge-v1}"
+      KTK_OLLAMA_URL: "http://ollama:11434"
+      KTK_OLLAMA_EMBED_MODEL: "${KTK_OLLAMA_EMBED_MODEL:-nomic-embed-text}"
+    depends_on:
+      qdrant:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8108/health', timeout=3)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    restart: unless-stopped
+
+  ml-recommender:
+    build:
+      context: .
+      dockerfile: backend/ai/Dockerfile.ml
+    environment:
+      KTK_AI_PROVIDER: "rules"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8109/health', timeout=3)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["llm"]
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+
+  ollama-init:
+    image: ollama/ollama:latest
+    profiles: ["llm"]
+    environment:
+      OLLAMA_HOST: "http://ollama:11434"
+      KTK_OLLAMA_BASE_MODEL: "${KTK_OLLAMA_BASE_MODEL:-qwen2.5:3b}"
+      KTK_OLLAMA_MODEL: "${KTK_OLLAMA_MODEL:-ktk-assistant}"
+      KTK_OLLAMA_EMBED_MODEL: "${KTK_OLLAMA_EMBED_MODEL:-nomic-embed-text}"
+    volumes:
+      - ./backend/ai/ollama:/model:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        until ollama list >/dev/null 2>&1; do sleep 2; done
+        ollama pull "$${KTK_OLLAMA_BASE_MODEL}"
+        ollama pull "$${KTK_OLLAMA_EMBED_MODEL}"
+        ollama create "$${KTK_OLLAMA_MODEL}" -f /model/Modelfile
+    depends_on:
+      ollama:
+        condition: service_started
+    restart: "no"
+
+  rag-index-ollama:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    profiles: ["llm"]
+    command: ["python", "-m", "backend.rag.indexer", "--force"]
+    environment:
+      KTK_QDRANT_URL: "http://qdrant:6333"
+      KTK_RAG_COLLECTION: "${KTK_RAG_COLLECTION:-ktk_knowledge}"
+      KTK_RAG_EMBEDDING_PROVIDER: "ollama"
+      KTK_KNOWLEDGE_INDEX_VERSION: "${KTK_KNOWLEDGE_INDEX_VERSION:-knowledge-v1}"
+      KTK_OLLAMA_URL: "http://ollama:11434"
+      KTK_OLLAMA_EMBED_MODEL: "${KTK_OLLAMA_EMBED_MODEL:-nomic-embed-text}"
+    depends_on:
+      ollama-init:
+        condition: service_completed_successfully
+      qdrant:
+        condition: service_started
+    restart: "no"
+
   ai-api:
     build:
       context: .
@@ -53,8 +155,16 @@ services:
     environment:
       KTK_AI_ENABLED: "${KTK_AI_ENABLED:-true}"
       KTK_AI_PROVIDER: "${KTK_AI_PROVIDER:-rules}"
-      KTK_OLLAMA_URL: "${KTK_OLLAMA_URL:-http://host.docker.internal:11434}"
-      KTK_OLLAMA_MODEL: "${KTK_OLLAMA_MODEL:-qwen3:4b-instruct}"
+      KTK_ML_URL: "http://ml-recommender:8109"
+      KTK_RAG_URL: "http://rag-api:8108"
+      KTK_OLLAMA_URL: "http://ollama:11434"
+      KTK_OLLAMA_MODEL: "${KTK_OLLAMA_MODEL:-ktk-assistant}"
+      KTK_AI_PROMPT_VERSION: "${KTK_AI_PROMPT_VERSION:-ai-prompts-v1}"
+    depends_on:
+      ml-recommender:
+        condition: service_healthy
+      rag-api:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8107/health', timeout=3)\""]
       interval: 10s
@@ -130,5 +240,7 @@ services:
 
 volumes:
   backend_runtime:
+  ollama_data:
   postgres_data:
+  qdrant_data:
   redis_data:

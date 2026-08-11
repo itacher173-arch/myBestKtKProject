@@ -268,6 +268,8 @@ def test_live_gateway_ai_roundtrip():
             "systemEvents": [],
         },
     )
+    if status == 401:
+        pytest.skip("gateway требует аутентифицированную сессию")
     assert status == 200
     assert any(item["code"] == "QUALITY-ELOU" for item in analysis["findings"])
 

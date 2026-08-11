@@ -103,7 +103,8 @@ def test_inject_fault_command():
     assert got.process.get("pumpN1") == "tripped"
 
 
-def test_audit_hmac_chain():
+def test_audit_hmac_chain(monkeypatch):
+    monkeypatch.setenv("KTK_AUDIT_HMAC_SECRET", "test-audit-secret")
     e1 = {
         "id": "a1",
         "at": 1,

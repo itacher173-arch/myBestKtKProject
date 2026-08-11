@@ -1,6 +1,7 @@
 import { Icon } from '../common/ui/Icon'
 import type { AiAnalysis, AiSeverity } from './types'
 import './AiReviewPanel.css'
+import './AiReviewExtensions.css'
 import './AiTrajectory.css'
 
 interface AiReviewPanelProps {
@@ -99,6 +100,50 @@ export function AiReviewPanel({
         <div className={analysis.metrics.warningCount ? 'warning' : ''}><strong>{analysis.metrics.warningCount}</strong><span>зон внимания</span></div>
       </div>
 
+      {analysis.orchestration && (
+        <div className="ai-pipeline">
+          <span>ML <strong>{analysis.orchestration.ml}</strong></span>
+          <span>RAG <strong>{analysis.orchestration.rag}</strong></span>
+          <span>LLM <strong>{analysis.orchestration.llm}</strong></span>
+        </div>
+      )}
+
+      {analysis.debrief?.narrative && (
+        <div className="ai-review-section ai-debrief">
+          <h3><Icon name="sparkles" /> Объяснение результата</h3>
+          <p>{analysis.debrief.narrative}</p>
+          <small>{analysis.debrief.mode}</small>
+        </div>
+      )}
+
+      {analysis.nextBestModule && (
+        <div className="ai-review-section ai-next-module">
+          <h3><Icon name="trainer" /> Следующий рекомендуемый модуль</h3>
+          <strong>{analysis.nextBestModule.title}</strong>
+          <p>
+            {analysis.nextBestModule.reasons.join('. ') ||
+              'Выбран по профилю ошибок и навыков.'}
+          </p>
+          <div>
+            <span>
+              соответствие{' '}
+              {Math.round(analysis.nextBestModule.score * 100)}%
+            </span>
+            <button
+              type="button"
+              disabled={!analysis.nextBestModule.eligible}
+              onClick={() =>
+                onOpenTraining(analysis.nextBestModule!.moduleId)
+              }
+            >
+              {analysis.nextBestModule.eligible
+                ? 'Пройти модуль'
+                : 'Нужны предварительные модули'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {!!analysis.strengths.length && (
         <div className="ai-review-section strengths">
           <h3><Icon name="check" /> Что выполнено хорошо</h3>
@@ -159,6 +204,26 @@ export function AiReviewPanel({
                   <button type="button" className="primary" onClick={() => onOpenTraining(item.trainingId)}>Назначить</button>
                 </div>
               </article>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!!analysis.sources?.length && (
+        <div className="ai-review-section">
+          <h3><Icon name="book" /> Источники базы знаний</h3>
+          <div className="ai-sources">
+            {analysis.sources.slice(0, 6).map((source) => (
+              <button
+                type="button"
+                key={`${source.articleId}-${source.chunkId}`}
+                onClick={() => onOpenKnowledge(source.articleId)}
+              >
+                <strong>{source.title}</strong>
+                <span>
+                  {source.articleId} · rev. {source.revision}
+                </span>
+              </button>
             ))}
           </div>
         </div>
