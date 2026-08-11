@@ -179,6 +179,11 @@ def test_bootstrap_admin_password_is_hashed(monkeypatch):
     assert verify_password(password, encoded)
 
 
+def test_demo_accounts_are_disabled_by_default(monkeypatch):
+    monkeypatch.delenv("KTK_DEMO_ACCOUNTS_ENABLED", raising=False)
+    assert _demo_account_specs() == []
+
+
 def test_demo_account_specs_are_loaded_from_environment(monkeypatch):
     monkeypatch.setenv("KTK_DEMO_ACCOUNTS_ENABLED", "true")
     monkeypatch.setenv("KTK_ADMIN_LOGIN", "admin")

@@ -22,6 +22,7 @@ VALID_ROLES = ("trainee", "instructor", "admin")
 LOGIN_FAIL_LIMIT = 8
 LOGIN_FAIL_WINDOW_SEC = 15 * 60
 LOGIN_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9_]{2,31}$")
+TRUE_VALUES = {"1", "true", "yes", "on"}
 
 
 class LoginRateLimitError(Exception):
@@ -416,15 +417,14 @@ def _bootstrap_admin_credentials() -> tuple[str, str, str]:
 
 
 def _demo_accounts_enabled() -> bool:
-    return (os.environ.get("KTK_DEMO_ACCOUNTS_ENABLED") or "").strip().casefold() in {
-        "1",
-        "true",
-        "yes",
-        "on",
-    }
+    value = (os.environ.get("KTK_DEMO_ACCOUNTS_ENABLED") or "").strip().casefold()
+    return value in TRUE_VALUES
 
 
 def _demo_account_specs() -> list[tuple[str, str, str, str]]:
+    """Возвращает воспроизводимые учётные записи только для demo-профиля."""
+    if not _demo_accounts_enabled():
+        return []
     variables = (
         ("admin", "KTK_ADMIN", "Демо-администратор"),
         ("instructor", "KTK_DEMO_INSTRUCTOR", "Демо-инструктор"),
@@ -432,17 +432,10 @@ def _demo_account_specs() -> list[tuple[str, str, str, str]]:
     )
     accounts: list[tuple[str, str, str, str]] = []
     for role, prefix, default_name in variables:
-        login = normalize_login(os.environ.get(f"{prefix}_LOGIN") or "")
+        login = normalize_login(os.environ.get(f"{prefix}_LOGIN") or role)
         full_name = (os.environ.get(f"{prefix}_NAME") or default_name).strip()
-        password = os.environ.get(f"{prefix}_PASSWORD") or ""
-        if not login or not password:
-            raise RuntimeError(
-                f"Для демо-профиля задайте {prefix}_LOGIN и {prefix}_PASSWORD"
-            )
-        if not LOGIN_RE.match(login):
-            raise ValueError(f"{prefix}_LOGIN некорректен")
-        if len(full_name) < 1 or len(password) < 4:
-            raise ValueError(f"{prefix}_NAME/PASSWORD некорректны")
+        password = os.environ.get(f"{prefix}_PASSWORD") or role
+        _validate_credentials(full_name, password, role, login=login)
         accounts.append((role, login, full_name, password))
     if len({account[1] for account in accounts}) != len(accounts):
         raise ValueError("Логины демо-пользователей должны отличаться")
@@ -451,12 +444,13 @@ def _demo_account_specs() -> list[tuple[str, str, str, str]]:
 
 def ensure_demo_accounts() -> None:
     """Идемпотентно создаёт демо-пользователей, группу и членство из окружения."""
-    if not _demo_accounts_enabled():
+    specs = _demo_account_specs()
+    if not specs:
         return
 
     account_ids: dict[str, str] = {}
     with connect() as conn:
-        for role, login, full_name, password in _demo_account_specs():
+        for role, login, full_name, password in specs:
             user_id = _uid()
             row = conn.execute(
                 """

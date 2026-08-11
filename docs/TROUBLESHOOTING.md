@@ -51,6 +51,21 @@ docker compose config
 
 Чаще всего не заданы обязательные `POSTGRES_PASSWORD`, `KTK_ADMIN_LOGIN`, `KTK_ADMIN_PASSWORD` или `KTK_AUDIT_HMAC_SECRET`. Скопируйте `.env.example` в `.env` и заполните значения.
 
+## Демонстрационные логины не подходят
+
+Проверьте, что используется профиль `.env.test` и включена переменная:
+
+```dotenv
+KTK_DEMO_ACCOUNTS_ENABLED=true
+```
+
+Пересоздавать базу не требуется: перезапустите сервис авторизации, и три
+demo-записи будут созданы или восстановлены:
+
+```bash
+docker compose up -d --force-recreate auth-api
+```
+
 ## Порт занят
 
 PowerShell:
