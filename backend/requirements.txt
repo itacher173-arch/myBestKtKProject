@@ -1,5 +1,5 @@
 psycopg[binary]==3.2.9
-websockets==14.2
+websockets==17.1
 redis==5.2.1
 fastapi==0.115.12
 uvicorn[standard]==0.34.2
